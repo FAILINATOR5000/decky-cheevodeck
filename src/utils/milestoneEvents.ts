@@ -52,7 +52,9 @@ export type MilestoneEventKind =
     | "check_updates"
     | "bootcat_line_1"
     | "bootcat_line_2"
-    | "bootcat_line_3";
+    | "bootcat_line_3"
+    | "pt_find_room"
+    | "pt_voice";
 
 export const BOOT_CAT_LINE_KINDS: MilestoneEventKind[] = ["bootcat_line_1", "bootcat_line_2", "bootcat_line_3"];
 

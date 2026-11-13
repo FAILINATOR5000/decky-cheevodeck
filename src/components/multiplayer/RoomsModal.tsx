@@ -7,6 +7,7 @@ import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerRoomFilter, MultiplayerRoomRow, MultiplayerRoomsPage, MultiplayerRoomsReply } from "../../types";
 import { logError } from "../../utils/errors";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { NO_ROOM_FILTER, multiplayerChoices, rememberMultiplayerRoomFilter, rememberMultiplayerTab } from "../../utils/multiplayerChoices";
 import { startReadingLine } from "../../utils/readingLine";
@@ -884,6 +885,7 @@ export function openRooms(
     describe: (code: string, detail?: Record<string, string>) => string,
     onJoined?: () => void
 ) {
+    recordMilestoneEvent("pt_find_room");
     showManagedModal((close) => (
         <RoomsModal
             language={language}

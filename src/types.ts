@@ -2846,7 +2846,7 @@ type MilestoneRuleType =
     | "perfect_month"
     | "month_points";
 
-export type MilestoneCategoryIcon = "flag" | "dpad" | "padlock" | "pushpin" | "people" | "megaphone" | "camera" | "compass" | "globe" | "flame" | "egg";
+export type MilestoneCategoryIcon = "flag" | "dpad" | "padlock" | "pushpin" | "people" | "megaphone" | "camera" | "compass" | "globe" | "flame" | "egg" | "controller_plus";
 
 export type MilestoneCategory = { id: string; icon: MilestoneCategoryIcon };
 

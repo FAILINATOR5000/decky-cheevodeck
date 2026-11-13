@@ -754,7 +754,7 @@ def awards_from_payload(payload):
 class MilestonesService(TickServiceBase):
     def __init__(self, *, store, defs, activity_service, activity_store, settings_store,
                  tracked_sets_store=None, cache_store=None, awards_cache_store=None,
-                 notifications_store=None, plugin=None):
+                 notifications_store=None, multiplayer_friends_store=None, plugin=None):
         super().__init__(
             settings_store=settings_store,
             plugin=plugin,
@@ -770,6 +770,7 @@ class MilestonesService(TickServiceBase):
         self._cache_store = cache_store
         self._awards_cache_store = awards_cache_store
         self._notifications = notifications_store
+        self._multiplayer_friends_store = multiplayer_friends_store
 
         self._wake = threading.Event()
         self._queue_lock = threading.Lock()
@@ -1053,6 +1054,7 @@ class MilestonesService(TickServiceBase):
                 "tracked_nonempty": tracked_nonempty,
                 "goal_exists": goal_exists,
                 "memories_on": memories_on,
+                "pt_friend": self._has_play_together_friend(cfg),
             },
             "goalGames": goal_games,
         }
@@ -1066,6 +1068,15 @@ class MilestonesService(TickServiceBase):
             return False
         rows = payload.get("friends") if isinstance(payload, dict) else None
         return any(isinstance(row, dict) and not row.get("isSelf") for row in rows or [])
+
+    def _has_play_together_friend(self, cfg):
+        if self._multiplayer_friends_store is None or not cfg.get("mpFriendsEnabled", True):
+            return False
+        try:
+            data = self._multiplayer_friends_store.load()
+        except Exception:
+            return False
+        return bool(data and data["friends"])
 
     def _pad_formats(self):
         try:

@@ -15,6 +15,7 @@ import {
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import { logError } from "./errors";
+import { recordMilestoneEvent } from "./milestoneEvents";
 import { multiplayerRoomMarker, subscribeMultiplayerRoom } from "./multiplayerRoomState";
 
 const VOICE_EVENT = "multiplayer_voice";
@@ -142,6 +143,7 @@ let cancelling = true;
 let limiting = true;
 
 let room: { id: string; where: string; access: string; seat: number; host: boolean } | null = null;
+let talkedIn = "";
 let voiceWasOff = false;
 let config: IceConfig | null = null;
 let configFor = "";
@@ -1452,6 +1454,10 @@ function gateTick(current: Mic) {
     }
     if (open !== current.open) {
         current.open = open;
+        if (open && room && talkedIn !== room.id) {
+            talkedIn = room.id;
+            recordMilestoneEvent("pt_voice");
+        }
         if (current.duck && ducking) {
             duckGame(open);
         }

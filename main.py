@@ -531,6 +531,7 @@ class Plugin(
             cache_store=self.cache_store,
             awards_cache_store=self.awards_list_cache_store,
             notifications_store=self.notifications_store,
+            multiplayer_friends_store=self.multiplayer_friends_store,
             plugin=self,
         )
         self.current_game_service.set_milestones_service(self.milestones_service)
@@ -861,6 +862,8 @@ class Plugin(
             own_rank=self.milestones_service.own_rank,
         )
         self.milestones_service.set_rank_listener(self.multiplayer_friends_service.rank_changed)
+        self.multiplayer_service.set_milestone_event(self.milestones_service.record_event)
+        self.multiplayer_friends_service.set_milestone_event(self.milestones_service.record_event)
         self.multiplayer_service.set_friends(self.multiplayer_friends_service)
         self.offline_hotspot_service = OfflineHotspotService(
             settings_store=self.settings_store,

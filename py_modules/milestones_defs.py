@@ -5,7 +5,10 @@ import decky
 from utils import load_json_file, to_int
 
 
-CATEGORY_ICONS = ("flag", "dpad", "padlock", "pushpin", "people", "megaphone", "camera", "compass", "globe", "flame", "egg")
+CATEGORY_ICONS = (
+    "flag", "dpad", "padlock", "pushpin", "people", "megaphone", "camera", "compass", "globe", "flame", "egg",
+    "controller_plus",
+)
 
 COUNTER_KINDS = frozenset((
     "profile_from_avatar", "quick_menu_open", "notifications_open", "game_loaded",
@@ -21,6 +24,9 @@ COUNTER_KINDS = frozenset((
     "unlock_history", "awards_open", "activity_open", "global_browser", "global_memories",
     "global_last_memory", "global_last_guide", "bootcat_preview", "check_updates",
     "bootcat_line_1", "bootcat_line_2", "bootcat_line_3",
+    "pt_find_room", "pt_host", "pt_join", "pt_join_friend", "pt_round_link", "pt_round_couch", "pt_round_stream",
+    "pt_full_house", "pt_round_hotspot", "pt_watch", "pt_vote_won", "pt_lounge_played", "pt_win_ttt", "pt_win_c4",
+    "pt_win_rev", "pt_voice", "pt_message", "pt_invite", "pt_friend_accepted",
 ))
 
 MAIN_TABS = frozenset(("comments", "activity", "compare"))
@@ -34,7 +40,7 @@ AWARD_KINDS = frozenset(("beaten", "mastered"))
 
 _ID_RE = re.compile(r"^[a-z0-9_]{1,64}$")
 
-QUEST_NEEDS = frozenset(("tracked_nonempty", "goal_exists", "memories_on"))
+QUEST_NEEDS = frozenset(("tracked_nonempty", "goal_exists", "memories_on", "pt_friend"))
 
 RANK_TIERS = ("tracker", "hunter", "expert", "master", "legend")
 

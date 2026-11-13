@@ -53,6 +53,7 @@ const CATEGORY_LABELS: Record<string, string> = {
     memories: "Memories",
     explore: "Explore",
     global_buttons: "Global Buttons",
+    play_together: "Play Together",
     dedication: "Dedication",
     easter_eggs: "Easter Eggs"
 };

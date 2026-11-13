@@ -259,6 +259,8 @@ PLANNED_GATES = {
     "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
     "no_play_core", "emulator_missing", "needs_dolphin", "dolphin_game_list",
 }
+ROUND_KINDS = {"link": "pt_round_link", "couch": "pt_round_couch", "stream": "pt_round_stream"}
+LOUNGE_WIN_KINDS = {"ttt": "pt_win_ttt", "c4": "pt_win_c4", "rev": "pt_win_rev"}
 
 
 class _Overlay:
@@ -467,12 +469,54 @@ class MultiplayerService:
         self._voice_relay = False
         self._overlays = threading.local()
         self._dolphin_picks = {}
+        self._milestone_event = None
 
     def set_friends(self, friends) -> None:
         self._friends = friends
 
     def set_hotspot(self, hotspot) -> None:
         self._hotspot = hotspot
+
+    def set_milestone_event(self, record) -> None:
+        self._milestone_event = record
+
+    def _count(self, *kinds) -> None:
+        record = self._milestone_event
+        if record is None:
+            return
+        for kind in kinds:
+            record(kind)
+
+    def _count_round(self, mode: str, together: bool, full: bool, watching: bool) -> None:
+        if not together:
+            return
+        kinds = [ROUND_KINDS[mode]]
+        if full:
+            kinds.append("pt_full_house")
+        hotspot = self._hotspot
+        if hotspot is not None and hotspot.lan_address():
+            kinds.append("pt_round_hotspot")
+        if watching:
+            kinds.append("pt_watch")
+        self._count(*kinds)
+
+    def _count_host_round(self, room: dict) -> None:
+        current = self._session
+        if (room["countedRound"] == room["round"] or current is None or not current["started"]
+                or current["exited"] or not _guests(room)):
+            return
+        room["countedRound"] = room["round"]
+        self._count_round(current["mode"], True, all(seat is not None for seat in room["seats"]), False)
+
+    def _count_lounge(self, game: str, board: dict, seat: int) -> None:
+        players = board["players"]
+        if not any(player["seat"] == seat and not player["gone"] for player in players):
+            return
+        kinds = ["pt_lounge_played"]
+        winner = board["winner"]
+        if board["end"] == "win" and 0 <= winner < len(players) and players[winner]["seat"] == seat:
+            kinds.append(LOUNGE_WIN_KINDS[game])
+        self._count(*kinds)
 
     def room_role(self) -> str:
         if self._room is not None:
@@ -2639,6 +2683,7 @@ class MultiplayerService:
             return
         vote["ended"] = "won"
         room["switching"] = room["gameId"] != vote["games"][vote["winner"]]["gameId"]
+        self._count("pt_vote_won")
         self._announce()
         await self._switch_to_winner(room, vote)
 
@@ -2679,11 +2724,14 @@ class MultiplayerService:
         if vote is None or not vote["open"] or not lounge.everyone_voted(vote, self._voters(room)):
             return
         vote.update(open=False, ended="won", winner=lounge.winner(vote))
+        self._count("pt_vote_won")
         decky.logger.info("multiplayer: the vote is in, %s wins", vote["games"][vote["winner"]]["gameId"])
         room["switching"] = room["gameId"] != vote["games"][vote["winner"]]["gameId"]
         self._spawn(self._switch_to_winner(room, vote))
 
     def _lounge_press(self, room: dict, index: int, seat: dict, game: str, act: str, cell: int) -> str:
+        board = room["lounge"][game]
+        was_over = board["end"]
         if act == "clear":
             lounge.clear(room["lounge"], game)
             error = ""
@@ -2694,6 +2742,8 @@ class MultiplayerService:
         else:
             error = lounge.c4_act(room["lounge"]["c4"], index, seat, act, cell) if act != "join" else ERROR_UNAVAILABLE
         if not error:
+            if act != "clear" and not was_over and board["end"]:
+                self._count_lounge(game, board, 0)
             self._announce()
         return error
 
@@ -2857,6 +2907,7 @@ class MultiplayerService:
                 "vote": None,
                 "switching": False,
                 "lounge": lounge.new_lounge(),
+                "countedRound": 0,
             }
             if self._closed_tail is not None:
                 self._shut()
@@ -2899,6 +2950,7 @@ class MultiplayerService:
                 f", with a password (key in {key_ms:.0f} ms)" if private else "",
                 ", online" if online else "",
             )
+            self._count("pt_host")
             return {"ok": True, "room": self._host_view(room)}
 
     def _describe(self, mode: str, local: dict) -> dict:
@@ -3620,12 +3672,20 @@ class MultiplayerService:
         game_id = current.get("gameId", 0)
         if room is not None:
             decky.logger.info("multiplayer: host launched with %s guests", len(room["roster"]))
+            self._count_host_round(room)
             return {"ok": True, "gameId": game_id}
         joined = self._joined
         if joined is not None and not joined["launched"]:
             joined["launched"] = True
-            if joined["status"] is not None:
-                joined["launchedRound"] = joined["status"]["round"]
+            status = joined["status"]
+            if status is not None:
+                joined["launchedRound"] = status["round"]
+            if status is not None and joined["countedRound"] != status["round"]:
+                joined["countedRound"] = status["round"]
+                watching = joined["row"].get("watch", False) and (
+                    current["mode"] == "stream" or (current["mode"] == "couch" and current["emulator"] == "retroarch"))
+                self._count_round(current["mode"], sum(1 for name in status["members"] if name) > 1,
+                                  all(status["members"]), watching)
             self._spawn(self._ask(joined, "launched"))
             if joined.get("stream") is not None:
                 self._spawn(self._unmute_moonlight())
@@ -3919,6 +3979,8 @@ class MultiplayerService:
                 return
         if op == "launched":
             decky.logger.info("multiplayer: seat %s launched", index)
+            if room["state"] != "lobby":
+                self._count_host_round(room)
             await conversation.say({"ok": True})
             self._announce()
             return
@@ -4891,6 +4953,9 @@ class MultiplayerService:
                 "turnSeq": 0,
                 "meet": meet,
                 "gpipe": None,
+                "countedRound": 0,
+                "countedVote": 0,
+                "countedMatches": {},
             }
             if row["mode"] == "stream" and self._stream_setup is not None:
                 self._joined["stream"] = stream_room.GuestStream(
@@ -4903,6 +4968,7 @@ class MultiplayerService:
             decky.logger.info("multiplayer: joined a room, seat %s%s", answer["seat"],
                               " through the online lobby" if row["door"] == "server" else "")
             self._announce()
+            self._count("pt_join")
             return {"ok": True, **self._guest_view(self._joined)}
 
     async def _dial(self, row: dict, first: dict):
@@ -5107,6 +5173,7 @@ class MultiplayerService:
         if heard:
             joined["vsince"] = heard[-1]["n"]
             joined["fastUntil"] = max(joined["fastUntil"], time.monotonic() + VOICE_FAST_SECONDS)
+        self._count_guest_games(joined, status)
         games = (status["vote"], status["lounge"])
         if games != joined["games"]:
             if joined["games"] is not None:
@@ -5134,6 +5201,24 @@ class MultiplayerService:
         for item in heard:
             self._debug("voice: %s from seat %s, gen %s", item["kind"], item["from"], item["gen"])
             self._emit({name: item[name] for name in ("from", "vs", "kind", "sdp", "gen")}, VOICE_EVENT)
+
+    def _count_guest_games(self, joined: dict, status: dict) -> None:
+        first = joined["games"] is None
+        if first and any(index != joined["seat"] and self._friend_pair(entry["ulid"]) is not None
+                         for index, entry in enumerate(status["ids"])):
+            self._count("pt_join_friend")
+        vote = status["vote"]
+        if vote is not None and vote["ended"] == "won" and vote["id"] != joined["countedVote"]:
+            joined["countedVote"] = vote["id"]
+            if not first:
+                self._count("pt_vote_won")
+        counted = joined["countedMatches"]
+        for game, board in status["lounge"].items():
+            if not board["end"] or counted.get(game) == board["match"]:
+                continue
+            counted[game] = board["match"]
+            if not first:
+                self._count_lounge(game, board, joined["seat"])
 
     def _expire_ready(self, joined: dict) -> None:
         wall, mono = time.time(), time.monotonic()

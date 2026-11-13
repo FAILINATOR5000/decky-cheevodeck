@@ -137,6 +137,7 @@ class MultiplayerFriendsService:
         self._hotspot = None
         self._lan_seen = {}
         self._lan_here = None
+        self._milestone_event = None
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -153,6 +154,9 @@ class MultiplayerFriendsService:
 
     def set_hotspot(self, hotspot) -> None:
         self._hotspot = hotspot
+
+    def set_milestone_event(self, record) -> None:
+        self._milestone_event = record
 
     def _hotspot_broadcast(self) -> str:
         return self._hotspot.broadcast_address() if self._hotspot is not None else ""
@@ -695,6 +699,8 @@ class MultiplayerFriendsService:
             self._notify("accepted", made["name"], f"multiplayer:friend:{ulid}", {"friend": ulid}, pic=made["userPic"])
             self._follow()
             self.report_changed()
+            if self._milestone_event is not None:
+                self._milestone_event("pt_friend_accepted")
             return True
         return False
 
@@ -1059,6 +1065,8 @@ class MultiplayerFriendsService:
             return True
         self._messages.add(ulid, {"id": mid, "mine": True, "text": text, "at": body["at"]}, ulid=account)
         self._mutate(keep, ulid=account)
+        if self._milestone_event is not None:
+            self._milestone_event("pt_message")
         return {"ok": True}
 
     def _take_message(self, sender, body, tag) -> None:
@@ -1147,6 +1155,8 @@ class MultiplayerFriendsService:
                 return {"ok": False, "error": "not_online", "name": friend["name"]}
         finally:
             self._invite_acks.pop(iid, None)
+        if self._milestone_event is not None:
+            self._milestone_event("pt_invite")
         return {"ok": True}
 
     def _take_invite(self, sender, body, tag, addr=None) -> None:
