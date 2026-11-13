@@ -2281,7 +2281,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                     overflowWrap: "anywhere"
                                                 }}
                                             >
-                                                {t(language, roomRole === "host" ? "EZ Multiplayer room open" : "In an EZ Multiplayer room")}
+                                                {t(language, roomRole === "host" ? "Play Together room open" : "In a Play Together room")}
                                             </span>
                                         </div>
                                     </FocusableItem>

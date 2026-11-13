@@ -1,6 +1,6 @@
 # rmg-netplay-server: where this binary came from
 
-`rmg-netplay-server` is the netplay server for RMG (Rosalie's Mupen GUI), by Rosalie241. EZ Multiplayer starts it on the host's device for a Local N64 Couch room, so the other players' RMG can find a session on the same network. It runs as a separate process; nothing in CheevoDeck's own source links against it.
+`rmg-netplay-server` is the netplay server for RMG (Rosalie's Mupen GUI), by Rosalie241. Play Together starts it on the host's device for a Local N64 Couch room, so the other players' RMG can find a session on the same network. It runs as a separate process; nothing in CheevoDeck's own source links against it.
 
 | | |
 |---|---|

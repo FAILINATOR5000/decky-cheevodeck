@@ -3584,7 +3584,7 @@ class MultiplayerService:
             ntype="system",
             settings_store=self._settings_store,
             event_loop=self._loop,
-            title_key="EZ Multiplayer",
+            title_key="Play Together",
             line_key=line,
             force_toast=True,
         )

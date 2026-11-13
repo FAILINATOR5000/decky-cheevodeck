@@ -192,7 +192,7 @@ function logVoiceDebug(line: string) {
 
 function toast(line: string) {
     const language = getCurrentLanguage();
-    toaster.toast({ title: t(language, "EZ Multiplayer"), body: t(language, line) });
+    toaster.toast({ title: t(language, "Play Together"), body: t(language, line) });
 }
 
 function publish() {

@@ -143,7 +143,7 @@ function UtilsPage(props: UtilsPageProps) {
                     onClick={actions.onOpenMultiplayer}
                     help={t(state.language, "help_utils_multiplayer")}
                 >
-                    {t(state.language, "EZ Multiplayer")}
+                    {t(state.language, "Play Together")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>

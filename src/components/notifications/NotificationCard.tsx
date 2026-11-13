@@ -200,7 +200,7 @@ function isFriendMessage(notification: CheevoNotification): boolean {
 const FRIEND_CARD_WORDS = new Map<string, [string, string]>([
     ["request", ["Received Friend Request", "{{name}} sent you a friend request."]],
     ["accepted", ["Friend Request Accepted", "{{name}} accepted your friend request."]],
-    ["device", ["New Device on Your Account", "Your account went online in EZ Multiplayer on another device. If that wasn't you, choose That Wasn't Me on the Friends tab."]],
+    ["device", ["New Device on Your Account", "Your account went online in Play Together on another device. If that wasn't you, choose That Wasn't Me on the Friends tab."]],
     ["message", ["Message From {{name}}", ""]],
     ["invite", ["Room Invite", "{{name}} invited you to a room."]]
 ]);
@@ -818,7 +818,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         : isFriendRow(notification)
                                         ? friendCardText(notification, language, 0)
                                         : isMultiplayerRow(notification)
-                                        ? t(language, "EZ Multiplayer")
+                                        ? t(language, "Play Together")
                                         : isHotspotRow(notification)
                                         ? t(language, "Offline Hotspot")
                                         : isChangelogRow(notification)

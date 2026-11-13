@@ -63,7 +63,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     no_room: "That room is gone",
     bad_code: "Wrong password",
     friends_only: "This room is for the host's friends only.",
-    friends_off: "Turn on EZ Multiplayer Friends to host a Friend Only room.",
+    friends_off: "Turn on Play Together Friends to host a Friend Only room.",
     locked_out: "Too many wrong passwords. Try again in a minute.",
     full: "That room is full",
     chat_refused: "Couldn't send that message",

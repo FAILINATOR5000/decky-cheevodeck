@@ -1719,10 +1719,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         >
             <PanelSection>
                 <PageNavStrip
-                    title={t(language, "EZ Multiplayer")}
+                    title={t(language, "Play Together")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={page.onHome}
-                    help={<PageHelpButton focusKey="multiplayer:help" guide="ez-multiplayer" />}
+                    help={<PageHelpButton focusKey="multiplayer:help" guide="play-together" />}
                 />
 
                 <BackButton

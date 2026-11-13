@@ -433,7 +433,7 @@ export async function startMultiplayerRound(steps: NetplaySteps | "" = "", game 
 
 function toast(line: string) {
     const language = getCurrentLanguage();
-    toaster.toast({ title: t(language, "EZ Multiplayer"), body: t(language, line) });
+    toaster.toast({ title: t(language, "Play Together"), body: t(language, line) });
 }
 
 function playFanfare(key: string) {
@@ -644,7 +644,7 @@ function onSessionEvent(payload: {
     if (payload?.state === "sunshine_down") {
         const language = getCurrentLanguage();
         showMultiplayerProblem(language, "Sunshine Didn't Restart", t(language,
-            "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Misc tab, then Set Up Streaming to reinstall it."));
+            "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Stream Options tab, then Set Up Streaming to reinstall it."));
         return;
     }
     if (payload?.state !== "failed") {

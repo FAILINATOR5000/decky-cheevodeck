@@ -1248,7 +1248,7 @@ function SystemTab(props: TabContentProps) {
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 focusKey="options:toggle:batterySaverDisablesEzFriends"
-                label={t(state.language, "EZ Multiplayer Friends")}
+                label={t(state.language, "Play Together Friends")}
                 value={state.batterySaverDisablesEzFriends}
                 onChange={actions.onToggleBatterySaverDisablesEzFriends}
                 disabled={disabled}
@@ -2134,7 +2134,7 @@ function SocialTab(props: TabContentProps) {
                 help={t(state.language, "help_players_near_you_max_tick")}
                 separator
             />
-            <SectionTitle label={t(state.language, "EZ Multiplayer")} />
+            <SectionTitle label={t(state.language, "Play Together")} />
             <OptionValueRow
                 outerStyle={buttonOuterStyle}
                 focusKey="options:lobby-server"

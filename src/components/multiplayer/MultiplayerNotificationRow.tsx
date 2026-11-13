@@ -300,7 +300,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                             }}
                         >
                             <div style={{ fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
-                                {t(language, "EZ Multiplayer")}
+                                {t(language, "Play Together")}
                             </div>
                             {inRoom && <Parts parts={roomParts} />}
                             <WaitingLine language={language} waiting={waiting} />
