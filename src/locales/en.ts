@@ -3471,7 +3471,7 @@ export const EN: LocaleTable = {
     "In {{name}}'s room": "In {{name}}'s room",
     "{{taken}}/{{count}} players": "{{taken}}/{{count}} players",
     "{{game}} · linked with {{other}}": "{{game}} · linked with {{other}}",
-    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "Offline Hotspot is now on. Select here to go to the page to turn it back off.",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the blue Wi-Fi button off here in Notifications, at the top.": "Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the blue Wi-Fi button off here in Notifications, at the top.",
     "No internet here, so it plays Local only.": "No internet here, so it plays Local only.",
     "tag_private_hotspot": "Private",
     "Join Offline Hotspot": "Join Offline Hotspot",

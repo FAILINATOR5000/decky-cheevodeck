@@ -3543,7 +3543,7 @@ const RU: LocaleTable = {
     "In {{name}}'s room": "В комнате: {{name}}",
     "{{taken}}/{{count}} players": "Игроки: {{taken}}/{{count}}",
     "{{game}} · linked with {{other}}": "{{game}} · связь с: {{other}}",
-    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "Офлайн-точка доступа включена. Выбери здесь, чтобы перейти на страницу и выключить её.",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the blue Wi-Fi button off here in Notifications, at the top.": "Офлайн-точка доступа включена. Выбери здесь, чтобы перейти на страницу и выключить её, или выключи синюю кнопку Wi-Fi вверху здесь, в уведомлениях.",
     "No internet here, so it plays Local only.": "Здесь нет интернета, поэтому только локально.",
     "tag_private_hotspot": "Закрытая",
     "Join Offline Hotspot": "Подключиться к офлайн-точке доступа",

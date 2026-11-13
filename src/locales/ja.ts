@@ -3329,7 +3329,7 @@ const JA: LocaleTable = {
     "In {{name}}'s room": "{{name}}のルームに参加中",
     "{{taken}}/{{count}} players": "{{taken}}/{{count}}人",
     "{{game}} · linked with {{other}}": "{{game}} · {{other}}と接続",
-    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "オフラインホットスポットがオンになりました。ここを選ぶとページに移動してオフにできます。",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the blue Wi-Fi button off here in Notifications, at the top.": "オフラインホットスポットがオンになりました。ここを選ぶとページに移動してオフにできます。この通知画面の上にある青いWi-Fiボタンでもオフにできます。",
     "No internet here, so it plays Local only.": "ここにはインターネットがないため、ローカルのみで遊べます。",
     "tag_private_hotspot": "プライベート",
     "Join Offline Hotspot": "オフラインホットスポットに参加",

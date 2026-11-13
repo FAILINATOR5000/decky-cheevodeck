@@ -3495,7 +3495,7 @@ const PT: LocaleTable = {
     "In {{name}}'s room": "Na sala de {{name}}",
     "{{taken}}/{{count}} players": "{{taken}}/{{count}} jogadores",
     "{{game}} · linked with {{other}}": "{{game}} · conectado a {{other}}",
-    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "O hotspot offline agora está ligado. Selecione aqui para ir à página e desligá-lo.",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the blue Wi-Fi button off here in Notifications, at the top.": "O hotspot offline agora está ligado. Selecione aqui para ir à página e desligá-lo, ou desligue o botão azul de Wi-Fi aqui no topo das Notificações.",
     "No internet here, so it plays Local only.": "Sem internet aqui, então só joga no modo Local.",
     "tag_private_hotspot": "Privado",
     "Join Offline Hotspot": "Entrar em um hotspot offline",

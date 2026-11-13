@@ -1349,7 +1349,8 @@ class OfflineHotspotService:
                 "kind": "actionable",
                 "iconSource": "none",
                 "title": "Offline Hotspot",
-                "body": "Offline Hotspot is now on. Select here to go to the page to turn it back off.",
+                "body": ("Offline Hotspot is now on. Select here to go to the page to turn it back off, or toggle the "
+                         "blue Wi-Fi button off here in Notifications, at the top."),
                 "source": "notifications",
                 "target": {"view": "offlineHotspot"},
             })
