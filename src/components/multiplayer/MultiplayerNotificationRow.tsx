@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaDoorOpen, FaSearch, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
 
-import { getGameIconCached, multiplayerFriends, multiplayerGames } from "../../api";
+import { multiplayerFriends, multiplayerGames } from "../../api";
 import { useFocusClaim } from "../../hooks/useFocusClaim";
-import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
 import type { MultiplayerFriendsState, MultiplayerTab } from "../../types";
@@ -15,6 +14,7 @@ import { hotspotIsOn, leaveHotspot, toggleHotspot, useHotspot } from "../../util
 import { multiplayerChoices, rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { problemText } from "../../utils/multiplayerProblems";
 import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
+import { COLLAGE_ROWS, type CardCollage } from "../../utils/playTogetherCollage";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, skyBlue } from "../../utils/style";
 import { notificationCardMetrics } from "../notifications/NotificationCard";
@@ -35,6 +35,11 @@ const SIDE_GAP = 4;
 const SIDE_FILL = "rgb(81, 85, 90)";
 const TILE_FILL = "rgb(71, 75, 80)";
 const TILE_EDGE = "rgb(78, 82, 88)";
+const COLLAGE_CELL = 40;
+const COLLAGE_OPACITY = 0.3;
+const COLLAGE_OPACITY_LIT = 0.16;
+const COLLAGE_FADE = "61, 67, 75";
+const COLLAGE_FADE_LIT = "255, 255, 255";
 const COUNT_MARK = "\u0000";
 
 type Waiting = { on: boolean; unread: number; requests: number; online: number };
@@ -200,8 +205,50 @@ function SideButton(props: FocusProps & {
     );
 }
 
-export function MultiplayerNotificationRow(props: FocusProps & { language: LanguageCode; nav: NotificationNav; close: () => void }) {
-    const { language, nav, close } = props;
+function CollageLayer(props: { image: string; lit: boolean }) {
+    const fade = props.lit ? COLLAGE_FADE_LIT : COLLAGE_FADE;
+    return (
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: "inherit", pointerEvents: "none" }}>
+            <img
+                src={props.image}
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    height: `${modalSize(COLLAGE_CELL) * COLLAGE_ROWS}px`,
+                    width: "auto",
+                    maxWidth: "none",
+                    opacity: props.lit ? COLLAGE_OPACITY_LIT : COLLAGE_OPACITY
+                }}
+            />
+            <div
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: `linear-gradient(90deg, rgba(${fade}, 0.92), rgba(${fade}, 0.55) 55%, rgba(${fade}, 0.15))`
+                }}
+            />
+        </div>
+    );
+}
+
+function CollageTile(props: { collage: CardCollage }) {
+    return (
+        <div style={{ width: "100%", height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: "1px" }}>
+            {props.collage.tile.map((uri, index) => (
+                <img key={index} src={uri} style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, objectFit: "cover", display: "block" }} />
+            ))}
+        </div>
+    );
+}
+
+export function MultiplayerNotificationRow(props: FocusProps & {
+    collage: CardCollage | null;
+    language: LanguageCode;
+    nav: NotificationNav;
+    close: () => void;
+}) {
+    const { collage, language, nav, close } = props;
     const room = useMultiplayerRoomMarker();
     const hotspot = useHotspot();
     const waiting = useWaiting();
@@ -212,14 +259,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const box = useRef<HTMLDivElement>(null);
     const finding = useRef(false);
     const metrics = notificationCardMetrics();
-    const game = room.own ?? (room.gameId ? { gameId: room.gameId, title: room.title, imageIcon: room.imageIcon } : null);
-    const iconGame = inRoom && game ? game.gameId : null;
-    const { iconDataUri } = useGameIcon(iconGame, game?.imageIcon, "notifications: EZ card icon");
-    useEffect(() => {
-        if (iconGame !== null) {
-            getGameIconCached(iconGame, game?.imageIcon).catch((e) => logError("notifications: EZ card icon", e));
-        }
-    }, [iconGame, game?.imageIcon]);
+    const [onCard, setOnCard] = useState(false);
 
     const onSide = useRef(false);
     const moves = useRef(0);
@@ -238,6 +278,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     function cardCursor() {
         moves.current += 1;
         onSide.current = false;
+        setOnCard(true);
     }
     const cardClaim = useFocusClaim();
     const layout = `${inRoom}|${joined}`;
@@ -304,7 +345,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                 actionDescriptionMap={props.actionDescriptionMap}
                 style={{ position: "relative", display: "flex", flexDirection: "row", marginBottom: "12px" }}
             >
-                <FocusTarget focusKey={ROW_KEY} style={{ flex: 1, minWidth: 0, display: "flex" }}>
+                <FocusTarget focusKey={ROW_KEY} style={{ flex: 1, minWidth: 0, display: "flex", isolation: "isolate" }}>
                     <FocusClaim
                         token={cardClaim.claim?.token ?? 0}
                         armed={cardClaim.claim?.armed ?? false}
@@ -314,7 +355,9 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                         <DialogButton
                             onClick={() => open("play")}
                             onGamepadFocus={cardCursor}
+                            onGamepadBlur={() => setOnCard(false)}
                             style={{
+                                position: "relative",
                                 width: "100%",
                                 minWidth: 0,
                                 minHeight: `${button * buttons + gap * (buttons - 1) + modalSize(6) * 2}px`,
@@ -325,8 +368,11 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                                 gap: `${metrics.iconGap}px`
                             }}
                         >
+                            {collage && <CollageLayer image={collage.image} lit={onCard} />}
                             <div
                                 style={{
+                                    position: "relative",
+                                    zIndex: 1,
                                     width: `${metrics.iconSize}px`,
                                     height: `${metrics.iconSize}px`,
                                     flex: "none",
@@ -341,12 +387,14 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                                     justifyContent: "center"
                                 }}
                             >
-                                {inRoom && iconDataUri
-                                    ? <img src={iconDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                {collage
+                                    ? <CollageTile collage={collage} />
                                     : <FaUserFriends style={{ width: "50%", height: "50%", opacity: 0.85 }} />}
                             </div>
                             <div
                                 style={{
+                                    position: "relative",
+                                    zIndex: 1,
                                     minWidth: 0,
                                     display: "flex",
                                     flexDirection: "column",

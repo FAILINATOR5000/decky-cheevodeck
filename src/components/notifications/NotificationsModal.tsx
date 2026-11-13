@@ -33,6 +33,7 @@ import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButt
 import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES } from "../../utils/style";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
+import { cardCollage, refreshCardCollage } from "../../utils/playTogetherCollage";
 
 type NotifTab = "normal" | "archived";
 
@@ -53,6 +54,11 @@ export function NotificationsModal(props: NotificationsModalProps) {
     const [activeTab, setActiveTab] = useState<NotifTab>("normal");
     const titleRef = useRef<HTMLDivElement | null>(null);
     const isArchivedTab = activeTab === "archived";
+
+    const [collage] = useState(cardCollage);
+    useEffect(() => {
+        refreshCardCollage();
+    }, []);
 
     const [archivedItems, setArchivedItems] = useState<ArchivedNotification[]>([]);
 
@@ -243,6 +249,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
             {!isArchivedTab && (
                 <>
                     <MultiplayerNotificationRow
+                        collage={collage}
                         language={language}
                         nav={nav}
                         close={close}

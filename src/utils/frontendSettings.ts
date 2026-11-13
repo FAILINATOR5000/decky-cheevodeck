@@ -38,6 +38,7 @@ import { setVoiceSettings } from "./voiceChat";
 import { setStreamSettings } from "./streamPlay";
 import { setChatToastSettings } from "./multiplayerRoomState";
 import { setHotspotSettings } from "./hotspotState";
+import { setCardCollageAccount } from "./playTogetherCollage";
 
 const STARTUP_TRIES = 3;
 
@@ -83,6 +84,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     setStreamSettings(settings);
     setChatToastSettings(settings);
     setHotspotSettings(settings);
+    setCardCollageAccount(settings.activeUlid);
     applyGameArtCacheCap(settings.gameArtCacheCap);
     applyAvatarCacheCap(settings.avatarCacheCap);
     applyAchievementIconCacheGames(settings.achievementIconCacheGames);

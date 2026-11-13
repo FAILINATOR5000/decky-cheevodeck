@@ -307,6 +307,7 @@ class Plugin(
         self.user_avatars_cache_file = self.runtime_dir / "user_avatars_cache.json"
         self.friend_games_cache_file = self.runtime_dir / "friend_games_cache.json"
         self.sets_list_cache_file = self.runtime_dir / "sets_list_cache.json"
+        self.card_collage_cache_file = self.runtime_dir / "card_collage_cache.json"
 
         try:
             self.user_avatars_cache_file.unlink()
@@ -466,6 +467,7 @@ class Plugin(
             user_avatars_dir=self.user_avatars_dir,
             award_icons_dir=self.award_icons_dir,
             sets_list_cache_file=self.sets_list_cache_file,
+            card_collage_cache_file=self.card_collage_cache_file,
             stale_full_refresh_seconds=self.STALE_CACHE_FULL_REFRESH_SECONDS,
         )
         self.leaderboards_service = LeaderboardsService(

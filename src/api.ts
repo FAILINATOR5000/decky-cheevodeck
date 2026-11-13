@@ -875,6 +875,10 @@ export const multiplayerFriendAlert = callable<[string, boolean], MultiplayerRep
 export const multiplayerFriendAvatars = callable<[pics: string[], fetch?: boolean], { avatars: Record<string, string> }>(
     "multiplayer_friend_avatars"
 );
+export const multiplayerLoadCollage = callable<[], { ok: boolean; collage: { key?: unknown; image?: unknown; tile?: unknown } | null }>(
+    "multiplayer_load_collage"
+);
+export const multiplayerSaveCollage = callable<[{ key: string; image: string; tile: string[] }], { ok: boolean }>("multiplayer_save_collage");
 export const multiplayerChangeGame = callable<[MultiplayerMode, number, string], MultiplayerReply & { room?: MultiplayerHostedRoom }>("multiplayer_change_game");
 export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string; games?: MultiplayerGuestGame[] }>("multiplayer_guest_games");
 export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");
@@ -2172,7 +2176,7 @@ function populateGameIconMemoryCache(
     }
 }
 
-const getGameIcons = callable<
+export const getGameIcons = callable<
     [Array<{ gameId: number; imageIcon: string | null }>],
     { icons: Record<string, string | null> }
 >("get_game_icons");

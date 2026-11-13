@@ -330,6 +330,29 @@ class MultiplayerMixin(PluginContext):
         async with self._image_slot():
             return await asyncio.to_thread(self.icon_service.get_pic_avatars, wanted, fetch is not False)
 
+    async def multiplayer_load_collage(self):
+        collage = await asyncio.to_thread(self.cache_store.load_card_collage)
+        return {"ok": True, "collage": collage}
+
+    async def multiplayer_save_collage(self, collage=None):
+        if not _collage_shape(collage):
+            return {"ok": False}
+        kept = {"key": collage["key"], "image": collage["image"], "tile": collage["tile"]}
+        await asyncio.to_thread(self.cache_store.save_card_collage, kept)
+        return {"ok": True}
+
 
 def _choice(value):
     return value if isinstance(value, dict) else None
+
+
+def _collage_shape(value):
+    if not isinstance(value, dict):
+        return False
+    image = value.get("image")
+    tile = value.get("tile")
+    return (isinstance(value.get("key"), str) and len(value["key"]) < 200
+            and isinstance(image, str) and image.startswith("data:image/") and len(image) < 8_000_000
+            and isinstance(tile, list) and len(tile) == 4
+            and all(isinstance(uri, str) and uri.startswith("data:image/") and len(uri) < 1_000_000
+                    for uri in tile))

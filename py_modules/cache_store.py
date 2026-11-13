@@ -33,6 +33,7 @@ class CacheStore:
         user_avatars_dir: Path,
         award_icons_dir: Path,
         sets_list_cache_file: Path,
+        card_collage_cache_file: Path,
         stale_full_refresh_seconds: int,
     ):
         self._cache_file = cache_file
@@ -49,6 +50,7 @@ class CacheStore:
         self._user_avatars_dir = user_avatars_dir
         self._award_icons_dir = award_icons_dir
         self._sets_list_cache_file = sets_list_cache_file
+        self._card_collage_cache_file = card_collage_cache_file
         self._stale_full_refresh_seconds = stale_full_refresh_seconds
 
         self._payload_lock = threading.Lock()
@@ -60,6 +62,7 @@ class CacheStore:
         self._aotw_lock = threading.Lock()
         self._new_sets_lock = threading.Lock()
         self._sets_list_lock = threading.Lock()
+        self._card_collage_lock = threading.Lock()
 
         self._game_bundle_locks: dict = {}
         self._game_bundle_locks_mutex = threading.Lock()
@@ -448,6 +451,14 @@ class CacheStore:
             data["gameLists"][str(console_id)] = games if isinstance(games, list) else []
             save_json_file(self._sets_list_cache_file, data)
 
+    def load_card_collage(self):
+        raw = load_json_file(self._card_collage_cache_file, None)
+        return raw if isinstance(raw, dict) else None
+
+    def save_card_collage(self, collage):
+        with self._card_collage_lock:
+            save_json_file(self._card_collage_cache_file, collage, compact=True)
+
     def payload_lock(self) -> threading.Lock:
         return self._payload_lock
 
@@ -598,6 +609,7 @@ class CacheStore:
         for lock, path in (
             (self._leaderboard_icons_lock, self._leaderboard_icons_cache_file),
             (self._aotw_lock, self._aotw_cache_file),
+            (self._card_collage_lock, self._card_collage_cache_file),
         ):
             with lock:
                 cleared.extend(self._delete_files((path,)))
@@ -722,6 +734,7 @@ class CacheStore:
             (self._aotw_lock, self._aotw_cache_file),
             (self._new_sets_lock, self._new_sets_cache_file),
             (self._sets_list_lock, self._sets_list_cache_file),
+            (self._card_collage_lock, self._card_collage_cache_file),
         )
         for lock, path in guarded:
             with lock:

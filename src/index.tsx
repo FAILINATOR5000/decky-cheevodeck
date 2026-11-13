@@ -6,6 +6,7 @@ import { refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { warmConsoleCatalog } from "./utils/consoleCatalog";
+import { stopCardCollage, warmCardCollage } from "./utils/playTogetherCollage";
 import { watchMilestoneKinds } from "./utils/milestoneEvents";
 import { logError } from "./utils/errors";
 import { showToastAfter } from "./utils/delayedToast";
@@ -79,6 +80,7 @@ export default definePlugin(() => {
         if (!disposed) {
             warmConsoleCatalog();
             stopMilestoneKinds = watchMilestoneKinds();
+            void warmCardCollage();
         }
     });
 
@@ -133,6 +135,7 @@ export default definePlugin(() => {
             unregisterEmulatorJobs();
             unregisterMemoryFullscreen();
             closeBrowserForUnload();
+            stopCardCollage();
         }
     };
 });
