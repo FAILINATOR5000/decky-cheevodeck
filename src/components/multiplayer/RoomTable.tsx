@@ -2,7 +2,9 @@ import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
+import { RankEmblem } from "../milestones/RankEmblem";
 import { t, type LanguageCode } from "../../locales";
+import type { MilestoneRankBadge } from "../../types";
 import { achievementGreen, bodyTextStyle, masteredGold, warnAmber } from "../../utils/style";
 import type { VoiceMine } from "../../utils/voiceChat";
 import { PicAvatar } from "./PicAvatar";
@@ -25,6 +27,7 @@ type RoomTableSeat = {
     activity?: "game" | "watch" | "";
     stream?: StreamSeatState;
     avatar?: string;
+    rank?: MilestoneRankBadge | null;
     open: boolean;
 };
 
@@ -51,6 +54,8 @@ export type RoomTableVoice = {
 };
 
 const AVATAR_PX = 24;
+const RANK_EMBLEM_PX = 24;
+const RANK_EMBLEM_ALIGN = `calc(0.375em - ${RANK_EMBLEM_PX / 2}px)`;
 
 function SeatStateIcon(props: { state: "setup" | "never"; style: CSSProperties }) {
     const look = STATE_LOOKS[props.state];
@@ -166,6 +171,11 @@ export function RoomTable(props: {
                                             : { ...bodyTextStyle(), fontStyle: "italic" }}
                                     >
                                         {seat.name || t(language, "Waiting for player...")}
+                                        {seat.name && seat.rank && (
+                                            <span style={{ display: "inline-block", verticalAlign: RANK_EMBLEM_ALIGN, marginLeft: "5px" }}>
+                                                <RankEmblem tier={seat.rank.tier} step={seat.rank.step} size={RANK_EMBLEM_PX} />
+                                            </span>
+                                        )}
                                     </span>
                                     {voiceIcon ? (
                                         <span style={{ display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>

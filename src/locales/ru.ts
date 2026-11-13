@@ -2956,6 +2956,8 @@ const RU: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "Все ранги",
+    "Milestone Rank": "Ранг вех",
+    "Rank: {{rank}}": "Ранг: {{rank}}",
     "Ranks": "Ранги",
     "{{count}}-day Combo · +{{xp}} XP earned today": {
         one: "Комбо: {{count}} день · сегодня получено +{{xp}} XP",

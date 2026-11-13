@@ -487,6 +487,10 @@ class MultiplayerService:
         friends = self._friends
         return friends.identity() if friends is not None else ("", "")
 
+    def _rank(self):
+        friends = self._friends
+        return friends.rank() if friends is not None else None
+
     def set_event_loop(self, loop) -> None:
         self._loop = loop
         if not self._swept:
@@ -2811,8 +2815,8 @@ class MultiplayerService:
                 "adapter": "auto",
                 "voice": bool(voice),
                 "max": seats,
-                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
-                           "vstamp": 1}] + [None] * (seats - 1),
+                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "rank": self._rank(),
+                           "vc": False, "vstamp": 1}] + [None] * (seats - 1),
                 "inboxSeq": 0,
                 "stampSeq": 1,
                 "voiceSeq": 0,
@@ -3459,11 +3463,11 @@ class MultiplayerService:
                 None if seat is None
                 else {"name": seat["name"], "launched": False, "ready": False, "can": not room["hostState"],
                       "seatState": room["hostState"], "title": room["title"],
-                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", "")}
+                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": seat.get("rank")}
                 if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_shown_ready(room, index, seat),
                       "can": seat["can"], "reason": seat["reason"], "seatState": seat["seatState"], "title": seat["title"],
-                      "ulid": seat["ulid"], "pic": seat["pic"],
+                      "ulid": seat["ulid"], "pic": seat["pic"], "rank": seat.get("rank"),
                       "st": room["streams"].seat_state(index) if room.get("streams") is not None else ""}
                 for index, seat in enumerate(room["seats"])
             ],
@@ -3768,6 +3772,7 @@ class MultiplayerService:
             "device": params["device"],
             "ulid": params["ulid"],
             "pic": params["pic"],
+            "rank": params["rank"],
             "ip": address,
             "key": proto.seat_key(key, nc, ns, proto.dh_shared(private, opened["ga"])),
             "inbox": [],
@@ -4356,7 +4361,8 @@ class MultiplayerService:
             "lastStart": dict(last) if last else None,
             "room": proto.status_room_fields(room),
             "chat": [],
-            "ids": [{"ulid": taken.get("ulid", ""), "pic": taken.get("pic", "")} if taken else {"ulid": "", "pic": ""}
+            "ids": [{"ulid": taken.get("ulid", ""), "pic": taken.get("pic", ""), "rank": taken.get("rank")}
+                    if taken else {"ulid": "", "pic": "", "rank": None}
                     for taken in room["seats"]],
             "inbox": list(seat["inbox"]),
             "vote": lounge.vote_view(room["vote"], lounge.voter_key(seat)),
@@ -4816,6 +4822,7 @@ class MultiplayerService:
                 local["emuVersion"] if local else "",
                 self._device_id(),
                 *self._identity(),
+                rank=self._rank(),
             )
             friend = ""
             if invite is not None:

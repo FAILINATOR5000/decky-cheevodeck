@@ -2,7 +2,7 @@ import type { RankTier } from "../../types";
 
 const NUMERALS = ["I", "II", "III", "IV"];
 
-const NUMERAL_MIN_SIZE = 32;
+const COMPACT_BELOW = 32;
 
 const LAUREL_LEAVES: [number, number, number][] = [
     [14.88, 44.15, -192.8], [16.03, 41.7, -116.8], [11.3, 41.25, -176.8], [13.09, 39.21, -100.8],
@@ -100,9 +100,17 @@ export const NUMERAL_SPOT: Record<RankTier, { y: number; size: number; fill: str
     legend: { y: 26, size: 12, fill: "#ffffff" }
 };
 
+const COMPACT_SPOT: Record<RankTier, { y: number; size: number; fill: string }> = {
+    tracker: { y: 23, size: 20, fill: "#e2e8f0" },
+    hunter: { y: 23, size: 20, fill: "#ffffff" },
+    expert: { y: 20, size: 20, fill: "#ffffff" },
+    master: { y: 26.5, size: 20, fill: "#ffffff" },
+    legend: { y: 27, size: 20, fill: "#ffffff" }
+};
+
 export function RankEmblem(props: { tier: RankTier; step: number; size: number }) {
     const { tier, step, size } = props;
-    const spot = NUMERAL_SPOT[tier];
+    const spot = size < COMPACT_BELOW ? COMPACT_SPOT[tier] : NUMERAL_SPOT[tier];
     return (
         <svg
             viewBox="0 0 48 48"
@@ -113,20 +121,18 @@ export function RankEmblem(props: { tier: RankTier; step: number; size: number }
             style={{ display: "block", flexShrink: 0 }}
         >
             {shield(tier)}
-            {size >= NUMERAL_MIN_SIZE && (
-                <text
-                    x="24"
-                    y={spot.y}
-                    fontWeight="800"
-                    fontSize={spot.size}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill={spot.fill}
-                    style={{ fontFamily: "inherit" }}
-                >
-                    {NUMERALS[step - 1] ?? String(step)}
-                </text>
-            )}
+            <text
+                x="24"
+                y={spot.y}
+                fontWeight="800"
+                fontSize={spot.size}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill={spot.fill}
+                style={{ fontFamily: "inherit" }}
+            >
+                {NUMERALS[step - 1] ?? String(step)}
+            </text>
         </svg>
     );
 }

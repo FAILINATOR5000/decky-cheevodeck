@@ -858,6 +858,7 @@ class Plugin(
             heal=self.ez_friends_heal_service,
             ra_call=self.run_ra_call_for_trickle,
             ra=self.ra,
+            own_rank=self.milestones_service.own_rank,
         )
         self.multiplayer_service.set_friends(self.multiplayer_friends_service)
         self.offline_hotspot_service = OfflineHotspotService(

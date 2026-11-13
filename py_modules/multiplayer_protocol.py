@@ -5,6 +5,7 @@ import secrets
 import socket
 
 import nearby_protocol
+from milestones_defs import RANK_TIERS
 from nearby_protocol import canonical, is_device_id, is_nonce, is_tag, sign, verify
 
 PORT = 49732
@@ -430,10 +431,22 @@ def _optional(value, pattern) -> bool:
     return isinstance(value, str) and (value == "" or pattern.fullmatch(value) is not None)
 
 
+def clean_rank(value):
+    if not isinstance(value, dict) or value.get("tier") not in RANK_TIERS:
+        return None
+    step = value.get("step")
+    if type(step) is not int or not 1 <= step <= 4:
+        return None
+    return {"tier": value["tier"], "step": step}
+
+
 def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str, device: str, ulid: str,
-                pic: str) -> dict:
-    return {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device,
-            "ulid": ulid, "pic": pic}
+                pic: str, rank=None) -> dict:
+    params = {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device,
+              "ulid": ulid, "pic": pic}
+    if rank is not None:
+        params["rank"] = rank
+    return params
 
 
 def read_join_params(raw):
@@ -460,6 +473,7 @@ def read_join_params(raw):
         "crc": raw["crc"],
         "core": core,
         "emuVersion": _clean(raw.get("emuVersion"), _VERSION_MAX) or "",
+        "rank": clean_rank(raw.get("rank")),
     }
 
 
@@ -661,7 +675,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         "room": room,
         "chat": [{"seq": entry["seq"], "name": _clean(entry["name"], _USER_MAX) or "",
                   "text": clean_chat(entry["text"])[:CHAT_MAX]} for entry in message["chat"]],
-        "ids": [{"ulid": entry["ulid"] if is_ulid(entry.get("ulid")) else "", "pic": clean_pic(entry.get("pic"))}
+        "ids": [{"ulid": entry["ulid"] if is_ulid(entry.get("ulid")) else "", "pic": clean_pic(entry.get("pic")),
+                 "rank": clean_rank(entry.get("rank"))}
                 for entry in message["ids"]],
         "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
         "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],

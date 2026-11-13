@@ -42,6 +42,8 @@ import type {
     FriendRecentGame,
     FriendRow,
     GameComment,
+    MilestoneRankBadge,
+    MultiplayerFriend,
     UiSize,
     ViewKey
 } from "../types";
@@ -65,6 +67,8 @@ import { loadCachedImage } from "../utils/loadCachedImage";
 import { pendingLandingKey, usePageLanding } from "../focusRecords";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { logError } from "../utils/errors";
+import { rankName } from "../components/milestones/RankTableModal";
+import { useMilestonesSummary } from "../hooks/useMilestonesSummary";
 
 
 type FriendQuickActionId = "history" | "leaderboards" | "compare";
@@ -326,11 +330,11 @@ type FriendProfilePageProps = {
 
 const FRIENDS_EVENT = "cheevodeck_multiplayer_friends";
 
-function usePlayTogetherOnline(ulid: string, active: boolean): boolean {
-    const [online, setOnline] = useState(false);
+function usePlayTogetherFriend(ulid: string, active: boolean): MultiplayerFriend | null {
+    const [friend, setFriend] = useState<MultiplayerFriend | null>(null);
     useEffect(() => {
         if (!active || !ulid) {
-            setOnline(false);
+            setFriend(null);
             return;
         }
         let alive = true;
@@ -338,7 +342,7 @@ function usePlayTogetherOnline(ulid: string, active: boolean): boolean {
             multiplayerFriends()
                 .then((friends) => {
                     if (alive) {
-                        setOnline(Boolean(friends.ok && friends.friends?.some((friend) => friend.ulid === ulid && friend.online)));
+                        setFriend((friends.ok && friends.friends?.find((row) => row.ulid === ulid)) || null);
                     }
                 })
                 .catch((e) => logError("friend profile: Play Together presence", e));
@@ -350,7 +354,22 @@ function usePlayTogetherOnline(ulid: string, active: boolean): boolean {
             removeEventListener(FRIENDS_EVENT, load);
         };
     }, [ulid, active]);
-    return online;
+    return friend;
+}
+
+function RankCells(props: { language: LanguageCode; rank: MilestoneRankBadge }) {
+    return (
+        <>
+            <div style={bodyTextStyle()}>{t(props.language, "Milestone Rank")}</div>
+            <div style={{ ...bodyTextStyle(), fontWeight: 700 }}>{rankName(props.language, props.rank)}</div>
+        </>
+    );
+}
+
+function OwnRankCells(props: { language: LanguageCode }) {
+    const summary = useMilestonesSummary();
+    const rank = summary ? summary.ranks[summary.rank] : null;
+    return rank ? <RankCells language={props.language} rank={rank} /> : null;
 }
 
 function FriendProfilePage(props: FriendProfilePageProps) {
@@ -452,8 +471,8 @@ function FriendProfilePage(props: FriendProfilePageProps) {
     const memberSinceLabel = formatMemberSince(friendGamePayload?.memberSince, language);
     const mottoText = String(friendGamePayload?.motto || "").trim();
 
-    const playTogetherOnline = usePlayTogetherOnline(friendGamePayload?.ulid || selectedFriend?.ulid || "", view === "friendGame");
-    const showOnlineDot = Boolean(selectedFriend?.isSelf || playTogetherOnline || friendGamePayload?.isOnline);
+    const playTogether = usePlayTogetherFriend(friendGamePayload?.ulid || selectedFriend?.ulid || "", view === "friendGame");
+    const showOnlineDot = Boolean(selectedFriend?.isSelf || playTogether?.online || friendGamePayload?.isOnline);
     const onlineDotPx = Math.max(6, Math.round(textSize(8)));
     const onlineDotGapPx = Math.max(4, Math.round(textSize(5)));
 
@@ -822,6 +841,9 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                             <div style={{ ...bodyTextStyle(), fontWeight: 700 }}>
                                 {formatInteger(selectedFriendSoftcorePoints)}
                             </div>
+                            {selectedFriend.isSelf
+                                ? <OwnRankCells language={language} />
+                                : playTogether?.rank && <RankCells language={language} rank={playTogether.rank} />}
                         </div>
                     </PanelSectionRow>
                 )}

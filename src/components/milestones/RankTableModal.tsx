@@ -2,11 +2,11 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { RankEmblem, rankNumeral } from "./RankEmblem";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
-import type { MilestoneRank } from "../../types";
+import type { MilestoneRank, MilestoneRankBadge } from "../../types";
 import { modalSize } from "../../utils/scale";
 import { skyBlue } from "../../utils/style";
 
-export function rankName(language: LanguageCode, rank: MilestoneRank): string {
+export function rankName(language: LanguageCode, rank: MilestoneRankBadge): string {
     return t(language, `rank_tier_${rank.tier}`, { numeral: rankNumeral(rank.step) });
 }
 

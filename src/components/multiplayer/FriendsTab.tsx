@@ -17,6 +17,8 @@ import { FocusTarget } from "../ui/FocusTarget";
 import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { SectionTitle } from "../ui/SectionTitle";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { RankEmblem } from "../milestones/RankEmblem";
+import { rankName } from "../milestones/RankTableModal";
 import { ToggleRow } from "../ui/ToggleRow";
 import { friendError, openAddFriend } from "./AddFriendModal";
 import { openFriendCard } from "./FriendCardModal";
@@ -26,6 +28,7 @@ import { useMultiplayer } from "./MultiplayerContext";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const AVATAR_PX = 44;
+const RANK_EMBLEM_PX = 24;
 const FRIEND_PADDING_RIGHT = 12;
 const ADD_KEY = "multiplayer:friends:add";
 const NAV_ENTER_MAINTAIN_Y = 3;
@@ -281,6 +284,14 @@ export function FriendsTab(props: FriendsTabProps) {
                                     )}
                                     {item.kind === "friend" && friendGame(language, item.row) && (
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{friendGame(language, item.row)}</span>
+                                    )}
+                                    {item.kind === "friend" && item.row.rank && (
+                                        <span style={{ ...bodyTextStyle(), display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>
+                                            <span style={{ overflowWrap: "anywhere" }}>
+                                                {t(language, "Rank: {{rank}}", { rank: rankName(language, item.row.rank) })}
+                                            </span>
+                                            <RankEmblem tier={item.row.rank.tier} step={item.row.rank.step} size={Math.round(textSize(RANK_EMBLEM_PX))} />
+                                        </span>
                                     )}
                                     {item.kind === "request" && (
                                         <span style={bodyTextStyle()}>

@@ -2873,6 +2873,8 @@ const DE: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "Ränge ansehen",
+    "Milestone Rank": "Meilenstein-Rang",
+    "Rank: {{rank}}": "Rang: {{rank}}",
     "Ranks": "Ränge",
     "{{count}}-day Combo · +{{xp}} XP earned today": {
         one: "Combo: {{count}} Tag · heute +{{xp}} XP verdient",

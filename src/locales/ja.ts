@@ -2757,6 +2757,8 @@ const JA: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "ランクを見る",
+    "Milestone Rank": "マイルストーンランク",
+    "Rank: {{rank}}": "ランク: {{rank}}",
     "Ranks": "ランク",
     "{{count}}-day Combo · +{{xp}} XP earned today": "{{count}}日コンボ · 今日 +{{xp}} XP 獲得",
     "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP": "{{count}}日コンボ · 今日実績を解除すると +{{xp}} XP",

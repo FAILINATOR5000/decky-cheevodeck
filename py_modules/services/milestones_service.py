@@ -1301,6 +1301,14 @@ class MilestonesService(TickServiceBase):
         self._emit_changed()
         self.request_check("panel")
 
+    def own_rank(self):
+        if self._defs is None:
+            return None
+        data = self._store.peek()
+        ranks = self._defs["ranks"]
+        rank = ranks[rank_index(ranks, total_xp(data) if data is not None else 0)]
+        return {"tier": rank["tier"], "step": rank["step"]}
+
     def move_summary(self):
         data = self._store.peek()
         if data is None or self._defs is None:

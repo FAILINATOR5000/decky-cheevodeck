@@ -2992,6 +2992,8 @@ const PL: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "Zobacz rangi",
+    "Milestone Rank": "Ranga kamieni milowych",
+    "Rank: {{rank}}": "Ranga: {{rank}}",
     "Ranks": "Rangi",
     "{{count}}-day Combo · +{{xp}} XP earned today": "{{count}}-dniowe combo · dziś zdobyte +{{xp}} XP",
     "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP": "{{count}}-dniowe combo · odblokuj dziś osiągnięcie, by zdobyć +{{xp}} XP",

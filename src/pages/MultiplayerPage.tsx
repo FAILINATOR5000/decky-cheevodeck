@@ -1240,6 +1240,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         : seat.launched ? (hosted.watch ? "watch" : "game") : "",
                     stream: streamSeat(seat?.st),
                     avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
+                    rank: seat?.rank,
                     open: index > 0 && seat !== null
                 }))}
                 onSeat={(index) => {
@@ -1284,6 +1285,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 ? (joined.room.watch ? "watch" : "game") : "",
                         stream: streamSeat(flags?.st),
                         avatar: pic ? friends.state.avatars[pic] : undefined,
+                        rank: joined.status?.ids[index]?.rank,
                         open: Boolean(name) && index !== joined.seat
                     };
                 })}

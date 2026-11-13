@@ -89,9 +89,10 @@ class _Listener(asyncio.DatagramProtocol):
 
 class MultiplayerFriendsService:
     def __init__(self, *, store, messages_store, settings_store, game_mode, multiplayer, notifications_store,
-                 ra_friends, resolved_avatars, heal, ra_call, ra, port: int = FRIEND_PORT,
+                 ra_friends, resolved_avatars, heal, ra_call, ra, own_rank=None, port: int = FRIEND_PORT,
                  peer_port: int = FRIEND_PORT, broadcast: str = "255.255.255.255"):
         self._store = store
+        self._own_rank = own_rank
         self._messages = messages_store
         self._resolved_avatars = resolved_avatars
         self._heal = heal
@@ -260,6 +261,9 @@ class MultiplayerFriendsService:
         data = self._data()
         return self._me(), data["selfPic"] if data else ""
 
+    def rank(self):
+        return self._own_rank() if self._own_rank is not None else None
+
     async def _refresh_self_pic(self) -> None:
         data = self._store.ensure()
         me = self._me()
@@ -336,6 +340,7 @@ class MultiplayerFriendsService:
             "friends": friends,
             "ra": self._mutual_follows()[:max(0, REPORT_ULIDS_MAX - len(friends))] if suggest else [],
             "presence": presence,
+            "rank": self.rank(),
         }
 
     def _mutual_follows(self) -> list:
@@ -547,6 +552,7 @@ class MultiplayerFriendsService:
             "game": proto.clean_chat(message.get("game"))[:64],
             "room": room,
             "seen": seen if type(seen) is int and seen > 0 else 0,
+            "rank": proto.clean_rank(message.get("rank")),
         }
         claimed = clean_name(message.get("name"))
         pic = clean_pic(message.get("pic"))
@@ -799,6 +805,7 @@ class MultiplayerFriendsService:
                     "online": bool(seen.get("online")),
                     "game": seen.get("game", ""),
                     "room": seen.get("room"),
+                    "rank": seen.get("rank"),
                     "seen": seen.get("seen", 0),
                     "unread": data["unread"].get(friend["ulid"], 0),
                     "newest": data["newestAt"].get(friend["ulid"], 0),
@@ -1317,7 +1324,7 @@ class MultiplayerFriendsService:
         here = self._lan_seen.get(ulid)
         if here is None or here["until"] < time.monotonic():
             return seen
-        return {"online": True, "game": here["game"], "room": here["room"], "seen": 0}
+        return {"online": True, "game": here["game"], "room": here["room"], "seen": 0, "rank": seen.get("rank")}
 
     def _close_listener(self) -> None:
         listener, self._listener = self._listener, None

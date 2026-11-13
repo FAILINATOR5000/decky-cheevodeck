@@ -2866,6 +2866,8 @@ export type RankTier = "tracker" | "hunter" | "expert" | "master" | "legend";
 
 export type MilestoneRank = { xp: number; tier: RankTier; step: number };
 
+export type MilestoneRankBadge = { tier: RankTier; step: number };
+
 export type QuestPeriod = "daily" | "bonus" | "weekly";
 
 export type QuestState = {
@@ -3073,6 +3075,7 @@ type MultiplayerSeat = {
     title: string;
     ulid: string;
     pic: string;
+    rank?: MilestoneRankBadge | null;
     st?: string;
 } | null;
 
@@ -3133,7 +3136,7 @@ type MultiplayerGuestStatus = {
     seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string; seatState: MultiplayerSeatState;
         st?: string }[];
     lastStart: MultiplayerLastStart;
-    ids: { ulid: string; pic: string }[];
+    ids: { ulid: string; pic: string; rank?: MilestoneRankBadge | null }[];
     vote: MultiplayerVote | null;
     lounge: MultiplayerLounge;
 };
@@ -3176,6 +3179,7 @@ export type MultiplayerFriend = {
     online: boolean;
     game: string;
     room: { id: string; name: string; where: MultiplayerWhere; playing: boolean } | null;
+    rank: MilestoneRankBadge | null;
     seen: number;
     unread: number;
     newest: number;

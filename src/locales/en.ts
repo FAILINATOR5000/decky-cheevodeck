@@ -2896,6 +2896,8 @@ export const EN: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "View Ranks",
+    "Milestone Rank": "Milestone Rank",
+    "Rank: {{rank}}": "Rank: {{rank}}",
     "Ranks": "Ranks",
     "{{count}}-day Combo · +{{xp}} XP earned today": "{{count}}-day Combo · +{{xp}} XP earned today",
     "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP": "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP",

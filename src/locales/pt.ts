@@ -2903,6 +2903,8 @@ const PT: LocaleTable = {
     "{{xp}} / {{next}} XP": "{{xp}} / {{next}} XP",
     "+{{xp}} XP": "+{{xp}} XP",
     "View Ranks": "Ver patentes",
+    "Milestone Rank": "Patente de marcos",
+    "Rank: {{rank}}": "Patente: {{rank}}",
     "Ranks": "Patentes",
     "{{count}}-day Combo · +{{xp}} XP earned today": {
         one: "Combo de {{count}} dia · +{{xp}} XP ganhos hoje",

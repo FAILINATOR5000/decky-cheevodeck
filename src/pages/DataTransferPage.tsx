@@ -83,7 +83,7 @@ function hasProgress(milestones: DataMilestonesSummary | null): milestones is Da
 
 function rankLabel(milestones: DataMilestonesSummary, language: LanguageCode): string {
     const tier = RANK_TIERS.find((known) => known === milestones.tier);
-    return tier ? rankName(language, { xp: milestones.xp, tier, step: milestones.step }) : "";
+    return tier ? rankName(language, { tier, step: milestones.step }) : "";
 }
 
 function phaseLabel(status: DataTransferStatus, language: LanguageCode): string {
