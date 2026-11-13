@@ -2,28 +2,31 @@ import { addEventListener, removeEventListener } from "@decky/api";
 import { DialogButton, Focusable } from "@decky/ui";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaDoorOpen, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
+import { FaDoorOpen, FaSearch, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
 
-import { getGameIconCached, multiplayerFriends } from "../../api";
+import { getGameIconCached, multiplayerFriends, multiplayerGames } from "../../api";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
 import type { MultiplayerFriendsState, MultiplayerTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { hotspotIsOn, leaveHotspot, toggleHotspot, useHotspot } from "../../utils/hotspotState";
-import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerPage } from "../../utils/multiplayerChoices";
+import { problemText } from "../../utils/multiplayerProblems";
 import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, skyBlue } from "../../utils/style";
 import { notificationCardMetrics } from "../notifications/NotificationCard";
 import { FocusTarget } from "../ui/FocusTarget";
 import { openHotspotJoin } from "../hotspot/HotspotJoinModal";
+import { openRooms } from "./RoomsModal";
 
 const FRIENDS_EVENT = "cheevodeck_multiplayer_friends";
 const ROW_KEY = "notif:multiplayer:room";
 const HOTSPOT_KEY = "notif:multiplayer:hotspot";
 const JOIN_KEY = "notif:multiplayer:join";
 const FRIENDS_KEY = "notif:multiplayer:friends";
+const FIND_KEY = "notif:multiplayer:find";
 const CLOSE_KEY = "notif:multiplayer:close";
 const SIDE_BUTTON = 24;
 const SIDE_GAP = 4;
@@ -195,6 +198,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const waiting = useWaiting();
     const inRoom = room.role !== null;
     const box = useRef<HTMLDivElement>(null);
+    const finding = useRef(false);
     const metrics = notificationCardMetrics();
     const game = room.own ?? (room.gameId ? { gameId: room.gameId, title: room.title, imageIcon: room.imageIcon } : null);
     const iconGame = inRoom && game ? game.gameId : null;
@@ -227,6 +231,25 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
         close();
     }
 
+    async function findRoom() {
+        if (finding.current) {
+            return;
+        }
+        finding.current = true;
+        let cores: string[] = [];
+        try {
+            cores = (await multiplayerGames()).installedCores ?? [];
+        }
+        catch (e) {
+            logError("notifications: Find a Room's installed cores", e);
+        }
+        openRooms(language, multiplayerChoices().hardcore, cores, (code, detail) => problemText(language, code, detail), () => {
+            rememberMultiplayerPage("play");
+            nav.openMultiplayer?.("multiplayer:play");
+        });
+        close();
+    }
+
     const players = room.size > 0 ? t(language, "{{taken}}/{{count}} players", { taken: room.taken, count: room.size }) : "";
     const gameText = room.own
         ? t(language, "{{game}} · linked with {{other}}", { game: room.own.title, other: room.title })
@@ -243,7 +266,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const button = modalSize(SIDE_BUTTON);
     const gap = modalSize(SIDE_GAP);
     const inset = modalSize(8);
-    const buttons = inRoom ? 4 : 3;
+    const buttons = 4;
     const hotspotOn = hotspotIsOn(hotspot);
     const joined = hotspot.role === "guest" && hotspot.state !== "stopping";
 
@@ -330,6 +353,17 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                     >
                         <FaUserFriends style={{ width: "60%", height: "60%" }} />
                     </SideButton>
+                    {!inRoom && (
+                        <SideButton
+                            {...props}
+                            focusKey={FIND_KEY}
+                            label={t(language, "Find a Room")}
+                            lit={false}
+                            onClick={() => void findRoom()}
+                        >
+                            <FaSearch style={{ width: "60%", height: "60%" }} />
+                        </SideButton>
+                    )}
                     <SideButton
                         {...props}
                         focusKey={HOTSPOT_KEY}

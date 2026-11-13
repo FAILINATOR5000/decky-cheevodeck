@@ -98,11 +98,12 @@ type RoomsModalProps = {
     hardcore: boolean;
     installedCores: string[];
     describe: (code: string, detail?: Record<string, string>) => string;
+    onJoined?: () => void;
     close: () => void;
 };
 
 function RoomsModal(props: RoomsModalProps) {
-    const { language, hardcore, installedCores, describe, close } = props;
+    const { language, hardcore, installedCores, describe, onJoined, close } = props;
     const [rooms, setRooms] = useState<MultiplayerRoomRow[] | null>(null);
     const [pageState, setPageState] = useState<PageState>(NO_PAGE_STATE);
     const [cursors, setCursors] = useState<(string | null)[]>([null]);
@@ -529,7 +530,12 @@ function RoomsModal(props: RoomsModalProps) {
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
-                overrideRecord(entryId, { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] });
+                if (onJoined) {
+                    onJoined();
+                }
+                else {
+                    overrideRecord(entryId, { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] });
+                }
                 close();
                 return;
             }
@@ -875,7 +881,8 @@ export function openRooms(
     language: LanguageCode,
     hardcore: boolean,
     installedCores: string[],
-    describe: (code: string, detail?: Record<string, string>) => string
+    describe: (code: string, detail?: Record<string, string>) => string,
+    onJoined?: () => void
 ) {
     showManagedModal((close) => (
         <RoomsModal
@@ -883,6 +890,7 @@ export function openRooms(
             hardcore={hardcore}
             installedCores={installedCores}
             describe={describe}
+            onJoined={onJoined}
             close={close}
         />
     ));
