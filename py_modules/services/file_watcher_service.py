@@ -32,6 +32,7 @@ import threading
 import time
 
 import decky
+import emulator_catalog
 
 from file_watcher_store import (
     BUCKET_ADDED,
@@ -1406,5 +1407,4 @@ def default_start_dir(user_home: Path, roots, remembered: str = "") -> str:
         parent = os.path.dirname(roots[-1]["path"])
         if parent and os.path.isdir(parent):
             return parent
-    emudeck = user_home / "Emulation" / "roms"
-    return str(emudeck if emudeck.is_dir() else user_home)
+    return str(emulator_catalog.roms_folder(user_home) or user_home)

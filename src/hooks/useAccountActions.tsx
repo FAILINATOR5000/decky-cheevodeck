@@ -26,6 +26,7 @@ import { ConnectTokenModal } from "../components/account/ConnectTokenModal";
 import { CredentialsModal } from "../components/account/CredentialsModal";
 import { LanguageModal } from "../components/account/LanguageModal";
 import { SwitchUserModal, type SwitchUserOutcome } from "../components/account/SwitchUserModal";
+import { WelcomeCheevoCheckModal } from "../components/account/WelcomeCheevoCheckModal";
 import { WelcomeFollowupModal } from "../components/account/WelcomeFollowupModal";
 import { WelcomeGlobalButtonsModal } from "../components/account/WelcomeGlobalButtonsModal";
 import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
@@ -210,31 +211,39 @@ export function useAccountActions({
         ));
     }
 
-    function openMilestonesModal(layout: MainUiPreset, finish = endSetup) {
+    function openMilestonesModal(layout: MainUiPreset, catchUp = false) {
         showManagedModal((close) => (
             <WelcomeMilestonesModal
                 language={language}
                 layout={layout}
                 onApplyMilestonesButton={onApplyMilestonesButton}
-                onDone={() => openGlobalButtonsModal(finish)}
-                onCancel={() => finish(close)}
+                onDone={() => openGlobalButtonsModal(catchUp)}
+                onCancel={catchUp ? close : () => endSetup(close)}
                 close={close}
             />
         ));
     }
 
-    function openGlobalButtonsModal(finish = endSetup) {
+    function openGlobalButtonsModal(catchUp: boolean) {
         showManagedModal((close) => (
             <WelcomeGlobalButtonsModal
                 language={language}
                 onApplyGlobalButtons={onApplyGlobalButtons}
-                close={() => finish(close)}
+                onDone={catchUp ? undefined : openCheevoCheckModal}
+                onCancel={catchUp ? close : () => endSetup(close)}
+                close={close}
             />
         ));
     }
 
+    function openCheevoCheckModal() {
+        showManagedModal((close) => (
+            <WelcomeCheevoCheckModal language={language} finish={() => endSetup(close)} />
+        ));
+    }
+
     function openSetupCatchUp(layout: MainUiPreset) {
-        openMilestonesModal(layout, (close) => close());
+        openMilestonesModal(layout, true);
         void markSetupStepsSeen().catch((e) => logError("stamp setup catch-up as seen", e));
     }
 

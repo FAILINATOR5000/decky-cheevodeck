@@ -225,6 +225,7 @@ export type CheevoCheckScanProgress = {
 
 export type CheevoCheckState = {
     running: boolean;
+    scheduled: boolean;
     error: string | null;
     progress: CheevoCheckScanProgress | null;
     hasherProblem: "no_hasher" | "hasher_broken" | null;

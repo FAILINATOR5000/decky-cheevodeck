@@ -1037,11 +1037,10 @@ class MultiplayerService:
 
     def pick_start_folder(self) -> str:
         results = self._cheevo_check_store.load_results() if self._cheevo_check_store.results_fingerprint() else None
-        emudeck_roms = catalog.emudeck_paths(self._user_home)["emulationPath"] / "roms"
-        for folder in (str((results or {}).get("root") or ""), str(emudeck_roms)):
-            if folder.startswith("/") and os.path.isdir(folder):
-                return folder
-        return str(self._user_home)
+        previous = str((results or {}).get("root") or "")
+        if previous.startswith("/") and os.path.isdir(previous):
+            return previous
+        return str(catalog.roms_folder(self._user_home) or self._user_home)
 
     def _picked_unchanged(self, row: dict) -> bool:
         try:

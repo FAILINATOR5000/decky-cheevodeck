@@ -579,12 +579,15 @@ export const cancelCheevoCheckScan = callable<[], { ok: boolean; running: boolea
 );
 export const getCheevoCheckScanStatus = callable<
     [],
-    { running: boolean; error: string | null; progress: CheevoCheckScanProgress | null }
+    { running: boolean; scheduled: boolean; error: string | null; progress: CheevoCheckScanProgress | null }
 >("get_cheevo_check_scan_status");
 export const startCheevoCheckScan = callable<
     [string, boolean],
     { ok: boolean; error?: string }
 >("start_cheevo_check_scan");
+export const scheduleCheevoCheckScan = callable<[string, number], { ok: boolean }>(
+    "schedule_cheevo_check_scan"
+);
 export const saveCheevoCheckCacheHashes = callable<
     [boolean],
     { ok: boolean; cheevoCheckCacheHashes: boolean }

@@ -237,6 +237,43 @@ def emudeck_paths(home) -> dict:
     return paths
 
 
+MOUNTS_FILE = Path("/proc/mounts")
+MEDIA_ROOT = Path("/run/media")
+_MOUNT_ESCAPE = re.compile(r"\\([0-7]{3})")
+
+
+def removable_mounts() -> list:
+    try:
+        table = MOUNTS_FILE.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    points = []
+    for line in table.splitlines():
+        fields = line.split()
+        if len(fields) < 2 or not fields[0].startswith("/dev/"):
+            continue
+        point = Path(_MOUNT_ESCAPE.sub(lambda m: chr(int(m.group(1), 8)), fields[1]))
+        if point != MEDIA_ROOT and point.is_relative_to(MEDIA_ROOT):
+            points.append(point)
+    return points
+
+
+def roms_folder(home):
+    home = Path(home)
+    try:
+        candidates = [
+            emudeck_paths(home)["emulationPath"] / "roms",
+            home / "Emulation" / "roms",
+            *(point / "Emulation" / "roms" for point in removable_mounts()),
+        ]
+        for folder in candidates:
+            if folder.is_dir():
+                return folder
+    except Exception:
+        return None
+    return None
+
+
 def core_databases(info) -> set:
     return {name.strip() for name in ((info or {}).get("database") or "").split("|") if name.strip()}
 

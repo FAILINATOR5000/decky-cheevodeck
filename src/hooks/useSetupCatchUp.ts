@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { setupStepsDue } from "../api";
+import { announceWelcome, setupStepsDue } from "../api";
 import { useCurtainHiding } from "../components/ui/LandingCurtain";
 import { useCovered } from "../covers";
 import { rootGeneration, rootMountReason } from "../focusRecords";
@@ -41,6 +41,7 @@ export function useSetupCatchUp(args: SetupCatchUpArgs) {
     }, [busy]);
 
     const clear = onMain && !busy && !curtainHiding && !covered && !fromModal;
+    const quiet = onMain && !busy && !curtainHiding && !covered;
     const clearRef = useLatestRef(clear);
     const openRef = useLatestRef(open);
     const layoutRef = useLatestRef(layout);
@@ -106,4 +107,22 @@ export function useSetupCatchUp(args: SetupCatchUpArgs) {
             window.clearTimeout(timer);
         };
     }, [clear]);
+
+    useEffect(() => {
+        if (!quiet) {
+            return;
+        }
+        let timer = 0;
+        const attempt = () => {
+            if (cheevoModalOpen()) {
+                timer = window.setTimeout(attempt, SETUP_CATCH_UP_DELAY_MS);
+                return;
+            }
+            void announceWelcome().catch((e) => logError("post the welcome after a setup closed early", e));
+        };
+        timer = window.setTimeout(attempt, SETUP_CATCH_UP_DELAY_MS);
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [quiet]);
 }

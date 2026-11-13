@@ -3,18 +3,18 @@ from pathlib import Path
 import asyncio
 import gzip
 import json
+import os
 import re
 import time
 import urllib.parse
 import urllib.request
 
 import decky
+import emulator_catalog
 
 from mixins._context import PluginContext
-from utils import atomic_file, ensure_dir, write_user_file
+from utils import atomic_file, ensure_dir, to_int, write_user_file
 
-
-EMUDECK_ROMS_DIR = "Emulation/roms"
 
 REFERENCE_DATA_BASE = "https://raw.githubusercontent.com/libretro/libretro-database/master"
 REFERENCE_FETCH_TIMEOUT = 120
@@ -47,15 +47,15 @@ class CheevoCheckMixin(PluginContext):
         """What the folder picker should open on.
 
         The directory scanned last time first, because a second scan is nearly
-        always the same library.
+        always the same library. Then an Emulation/roms folder: the one
+        EmuDeck's settings name, the local one, and the one on each mounted SD
+        card or USB drive, in that order, and home when there is none.
         """
         results = self.cheevo_check_store.load_results()
         previous = str((results or {}).get("root") or "").strip()
-        if previous and Path(previous).is_dir():
+        if previous and os.path.isdir(previous):
             return previous
-
-        emudeck = self.user_home / EMUDECK_ROMS_DIR
-        return str(emudeck if emudeck.is_dir() else self.user_home)
+        return str(emulator_catalog.roms_folder(self.user_home) or self.user_home)
 
     async def get_cheevo_check_state(self):
         """Everything the page paints, in one call.
@@ -73,6 +73,7 @@ class CheevoCheckMixin(PluginContext):
         status = self.cheevo_check_service.status()
         return {
             "running": status["running"],
+            "scheduled": self._cheevo_check_schedule is not None,
             "error": status["error"],
             "progress": status["progress"],
             "hasherProblem": self.cheevo_check_service.hasher_problem(),
@@ -94,14 +95,14 @@ class CheevoCheckMixin(PluginContext):
         return self.cheevo_check_service.cancel()
 
     async def get_cheevo_check_scan_status(self):
-        """The three fields that move while a scan runs, and nothing else.
+        """The fields that move while a scan runs, and whether one is scheduled.
 
         The page asks this every few seconds for the progress bar, and the full
         state carries the whole results blob: a disk read, a JSON parse and a
         serialise of everything the last scan found, for a bar. This one reads
         a couple of in-memory values, so it doesn't go through a thread.
         """
-        return self.cheevo_check_service.status()
+        return {**self.cheevo_check_service.status(), "scheduled": self._cheevo_check_schedule is not None}
 
     async def start_cheevo_check_scan(self, root, offline: bool = False):
         cfg = self.settings_store.load_config()
@@ -116,6 +117,49 @@ class CheevoCheckMixin(PluginContext):
                 "cheevocheck: scan started (offline=%s) on %s", bool(offline), root
             )
         return started
+
+    async def schedule_cheevo_check_scan(self, root, delay_seconds=120):
+        pending = self._cheevo_check_schedule
+        if pending is not None:
+            pending.cancel()
+        folder = str(root or "").strip()
+        delay = max(0, to_int(delay_seconds, 120))
+        cfg = self.settings_store.load_config()
+        self._cheevo_check_schedule = self._spawn_background_task(
+            self._run_scheduled_cheevo_check(folder, time.time(), str(cfg.get("activeUlid") or ""), delay)
+        )
+        decky.logger.info("cheevocheck: scheduled in %d s for %s", delay, folder)
+        return {"ok": True}
+
+    async def _run_scheduled_cheevo_check(self, root: str, made_at: float, ulid: str, delay: int):
+        await asyncio.sleep(delay)
+        try:
+            await asyncio.to_thread(self._start_scheduled_cheevo_check, root, made_at, ulid)
+        finally:
+            if self._cheevo_check_schedule is asyncio.current_task():
+                self._cheevo_check_schedule = None
+
+    def _start_scheduled_cheevo_check(self, root: str, made_at: float, ulid: str) -> None:
+        cfg = self.settings_store.load_config()
+        web_api_key = str(cfg.get("webApiKey", "")).strip()
+        results = self.cheevo_check_store.load_results() or {}
+        if self.cheevo_check_service.status()["running"]:
+            skipped = "a scan is already running"
+        elif to_int(results.get("completedAt"), 0) >= int(made_at):
+            skipped = "a scan finished since it was scheduled"
+        elif not web_api_key or str(cfg.get("activeUlid") or "") != ulid:
+            skipped = "the account changed"
+        else:
+            skipped = None
+        if skipped:
+            decky.logger.info("cheevocheck: scheduled scan skipped (%s)", skipped)
+            return
+
+        started = self.cheevo_check_service.start(root=root, offline=False, web_api_key=web_api_key)
+        if started.get("ok"):
+            decky.logger.info("cheevocheck: scheduled scan started on %s", root)
+        else:
+            decky.logger.warning("cheevocheck: scheduled scan refused (%s)", started.get("error"))
 
     async def save_cheevo_check_report(self, dest_dir, content):
         """Write the results report where the user pointed.

@@ -13,6 +13,8 @@ import { withInlineTags } from "../ui/inlineTags";
 type WelcomeGlobalButtonsModalProps = {
     language: LanguageCode;
     onApplyGlobalButtons: (enabled: boolean) => void | Promise<void>;
+    onDone?: () => void;
+    onCancel: () => void;
     close: () => void;
 };
 
@@ -87,7 +89,7 @@ const MODAL_WIDTH_CSS = `
 }`;
 
 export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps) {
-    const { language, onApplyGlobalButtons, close } = props;
+    const { language, onApplyGlobalButtons, onDone, onCancel, close } = props;
 
     const defaultRef = useRef<HTMLDivElement | null>(null);
     const [focusedChoice, setFocusedChoice] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps)
     function pickChoice(choice: string) {
         close();
         void onApplyGlobalButtons(choice === "on");
+        onDone?.();
     }
 
     const cardWidth = modalSize(112);
@@ -109,7 +112,7 @@ export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps)
     const tableFontSize = modalSize(13);
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close} className="cheevo-welcome-global-dialog">
+        <ModalRoot onCancel={onCancel} onEscKeypress={onCancel} className="cheevo-welcome-global-dialog">
             <SnapshotHotkey language={language} />
             <style>{MODAL_WIDTH_CSS}</style>
 

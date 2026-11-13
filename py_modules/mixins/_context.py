@@ -136,6 +136,8 @@ class PluginContext:
     _memories_last_resolve_at: float
     _memories_deferred_resolve: asyncio.Task | None
     _memories_switch_pending: dict[str, tuple[int | None, int]]
+    _cheevo_check_schedule: asyncio.Task | None
+    _welcome_owed: bool
 
     def _ra_slot(self, wait_for_game_check: bool = True) -> AbstractAsyncContextManager[None]: ...
     def _image_slot(self) -> AbstractAsyncContextManager[None]: ...

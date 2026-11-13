@@ -14,6 +14,10 @@ import { logError } from "../utils/errors";
 import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 import { quickAccessIsHidden } from "../utils/quickAccess";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
+import { landOnTop, lastFocusedKey } from "../focusRecords";
+import { useLatestRef } from "./useLatestRef";
+
+const KEEPS_ITS_PLACE = new Set(["cheevocheck:back", "cheevocheck:guide"]);
 
 type UseCheevoCheckControllerArgs = {
     isActive: boolean;
@@ -24,6 +28,7 @@ const RUNNING_POLL_MS = 1000;
 
 export function useCheevoCheckController({ isActive, language }: UseCheevoCheckControllerArgs) {
     const [state, setState] = useState<CheevoCheckState | null>(null);
+    const stateRef = useLatestRef(state);
     const [loaded, setLoaded] = useState(false);
     const [starting, setStarting] = useState(false);
     const [cancelling, setCancelling] = useState(false);
@@ -57,9 +62,18 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         loadingRef.current = true;
         try {
             const status = await getCheevoCheckScanStatus();
+            if (!status.running && status.scheduled) {
+                return;
+            }
             if (!status.running) {
                 await reload();
                 return;
+            }
+            const before = stateRef.current;
+            const focused = lastFocusedKey();
+            if (before && !before.running && before.scheduled
+                && focused?.startsWith("cheevocheck:") && !KEEPS_ITS_PLACE.has(focused)) {
+                landOnTop("cheevoCheck", "cheevocheck:back");
             }
             setState((current) => {
                 if (!current) {
@@ -82,7 +96,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
     }, [reload]);
 
     useEffect(() => {
-        if (!isActive || !state?.running) {
+        if (!isActive || !(state?.running || state?.scheduled)) {
             return;
         }
         const timer = window.setInterval(() => {
@@ -92,7 +106,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
             void pollScan();
         }, RUNNING_POLL_MS);
         return () => window.clearInterval(timer);
-    }, [isActive, state?.running, pollScan]);
+    }, [isActive, state?.running, state?.scheduled, pollScan]);
 
     const cancelScan = useCallback(async () => {
         setCancelling(true);

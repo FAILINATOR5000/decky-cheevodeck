@@ -904,6 +904,10 @@ class Plugin(
 
         self._background_tasks = set()
 
+        self._cheevo_check_schedule = None
+
+        self._welcome_owed = False
+
         self._memories_last_resolve_at = 0.0
         self._memories_deferred_resolve = None
         self._memories_switch_pending = {}
@@ -1774,6 +1778,7 @@ class Plugin(
     async def mark_intro_viewed(self):
         if not self.settings_store.get_viewed_intro(self.settings_store.load_config()):
             self.multiplayer_friends_service.hold_notices()
+            self._welcome_owed = True
         self.settings_store.update_viewed_intro(True)
 
         return {
@@ -1790,6 +1795,10 @@ class Plugin(
 
     async def announce_welcome(self):
         """The greeting, posted when the last of the intro modals closes."""
+        if not self._welcome_owed:
+            return {"ok": True, "announced": False}
+        self._welcome_owed = False
+
         document = await self.load_help_document("welcome")
         text = str(document.get("text") or "").strip()
         if not text:
