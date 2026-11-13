@@ -250,7 +250,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
                         onButtonDown={handleTabButtons}
                         actionDescriptionMap={tabLegend}
                     />
-                    <div style={{ height: "1px", background: "rgba(255,255,255,0.14)", marginBottom: "12px" }} />
+                    <div style={{ height: "2px", background: "rgba(255,255,255,0.14)", marginBottom: "12px" }} />
                 </>
             )}
 
