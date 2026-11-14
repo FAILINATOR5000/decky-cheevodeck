@@ -708,15 +708,20 @@ def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Pat
     return " ".join(f"-C {quote(key)}" for key in keys)
 
 
-def dolphin_game_settings(home, install: str) -> list:
+def dolphin_user_dir(home, install: str):
     home = Path(home)
     if install == "flatpak":
-        return [home / ".var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/GameSettings"]
+        return home / ".var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu"
     if install == "appimage":
         if (home / ".dolphin-emu").is_dir():
-            return [home / ".dolphin-emu/GameSettings"]
-        return [home / ".local/share/dolphin-emu/GameSettings"]
-    return []
+            return home / ".dolphin-emu"
+        return home / ".local/share/dolphin-emu"
+    return None
+
+
+def dolphin_game_settings(home, install: str) -> list:
+    folder = dolphin_user_dir(home, install)
+    return [folder / "GameSettings"] if folder is not None else []
 
 
 def dolphin_sets_adapter(folders, disc_id: str) -> bool:

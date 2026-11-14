@@ -22,7 +22,7 @@ import decky
 import emulator_catalog as catalog
 import multiplayer_lounge as lounge
 import multiplayer_protocol as proto
-from services import game_pipes, stream_room
+from services import game_pipes, stream_room, wii_saves
 import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
@@ -3683,6 +3683,7 @@ class MultiplayerService:
             self._remove_session_files(current["id"])
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
+        current["startedAt"] = time.time()
         current["watch"] = self._spawn(self._watch(current))
         game_id = current.get("gameId", 0)
         if room is not None:
@@ -5610,6 +5611,7 @@ class MultiplayerService:
         nick = self._user()
         save_port = 0
         save_file = None
+        wii_nand = None
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
@@ -5652,6 +5654,11 @@ class MultiplayerService:
                 marker = self._session_dir / f"session-{sid}.dolphin"
                 self._write(marker, "")
                 files = [marker]
+                if mode == "couch" and role == "host":
+                    user_dir = session.dolphin_user_dir(self._user_home, local["install"])
+                    config = session.dolphin_config(self._user_home, local["install"])
+                    if user_dir is not None and config is not None:
+                        wii_nand = {"user": user_dir, "config": config}
                 if mode == "couch":
                     args = session.dolphin_netplay_args(
                         host_ip=own_ip if role == "host" else host_ip, nick=nick, hardcore=hardcore, marker=marker,
@@ -5705,6 +5712,7 @@ class MultiplayerService:
             "watch": None,
             "savePort": save_port,
             "saveFile": save_file,
+            "wiiNand": wii_nand,
         }
         if local["emulator"] != "rmg":
             options = session.compose_launch_options(original, args)
@@ -6127,6 +6135,8 @@ class MultiplayerService:
             self._spawn(self._ping_saves(current))
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
+            if current.get("wiiNand"):
+                await asyncio.to_thread(self._put_wii_saves_back, current)
             self._finish(current)
 
     async def _follow_steam_game(self, current: dict) -> None:
@@ -6198,6 +6208,18 @@ class MultiplayerService:
                     warned = True
         finally:
             sock.close()
+
+    def _put_wii_saves_back(self, current: dict) -> None:
+        nand = current["wiiNand"]
+        try:
+            if _ini_section(nand["config"], "NetPlay").get("WriteSaveData", "True").lower() == "false":
+                self._debug("Wii saves: the host's Write Save Data is off")
+                return
+            outcome = wii_saves.put_back(nand["user"], since=current["startedAt"],
+                                         backups=self._session_dir / SAVE_BACKUPS)
+            self._debug("Wii saves: %s", outcome)
+        except Exception as e:
+            decky.logger.warning("multiplayer: the Wii save copy-back failed (%s)", type(e).__name__)
 
     def _retroarch_saves_netplay(self) -> bool:
         if RETROARCH_NETPLAY_AUTOSAVE_SINCE is None:
