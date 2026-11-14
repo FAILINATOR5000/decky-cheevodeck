@@ -500,7 +500,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const warnings = [
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
-        ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
+        ...(runsRmg ? [t(language, "rmg_heads_up")] : []),
+        ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : [])
     ];
     const tips = [
         ...(mp.mode === "link" ? [problemText(language, "link_system")] : []),
