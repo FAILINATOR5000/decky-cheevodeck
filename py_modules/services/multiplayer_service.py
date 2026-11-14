@@ -5708,6 +5708,10 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_GATE, "gate": "stream_busy", "detail": {}}
         if stream is not None:
             stream.wait_paired(PAIR_WAIT_SECONDS)
+            if stream.paired and stream.unpaired_after_all():
+                decky.logger.info("stream: Moonlight isn't paired with the host after all, pairing again")
+                stream.forget_pairing()
+                stream.wait_paired(PAIR_WAIT_SECONDS)
         if stream is None or not stream.paired:
             return {"ok": False, "error": ERROR_STREAM_UNREACHABLE}
         if stream.full:

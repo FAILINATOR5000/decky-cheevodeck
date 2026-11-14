@@ -25,6 +25,7 @@ PAIR_POLL_SECONDS = 1.0
 PAIR_GIVE_UP_SECONDS = 15
 LIST_SECONDS = 10
 GUEST_PAIR_RETRY_SECONDS = 10
+NOT_PAIRED = "has not been paired"
 KILL_SECONDS = 10
 SERVERINFO_PORT = 47989
 SERVERINFO_SECONDS = 2
@@ -460,6 +461,16 @@ class GuestStream:
         self.paired = False
         self.failed = False
         self._pin = ""
+
+    def unpaired_after_all(self) -> bool:
+        try:
+            code, out, err = subprocess_util.run_command(
+                self._moonlight(f"list {shlex.quote(self.address)}"), timeout=LIST_SECONDS, env=self._env(),
+                as_data_owner=True)
+        except Exception as e:
+            self._debug("stream: couldn't check the pairing before the launch (%s)", type(e).__name__)
+            return False
+        return code != 0 and NOT_PAIRED in f"{out}{err}"
 
     def wait_paired(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds
