@@ -666,6 +666,7 @@ _KNOBS = (
     Knob("playersNearYouCollapsed", default=False),
     Knob("dolphinAdvancedCollapsed", default=True),
     Knob("dolphinMappingsSeeded", default=False, reset=False, ship=False),
+    Knob("dolphinStreamHostSeeded", default=False, reset=False, ship=False),
     Knob("gamesListCacheMinutes", default=20),
     Knob("awardsListCacheMinutes", default=15),
     Knob("wantToPlayCacheMinutes", default=20),
@@ -1833,6 +1834,9 @@ class SettingsStore:
 
     def mark_dolphin_mappings_seeded(self) -> None:
         self._update_config("dolphinMappingsSeeded", True)
+
+    def mark_dolphin_stream_host_seeded(self) -> None:
+        self._update_config("dolphinStreamHostSeeded", True)
 
     def update_language(self, language: str) -> str:
         value = str(language or self._default_language).strip().lower()
@@ -5042,6 +5046,9 @@ class SettingsStore:
 
     def get_dolphin_mappings_seeded(self, cfg: dict) -> bool:
         return bool(cfg.get("dolphinMappingsSeeded", False))
+
+    def get_dolphin_stream_host_seeded(self, cfg: dict) -> bool:
+        return bool(cfg.get("dolphinStreamHostSeeded", False))
 
     def get_big_list_threshold(self, cfg: dict) -> int:
         value = to_int(cfg.get("bigListThreshold", BIG_LIST_THRESHOLD_DISABLED), BIG_LIST_THRESHOLD_DISABLED)

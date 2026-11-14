@@ -601,6 +601,7 @@ class Plugin(
             multiplayer_friends_store=self.multiplayer_friends_store,
             multiplayer_messages_store=self.multiplayer_messages_store,
             settings_store=self.settings_store,
+            dolphin_mappings_store=self.dolphin_mappings_store,
             user_home=self.user_home,
             voice_canceller=self.voice_canceller,
             stream_setup=self.stream_setup,

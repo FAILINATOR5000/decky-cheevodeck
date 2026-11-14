@@ -2,6 +2,7 @@ import os
 
 import decky
 
+import dolphin_seed
 import steam_shortcuts
 from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
 
@@ -34,8 +35,8 @@ class RepairService:
     """
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
-                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home, voice_canceller,
-                 stream_setup, emulator_service):
+                 multiplayer_friends_store, multiplayer_messages_store, settings_store, dolphin_mappings_store,
+                 user_home, voice_canceller, stream_setup, emulator_service):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
@@ -43,6 +44,7 @@ class RepairService:
         self._multiplayer_friends_store = multiplayer_friends_store
         self._multiplayer_messages_store = multiplayer_messages_store
         self._settings_store = settings_store
+        self._dolphin_mappings_store = dolphin_mappings_store
         self._user_home = user_home
         self._voice_canceller = voice_canceller
         self._stream_setup = stream_setup
@@ -149,6 +151,15 @@ class RepairService:
             )
 
         try:
+            if self._seed_stream_host_mappings():
+                fixed.append("dolphin_stream_host_mappings")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: adding the Stream Play Host Dolphin mappings failed: %s",
+                type(e).__name__,
+            )
+
+        try:
             if self._voice_canceller.repair():
                 fixed.append("voice_canceller")
         except Exception as e:
@@ -181,6 +192,19 @@ class RepairService:
         if not any(True for _path in steam_shortcuts.iter_shortcuts_files(self._user_home)):
             return None
         return steam_shortcuts.find_shortcut(appid, self._user_home) is not None
+
+    def _seed_stream_host_mappings(self) -> bool:
+        cfg = self._settings_store.load_config()
+        if self._settings_store.get_dolphin_stream_host_seeded(cfg):
+            return False
+        added = 0
+        if self._settings_store.get_dolphin_mappings_seeded(cfg):
+            result = self._dolphin_mappings_store.add_seed(dolphin_seed.build_stream_host_mappings())
+            if not result.get("ok"):
+                return False
+            added = result["added"]
+        self._settings_store.mark_dolphin_stream_host_seeded()
+        return added > 0
 
     def _hand_back_dolphin_folders(self) -> bool:
         if os.geteuid() != 0:

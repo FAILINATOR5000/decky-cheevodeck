@@ -50,6 +50,19 @@ _WII_MULTIPLAYER_FACE = "standard"
 
 _BUILT_IN_CONTROLLERS = ("steamdeck", "rogally")
 
+_STREAM_GUEST_CONTROLLER = "xboxone"
+_STREAM_HOST_PADS = {
+    "steamdeck": "a Steam Deck",
+    "rogally": "an ROG Ally",
+    "dualsense": "a DualSense",
+    "switchpro": "a Switch Pro Controller",
+    "ps4": "a PlayStation 4 Controller",
+    "steamcontroller": "a Steam Controller",
+    "xbox360": "an Xbox 360 Controller",
+    "xboxone": "an Xbox One Controller",
+    "xbox": "an Xbox Series X Controller",
+}
+
 
 def _aa_face(controller_type):
     return "standard" if is_nintendo_style(controller_type) else "literal"
@@ -229,10 +242,60 @@ def _mixed_mappings():
     ]
 
 
+def _stream_host_mappings(tag, controller):
+    prefix = f"[{tag}]"
+    pads = [controller] + [_STREAM_GUEST_CONTROLLER] * 3
+    note = f"P1 is {_STREAM_HOST_PADS[controller]} while P2 + P3 + P4 are Xbox One Controllers"
+
+    def classic(literal, swap):
+        title = "Literal (A = A)" if literal else "Standard (Nintendo)"
+        if swap:
+            title += " - Triggers Swapped"
+        return {
+            "name": f"{prefix}Wii: Stream Play Host Classic - {title}",
+            "body": note,
+            "system": "wii",
+            "wiiStyle": "classic",
+            "players": [_slot(c, face=_aa_face(c) if literal else "standard", swap=swap) for c in pads],
+        }
+
+    def wii(title, style):
+        return {
+            "name": f"{prefix}Wii: Stream Play Host {title}",
+            "body": note,
+            "system": "wii",
+            "wiiStyle": style,
+            "players": [_slot(c, face=_WII_MULTIPLAYER_FACE) for c in pads],
+        }
+
+    return [
+        {
+            "name": f"{prefix}GCN: Stream Play Host",
+            "body": note,
+            "system": "gamecube",
+            "players": [_slot(c, face=_aa_face(c)) for c in pads],
+        },
+        classic(False, False),
+        classic(True, False),
+        classic(False, True),
+        classic(True, True),
+        wii("Wiimote & Nunchuk", "wiimote_nunchuk"),
+        wii("Wiimote (Sideways)", "wiimote_sideways"),
+    ]
+
+
+def build_stream_host_mappings():
+    mappings = []
+    for tag, controller in _SINGLE_PLAYER_TAGS:
+        mappings.extend(_stream_host_mappings(tag, controller))
+    return mappings
+
+
 def build_seed_mappings():
     mappings = []
     for tag, controller in _SINGLE_PLAYER_TAGS:
         mappings.extend(_single_player_mappings(tag, controller))
+        mappings.extend(_stream_host_mappings(tag, controller))
     mappings.extend(_real_wiimote_mappings())
     mappings.extend(_mixed_mappings())
     return mappings

@@ -420,6 +420,27 @@ class DolphinMappingsStore:
         return {"ok": True, "seeded": True, "count": len(cleaned)}
 
     @refuses_newer_schema
+    def add_seed(self, mappings) -> dict:
+        with self._lock:
+            data = self._load_raw()
+            live = _live_collapse_keys(data["mappings"])
+            names = {item["name"] for item in data["mappings"]}
+            added = 0
+            for entry in mappings:
+                if len(data["mappings"]) >= MAX_MAPPINGS:
+                    break
+                item = self._clean_mapping(entry)
+                if item is None or item["name"] in names or _collapse_key(item["name"]) not in live:
+                    continue
+                data["mappings"].append(item)
+                names.add(item["name"])
+                added += 1
+            if added:
+                self._save_raw(data)
+
+        return {"ok": True, "added": added}
+
+    @refuses_newer_schema
     def clear_all(self) -> dict:
         with self._lock:
             refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
