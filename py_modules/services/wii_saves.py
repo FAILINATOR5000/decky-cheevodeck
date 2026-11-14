@@ -23,10 +23,20 @@ class Refused(Exception):
     pass
 
 
-def put_back(user_dir: Path, *, since: float, backups: Path) -> str:
+def session_id(user_dir: Path):
+    try:
+        st = os.lstat(user_dir / SESSION)
+    except OSError:
+        return None
+    return st.st_dev, st.st_ino
+
+
+def put_back(user_dir: Path, *, since: float, backups: Path, before=None) -> str:
     session = user_dir / SESSION
     if session.is_symlink() or not session.is_dir():
         return "no session left, Dolphin put it back itself or there was nothing to"
+    if before is not None and session_id(user_dir) == before:
+        return "the session there predates the round"
     try:
         fst = os.lstat(session / "fst.bin")
     except OSError:
@@ -115,20 +125,23 @@ def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backup
     if not real.is_dir():
         raise Refused("the real data folder isn't a folder")
     have = _contents(real)
-    if wanted == have:
+    changed = sorted(relative for relative, digest in wanted.items() if have.get(relative) != digest)
+    if not changed:
         return 0
+    for relative in changed:
+        _no_clash(real, relative)
 
     if have:
         _back_up(real, have, backups / f"wii-{kind}{title}-{time.strftime('%Y%m%d%H%M%S')}")
         _prune(backups, f"wii-{kind}{title}-")
 
     touched = {real}
-    for relative in sorted(wanted):
+    for relative in changed:
         target = real / relative
         if target.parent != real:
             ensure_dir(target.parent, trusted=real)
             touched.add(target.parent)
-        data = (source / relative).read_bytes()
+        data = _read(source / relative)
         keep = None
         try:
             st = os.lstat(target)
@@ -152,7 +165,33 @@ def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backup
             pass
         finally:
             os.close(fd)
-    return len(wanted)
+    return len(changed)
+
+
+def _no_clash(real: Path, relative: str) -> None:
+    folder = real
+    for part in Path(relative).parts[:-1]:
+        folder = folder / part
+        try:
+            st = os.lstat(folder)
+        except FileNotFoundError:
+            return
+        if not stat.S_ISDIR(st.st_mode):
+            raise Refused(f"{part} isn't a folder in the real save")
+    try:
+        st = os.lstat(real / relative)
+    except FileNotFoundError:
+        return
+    if not stat.S_ISREG(st.st_mode):
+        raise Refused(f"{relative} isn't a plain file in the real save")
+
+
+def _read(path: Path) -> bytes:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    with os.fdopen(fd, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise Refused(f"{path.name} isn't a plain file")
+        return handle.read()
 
 
 def _contents(folder: Path) -> dict:
@@ -166,8 +205,7 @@ def _contents(folder: Path) -> dict:
             st = os.lstat(path)
             if not stat.S_ISREG(st.st_mode):
                 raise Refused(f"{name} isn't a plain file")
-            with open(path, "rb") as handle:
-                digest = hashlib.sha1(handle.read()).hexdigest()
+            digest = hashlib.sha1(_read(Path(path))).hexdigest()
             found[os.path.relpath(path, folder)] = digest
     return found
 
@@ -185,7 +223,7 @@ def _back_up(real: Path, have: dict, folder: Path) -> None:
         target = folder / relative
         if target.parent != folder:
             ensure_dir(target.parent)
-        data = (real / relative).read_bytes()
+        data = _read(real / relative)
         with atomic_file(target, tmp_name=f".{target.name}{TMP_SUFFIX}") as out:
             out.write(data)
             out.flush()
