@@ -121,6 +121,7 @@
     {"id": "pt_win_ttt", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_win_ttt"]}, "target": 1, "xp": 250},
     {"id": "pt_win_c4", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_win_c4"]}, "target": 1, "xp": 250},
     {"id": "pt_win_rev", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_win_rev"]}, "target": 1, "xp": 250},
+    {"id": "pt_win_chk", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_win_chk"]}, "target": 1, "xp": 250},
     {"id": "pt_voice", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_voice"]}, "target": 1, "xp": 25},
     {"id": "pt_message", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_message"]}, "target": 1, "xp": 10},
     {"id": "pt_games_10", "category": "play_together", "rule": {"type": "counter", "kinds": ["pt_round_link", "pt_round_couch", "pt_round_stream"]}, "target": 10, "xp": 100},
@@ -204,7 +205,7 @@
     {"id": "wq_dailies_5", "rule": {"type": "daily_done"}, "target": 5, "xp": 250},
     {"id": "wq_memories_10", "rule": {"type": "action", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 10, "needs": "memories_on", "xp": 250},
     {"id": "wq_pt_games_3", "rule": {"type": "action", "kinds": ["pt_round_link", "pt_round_couch", "pt_round_stream"]}, "target": 3, "needs": "pt_friend", "xp": 250},
-    {"id": "wq_pt_lounge_wins_2", "rule": {"type": "action", "kinds": ["pt_win_ttt", "pt_win_c4", "pt_win_rev"]}, "target": 2, "needs": "pt_friend", "xp": 250}
+    {"id": "wq_pt_lounge_wins_2", "rule": {"type": "action", "kinds": ["pt_win_ttt", "pt_win_c4", "pt_win_rev", "pt_win_chk"]}, "target": 2, "needs": "pt_friend", "xp": 250}
   ],
   "bonusQuests": [
     {"id": "bq_unlock_8", "rule": {"type": "unlocks"}, "target": 8},

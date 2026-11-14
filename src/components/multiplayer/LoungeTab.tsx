@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { multiplayerLounge } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerLounge, MultiplayerLoungeBoard, MultiplayerLoungeGame } from "../../types";
-import { playDrop, playDropOther, playFlip, playFlipOther, playMark, playMarkOther, playTick } from "../../utils/lobbySounds";
+import { CHK_SIDE, chkMoves, chkPath } from "../../utils/checkersRules";
+import { playDrop, playDropOther, playFlip, playFlipOther, playMark, playMarkOther, playSlide, playSlideOther, playTick } from "../../utils/lobbySounds";
 import { logError } from "../../utils/errors";
 import { roomGameWhy } from "../../utils/multiplayerProblems";
 import { forgetNavAxisMemory, type NavAxisRef } from "../../utils/navAxisMemory";
@@ -15,16 +16,27 @@ import { SubTabButton } from "../ui/SubTabButton";
 import { PicAvatar } from "./PicAvatar";
 import { showMultiplayerProblem } from "./ProblemModal";
 
+const NAV_ENTER_MAINTAIN_X = 2;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const C4_COLUMNS = 7;
 const REV_SIDE = 8;
 const SLOT_COLORS = ["#ef4444", "#facc15", "#3b82f6", "#22c55e"];
 
-const NAMES: Record<MultiplayerLoungeGame, string> = { ttt: "Tic-tac-toe", c4: "Connect Four", rev: "Reversi" };
-const COLUMNS: Record<MultiplayerLoungeGame, number> = { ttt: 3, c4: C4_COLUMNS, rev: REV_SIDE };
-const ROWS: MultiplayerLoungeGame[][] = [["ttt", "c4"], ["rev"]];
+const NAMES: Record<MultiplayerLoungeGame, string> = { ttt: "Tic-tac-toe", c4: "Connect Four", rev: "Reversi", chk: "Checkers" };
+const COLUMNS: Record<MultiplayerLoungeGame, number> = { ttt: 3, c4: C4_COLUMNS, rev: REV_SIDE, chk: CHK_SIDE };
+const ROWS: MultiplayerLoungeGame[][] = [["ttt", "c4"], ["rev", "chk"]];
 const SWITCHER = ROWS.flat().map((game) => `multiplayer:lounge:${game}`);
 const REV_DIRECTIONS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+
+const CHK_STYLES = `
+.da-chk-dark:not(.gpfocus) { background: #111111 !important; }
+.da-chk-light:not(.gpfocus) { background: #9b1c1c !important; }
+.da-chk-picked:not(.gpfocus) { background: #2a2a2a !important; box-shadow: inset 0 0 0 2px #fff !important; }
+.da-chk-picked.gpfocus { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #111111 !important; }
+.da-chk-path { box-shadow: inset 0 0 0 2px ${achievementGreen} !important; }
+.da-chk-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
+.gpfocus .da-chk-dot { background: rgba(0, 0, 0, 0.45); }
+`;
 
 function cellKey(game: MultiplayerLoungeGame, index: number): string {
     const columns = COLUMNS[game];
@@ -57,7 +69,7 @@ function revFlips(board: string, slot: number, cell: number): number[] {
 }
 
 function discCount(board: string, slot: number): number {
-    return Array.from(board).filter((mark) => mark === String(slot)).length;
+    return Array.from(board).filter((mark) => mark !== "." && Number(mark) % 2 === slot).length;
 }
 
 function activeSlot(board: MultiplayerLoungeBoard, seat: number): number {
@@ -66,16 +78,37 @@ function activeSlot(board: MultiplayerLoungeBoard, seat: number): number {
 
 type PiecePlayer = { name: string; pic: string; gone: boolean };
 
-function Piece(props: { player: PiecePlayer | undefined; slot: number; size: number; ring: boolean; avatars: Record<string, string> }) {
+function Crown() {
+    return (
+        <svg viewBox="0 0 12 10" width={12} height={10} style={{ position: "absolute", top: 0, right: 0, pointerEvents: "none" }}>
+            <path d="M1 3 L3.5 5.5 L6 1 L8.5 5.5 L11 3 L10 8 L2 8 Z" fill="#facc15" stroke="#7a5a00" strokeWidth={0.8} />
+            <rect x={2} y={8} width={8} height={1.6} fill="#facc15" stroke="#7a5a00" strokeWidth={0.6} />
+        </svg>
+    );
+}
+
+function Piece(props: {
+    player: PiecePlayer | undefined;
+    slot: number;
+    size: number;
+    ring: boolean;
+    king?: boolean;
+    avatars: Record<string, string>;
+}) {
     const { player } = props;
     if (!player) {
         return props.ring
-            ? <div style={{ width: props.size + 4, height: props.size + 4, borderRadius: "8px", background: SLOT_COLORS[props.slot] }} />
+            ? (
+                <div style={{ position: "relative", width: props.size + 4, height: props.size + 4, borderRadius: "8px", background: SLOT_COLORS[props.slot] }}>
+                    {props.king && <Crown />}
+                </div>
+            )
             : null;
     }
     return (
         <div
             style={{
+                position: "relative",
                 borderRadius: "8px",
                 padding: "2px",
                 background: props.ring ? SLOT_COLORS[props.slot] : undefined,
@@ -83,11 +116,21 @@ function Piece(props: { player: PiecePlayer | undefined; slot: number; size: num
             }}
         >
             <PicAvatar uri={player.pic ? props.avatars[player.pic] : undefined} name={player.name} size={props.size} />
+            {props.king && <Crown />}
         </div>
     );
 }
 
-type Pending = { game: MultiplayerLoungeGame; index: number; slot: number; board: string; match: number };
+type Pending = {
+    game: MultiplayerLoungeGame;
+    index: number;
+    slot: number;
+    board: string;
+    match: number;
+    from?: number;
+    captured?: number[];
+    king?: boolean;
+};
 
 function landing(board: string, column: number): number {
     for (let index = board.length - C4_COLUMNS + column; index >= 0; index -= C4_COLUMNS) {
@@ -114,8 +157,10 @@ export function LoungeTab(props: {
     const navRef = useRef(null) as NavAxisRef;
     const pressing = useRef(false);
     const [pending, setPending] = useState<Pending | null>(null);
+    const [selected, setSelected] = useState<number | null>(null);
     useEffect(() => {
         setPending(null);
+        setSelected(null);
     }, [game, board.board, board.match]);
     const gameKey = NAMES[game];
     const mine = activeSlot(board, ownSeat);
@@ -128,12 +173,18 @@ export function LoungeTab(props: {
         }
         for (let index = 0; index < board.board.length; index++) {
             const mark = board.board[index];
-            if (before.board[index] === "." && mark !== "." && Number(mark) !== mine) {
+            const owner = game === "chk" ? Number(mark) % 2 : Number(mark);
+            if (before.board[index] === "." && mark !== "." && owner !== mine) {
                 if (game === "ttt") {
                     playMarkOther();
                 }
                 else if (game === "c4") {
                     playDropOther();
+                }
+                else if (game === "chk") {
+                    const taken = Array.from(before.board).filter((was, cell) => was !== "." && Number(was) % 2 !== owner
+                        && board.board[cell] === ".").length;
+                    playSlideOther(taken);
                 }
                 else {
                     const flipped = Array.from(board.board).filter((after, cell) => after !== "." && before.board[cell] !== "."
@@ -155,18 +206,32 @@ export function LoungeTab(props: {
     }, [game, started]);
     const slotStarted = slotFor.game === game ? slotFor.started : started;
     const turnName = board.players[board.turn]?.name ?? "";
+    const pairGame = game === "rev" || game === "chk";
+    const myTurn = started && !board.end && mine >= 0 && mine === board.turn;
+    const chain = board.chain ?? -1;
+    const chkLegal = game === "chk" && myTurn ? chkMoves(board.board, mine, chain) : [];
+    const picked = game !== "chk" || !myTurn || pending !== null ? null : chain >= 0 ? chain : selected;
+    const flipped = game === "chk" && mine === 1;
+    const squareAt = (position: number) => (flipped ? board.board.length - 1 - position : position);
+    const chainRef = useRef(null) as NavAxisRef;
+    const cursorAt = useRef(-1);
+    useEffect(() => {
+        if (game === "chk" && myTurn && chain >= 0 && cursorAt.current >= 0 && squareAt(cursorAt.current) !== chain) {
+            chainRef.current?.TakeFocus?.(true);
+        }
+    }, [game, myTurn, chain]);
 
     function explain(code: string, vars?: Record<string, string>) {
         showMultiplayerProblem(language, gameKey, roomGameWhy(language, code, vars));
     }
 
-    async function send(act: "move" | "start" | "clear" | "join", cell: number, titleKey: string): Promise<boolean> {
+    async function send(act: "move" | "start" | "clear" | "join", cell: number, titleKey: string, to = 0): Promise<boolean> {
         if (pressing.current) {
             return false;
         }
         pressing.current = true;
         try {
-            const result = await multiplayerLounge(game, act, cell);
+            const result = await multiplayerLounge(game, act, cell, to);
             if (!result.ok) {
                 showMultiplayerProblem(language, titleKey, roomGameWhy(language, result.error ?? "unavailable", { name: turnName }));
             }
@@ -181,22 +246,17 @@ export function LoungeTab(props: {
         }
     }
 
-    function place(cell: number, index: number, slot: number, flips = 0) {
+    function pendingAt(index: number, slot: number): Pending {
+        return { game, index, slot, board: board.board, match: board.match };
+    }
+
+    function place(cell: number, placed: Pending, sound: () => void, to = 0) {
         if (pressing.current) {
             return;
         }
-        const placed = { game, index, slot, board: board.board, match: board.match };
         setPending(placed);
-        if (game === "ttt") {
-            playMark();
-        }
-        else if (game === "c4") {
-            playDrop();
-        }
-        else {
-            playFlip(flips);
-        }
-        void send("move", cell, gameKey).then((ok) => {
+        sound();
+        void send("move", cell, gameKey, to).then((ok) => {
             if (!ok) {
                 setPending((current) => (current === placed ? null : current));
             }
@@ -225,10 +285,10 @@ export function LoungeTab(props: {
                 explain("square_taken");
                 return;
             }
-            place(index, index, mine >= 0 ? mine : board.players.length);
+            place(index, pendingAt(index, mine >= 0 ? mine : board.players.length), playMark);
             return;
         }
-        if (game === "rev") {
+        if (pairGame) {
             if (!board.started) {
                 explain(mine >= 0 ? "c4_need_two" : "c4_join");
                 return;
@@ -241,6 +301,10 @@ export function LoungeTab(props: {
                 explain("not_your_turn", { name: turnName });
                 return;
             }
+            if (game === "chk") {
+                pressSquare(index);
+                return;
+            }
             if (board.board[index] !== ".") {
                 explain("square_taken");
                 return;
@@ -250,7 +314,7 @@ export function LoungeTab(props: {
                 explain("rev_illegal");
                 return;
             }
-            place(index, index, mine, flips.length);
+            place(index, pendingAt(index, mine), () => playFlip(flips.length));
             return;
         }
         const column = index % C4_COLUMNS;
@@ -279,7 +343,51 @@ export function LoungeTab(props: {
             explain("column_full");
             return;
         }
-        place(column, landing(board.board, column), mine);
+        place(column, pendingAt(landing(board.board, column), mine), playDrop);
+    }
+
+    function pressSquare(index: number) {
+        if (pending !== null) {
+            return;
+        }
+        const move = chkLegal.find((entry) => entry.from === picked && entry.to === index);
+        if (move) {
+            const path = chkPath(board.board, move.from, move.to);
+            const placed = {
+                ...pendingAt(path.landings[path.landings.length - 1], mine),
+                from: move.from,
+                captured: path.captured,
+                king: Number(board.board[move.from]) >= 2 || path.crowned
+            };
+            setSelected(null);
+            place(move.from, placed, () => playSlide(path.captured.length), move.to);
+            return;
+        }
+        if (index === picked) {
+            if (chain < 0) {
+                setSelected(null);
+                playTick();
+            }
+            return;
+        }
+        const mark = board.board[index];
+        if (mark === "." || Number(mark) % 2 !== mine) {
+            if (picked === null) {
+                explain("chk_pick");
+            }
+            return;
+        }
+        if (chain >= 0) {
+            return;
+        }
+        if (chkLegal.some((entry) => entry.from === index)) {
+            setSelected(index);
+            playTick();
+            return;
+        }
+        if (picked === null) {
+            explain(chkLegal.some((entry) => entry.captured >= 0) ? "chk_must_jump" : "chk_no_move");
+        }
     }
 
     function toBoard() {
@@ -287,7 +395,7 @@ export function LoungeTab(props: {
     }
 
     function pressJoin() {
-        if (game === "rev") {
+        if (pairGame) {
             if (mine >= 0) {
                 showMultiplayerProblem(language, "Join Match", roomGameWhy(language, "c4_need_two"));
                 return;
@@ -344,7 +452,7 @@ export function LoungeTab(props: {
     else {
         status = t(language, "It's {{name}}'s turn.", { name: turnName });
     }
-    const score = game === "rev" && board.players.length === 2
+    const score = pairGame && board.players.length === 2
         ? board.players.map((player, slot) => `${player.name} ${discCount(board.board, slot)}`).join(" · ")
         : "";
     const legal = game === "rev" && board.started && !board.end && mine >= 0 && mine === board.turn && pending === null
@@ -353,7 +461,7 @@ export function LoungeTab(props: {
 
     const opener = board.players.find((player) => !player.gone);
     const showStart = game === "c4" && !board.started && !board.end && opener?.seat === ownSeat;
-    const showJoin = game === "c4" ? !board.started && !board.end && mine < 0 : game === "rev" && !slotStarted && !board.end;
+    const showJoin = game === "c4" ? !board.started && !board.end && mine < 0 : pairGame && !slotStarted && !board.end;
     const action = showJoin ? "join" : showStart ? "start" : null;
     useEffect(() => {
         if (!action) {
@@ -364,14 +472,21 @@ export function LoungeTab(props: {
         ? { textAlign: "center", color: achievementGreen, fontWeight: 700 }
         : { textAlign: "center" };
     const columns = COLUMNS[game];
-    const pieceSize = game === "ttt" ? 44 : game === "c4" ? 24 : 22;
+    const pieceSize = game === "ttt" ? 44 : game === "c4" || game === "chk" ? 24 : 22;
+    const targets = picked === null ? null : new Set(chkLegal.filter((entry) => entry.from === picked).map((entry) => entry.to));
+    const early = pending !== null && pending.game === game && pending.board === board.board && pending.match === board.match
+        ? pending
+        : null;
 
     return (
         <>
+            {game === "chk" && <style>{CHK_STYLES}</style>}
             {ROWS.map((row, rowIndex) => (
                 <Focusable
                     key={rowIndex}
                     flow-children="row"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_X}
                     style={{ width: "100%", display: "flex", gap: "6px", margin: rowIndex === 0 ? "6px 0 6px 0" : "0 0 8px 0" }}
                 >
                     {row.map((entry) => (
@@ -396,30 +511,48 @@ export function LoungeTab(props: {
                         style={{
                             display: "grid",
                             gridTemplateColumns: `repeat(${columns}, 1fr)`,
-                            gap: game === "ttt" ? "8px" : game === "c4" ? "4px" : "3px",
+                            gap: game === "ttt" ? "8px" : game === "c4" ? "4px" : game === "rev" ? "3px" : "0px",
                             width: "100%"
                         }}
                     >
-                        {Array.from(board.board).map((mark, index) => {
-                            const early = mark === "." && pending !== null && pending.game === game && pending.index === index
-                                && pending.board === board.board && pending.match === board.match;
-                            const slot = early ? pending.slot : mark === "." ? -1 : Number(mark);
-                            const player = board.players[slot] ?? (early ? { ...props.self, gone: false } : undefined);
+                        {Array.from(board.board, (_, position) => {
+                            const index = squareAt(position);
+                            const mark = board.board[index];
+                            const arriving = early !== null && mark === "." && early.index === index ? early : null;
+                            const lifted = early !== null && (early.from === index || early.captured?.includes(index) === true);
+                            const value = lifted ? -1 : arriving ? arriving.slot + (arriving.king ? 2 : 0) : mark === "." ? -1 : Number(mark);
+                            const slot = value < 0 ? -1 : game === "chk" ? value % 2 : value;
+                            const player = board.players[slot] ?? (arriving ? { ...props.self, gone: false } : undefined);
                             const lined = board.line.includes(index);
+                            const square = game !== "chk" ? undefined : [
+                                (Math.floor(index / CHK_SIDE) + index % CHK_SIDE) % 2 === 1 ? "da-chk-dark" : "da-chk-light",
+                                index === picked ? "da-chk-picked" : "",
+                                lined ? "da-chk-path" : ""
+                            ].filter(Boolean).join(" ");
                             return (
                                 <FocusTarget
-                                    key={index}
+                                    key={position}
                                     focusKey={cellKey(game, index)}
                                     focusFallback={[`multiplayer:lounge:${game}`, ...SWITCHER]}
                                     style={{ display: "flex", minWidth: 0 }}
                                 >
                                     <DialogButton
+                                        navRef={game === "chk" && index === chain ? chainRef : undefined}
+                                        className={square}
                                         onClick={() => pressCell(index)}
                                         onOKButton={() => {
                                             pressCell(index);
                                             return true;
                                         }}
-                                        onGamepadFocus={() => forgetNavAxisMemory(navRef)}
+                                        onGamepadFocus={() => {
+                                            cursorAt.current = position;
+                                            forgetNavAxisMemory(navRef);
+                                        }}
+                                        onGamepadBlur={() => {
+                                            if (cursorAt.current === position) {
+                                                cursorAt.current = -1;
+                                            }
+                                        }}
                                         style={{
                                             minWidth: 0,
                                             width: "100%",
@@ -428,16 +561,24 @@ export function LoungeTab(props: {
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
-                                            borderRadius: game === "c4" ? "50%" : game === "ttt" ? "6px" : "4px",
-                                            boxShadow: lined ? `0 0 0 2px ${achievementGreen}` : undefined
+                                            borderRadius: game === "c4" ? "50%" : game === "ttt" ? "6px" : game === "rev" ? "4px" : 0,
+                                            boxShadow: lined && game !== "chk" ? `0 0 0 2px ${achievementGreen}` : undefined
                                         }}
                                     >
                                         {slot >= 0 && (
-                                            <Piece player={player} slot={slot} size={pieceSize} ring={game !== "ttt"} avatars={props.avatars} />
+                                            <Piece
+                                                player={player}
+                                                slot={slot}
+                                                size={pieceSize}
+                                                ring={game !== "ttt"}
+                                                king={game === "chk" && value >= 2}
+                                                avatars={props.avatars}
+                                            />
                                         )}
                                         {slot < 0 && legal?.has(index) && (
                                             <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "rgba(255,255,255,0.45)" }} />
                                         )}
+                                        {slot < 0 && targets?.has(index) && <div className="da-chk-dot" />}
                                     </DialogButton>
                                 </FocusTarget>
                             );
@@ -447,7 +588,7 @@ export function LoungeTab(props: {
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), minHeight: "1.4em", opacity: 1, overflowWrap: "anywhere", width: "100%", ...statusStyle }}>
                         {status}
-                        {game === "rev" && <div style={{ minHeight: "1.4em" }}>{score}</div>}
+                        {pairGame && <div style={{ minHeight: "1.4em" }}>{score}</div>}
                     </div>
                 </PanelSectionRow>
                 {action && (

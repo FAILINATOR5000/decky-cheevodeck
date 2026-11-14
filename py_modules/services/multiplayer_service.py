@@ -265,7 +265,7 @@ PLANNED_GATES = {
     "no_play_core", "emulator_missing", "needs_dolphin", "dolphin_game_list",
 }
 ROUND_KINDS = {"link": "pt_round_link", "couch": "pt_round_couch", "stream": "pt_round_stream"}
-LOUNGE_WIN_KINDS = {"ttt": "pt_win_ttt", "c4": "pt_win_c4", "rev": "pt_win_rev"}
+LOUNGE_WIN_KINDS = {"ttt": "pt_win_ttt", "c4": "pt_win_c4", "rev": "pt_win_rev", "chk": "pt_win_chk"}
 
 
 class _Overlay:
@@ -2733,7 +2733,7 @@ class MultiplayerService:
         room["switching"] = room["gameId"] != vote["games"][vote["winner"]]["gameId"]
         self._spawn(self._switch_to_winner(room, vote))
 
-    def _lounge_press(self, room: dict, index: int, seat: dict, game: str, act: str, cell: int) -> str:
+    def _lounge_press(self, room: dict, index: int, seat: dict, game: str, act: str, cell: int, to: int) -> str:
         board = room["lounge"][game]
         was_over = board["end"]
         if act == "clear":
@@ -2743,6 +2743,8 @@ class MultiplayerService:
             error = lounge.ttt_move(room["lounge"]["ttt"], index, seat, cell) if act == "move" else ERROR_UNAVAILABLE
         elif game == "rev":
             error = lounge.rev_act(room["lounge"]["rev"], index, seat, act, cell) if act != "start" else ERROR_UNAVAILABLE
+        elif game == "chk":
+            error = lounge.chk_act(room["lounge"]["chk"], index, seat, act, cell, to) if act != "start" else ERROR_UNAVAILABLE
         else:
             error = lounge.c4_act(room["lounge"]["c4"], index, seat, act, cell) if act != "join" else ERROR_UNAVAILABLE
         if not error:
@@ -2770,15 +2772,15 @@ class MultiplayerService:
             return {"ok": False, "error": error} if error else {"ok": True, "room": self._host_view(room)}
         return await self._guest_press("vote", {"vote": number, "pick": pick})
 
-    async def lounge_press(self, game: str, act: str, cell: int) -> dict:
-        pressed = proto.read_lounge_press({"game": game, "act": act, "cell": cell})
+    async def lounge_press(self, game: str, act: str, cell: int, to: int = 0) -> dict:
+        pressed = proto.read_lounge_press({"game": game, "act": act, "cell": cell, "to": to})
         if pressed is None:
             return {"ok": False, "error": ERROR_UNAVAILABLE}
         room = self._room
         if room is not None:
             error = self._lounge_press(room, 0, room["seats"][0], *pressed)
             return {"ok": False, "error": error} if error else {"ok": True, "room": self._host_view(room)}
-        return await self._guest_press("lounge", {"game": game, "act": act, "cell": cell})
+        return await self._guest_press("lounge", {"game": game, "act": act, "cell": cell, "to": to})
 
     async def _guest_press(self, op: str, extra: dict) -> dict:
         joined = self._joined
@@ -6945,7 +6947,7 @@ def _lounge_marker(view):
     if view is None:
         return None
     marker = {}
-    for name in ("ttt", "c4", "rev"):
+    for name in ("ttt", "c4", "rev", "chk"):
         board = view[name]
         players = board["players"]
         won = board["end"] == "win" and 0 <= board["winner"] < len(players)

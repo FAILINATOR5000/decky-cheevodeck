@@ -12,6 +12,9 @@ REV_SIDE = 8
 REV_CELLS = REV_SIDE * REV_SIDE
 REV_START = {27: 1, 28: 0, 35: 0, 36: 1}
 REV_DIRECTIONS = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+CHK_SIDE = 8
+CHK_CELLS = CHK_SIDE * CHK_SIDE
+CHK_QUIET_DRAW = 80
 
 COUNT_MAX = 40
 
@@ -33,6 +36,7 @@ COLUMN_FULL = "column_full"
 MATCH_OVER = "match_over"
 REV_ILLEGAL = "rev_illegal"
 C4_JOIN = "c4_join"
+CHK_ILLEGAL = "chk_illegal"
 
 
 def voter_key(seat: dict) -> str:
@@ -89,6 +93,20 @@ def rev_new(match: int = 0) -> dict:
         board[cell] = slot
     return {"match": match, "board": board, "players": [], "started": False, "turn": 0, "end": "", "winner": -1,
             "passed": -1, "line": []}
+
+
+def chk_new(match: int = 0) -> dict:
+    board = [-1] * CHK_CELLS
+    for cell in range(CHK_CELLS):
+        row, column = divmod(cell, CHK_SIDE)
+        if (row + column) % 2 == 0:
+            continue
+        if row < 3:
+            board[cell] = 1
+        elif row > 4:
+            board[cell] = 0
+    return {"match": match, "board": board, "players": [], "started": False, "turn": 0, "end": "", "winner": -1,
+            "chain": -1, "quiet": 0, "line": []}
 
 
 def _slot(state: dict, seat_index: int) -> int:
@@ -222,19 +240,9 @@ def rev_legal(board: list, slot: int) -> list:
 def rev_act(state: dict, seat_index: int, seat: dict, act: str, cell: int) -> str:
     if state["end"]:
         return MATCH_OVER
-    players = state["players"]
     slot = _slot(state, seat_index)
     if act == "join":
-        if state["started"] or len(players) >= 2:
-            return TTT_TWO
-        if slot >= 0:
-            return C4_NEED_TWO
-        players.append(_player(seat_index, seat))
-        if len(players) == 2:
-            if random.random() < 0.5:
-                players.reverse()
-            state.update(started=True, turn=0, match=state["match"] + 1)
-        return ""
+        return _join_pair(state, seat_index, seat, slot)
     if not state["started"]:
         return C4_NEED_TWO if slot >= 0 else C4_JOIN
     if slot < 0:
@@ -258,12 +266,128 @@ def rev_act(state: dict, seat_index: int, seat: dict, act: str, cell: int) -> st
     return ""
 
 
+def _join_pair(state: dict, seat_index: int, seat: dict, slot: int) -> str:
+    players = state["players"]
+    if state["started"] or len(players) >= 2:
+        return TTT_TWO
+    if slot >= 0:
+        return C4_NEED_TWO
+    players.append(_player(seat_index, seat))
+    if len(players) == 2:
+        if random.random() < 0.5:
+            players.reverse()
+        state.update(started=True, turn=0, match=state["match"] + 1)
+    return ""
+
+
 def _rev_end(state: dict) -> None:
     counts = [state["board"].count(0), state["board"].count(1)]
     if counts[0] == counts[1]:
         state["end"] = "draw"
     else:
         state.update(end="win", winner=0 if counts[0] > counts[1] else 1)
+
+
+def _chk_steps(piece: int) -> list:
+    if piece >= 2:
+        rows = (-1, 1)
+    else:
+        rows = (-1,) if piece == 0 else (1,)
+    return [(d_row, d_column) for d_row in rows for d_column in (-1, 1)]
+
+
+def chk_continue(board: list, cell: int) -> list:
+    piece = board[cell]
+    row, column = divmod(cell, CHK_SIDE)
+    jumps = []
+    for d_row, d_column in _chk_steps(piece):
+        land_row, land_column = row + 2 * d_row, column + 2 * d_column
+        if not (0 <= land_row < CHK_SIDE and 0 <= land_column < CHK_SIDE):
+            continue
+        over = board[(row + d_row) * CHK_SIDE + column + d_column]
+        landing = land_row * CHK_SIDE + land_column
+        if over >= 0 and over & 1 != piece & 1 and board[landing] < 0:
+            jumps.append((landing, (row + d_row) * CHK_SIDE + column + d_column))
+    return jumps
+
+
+def chk_moves(board: list, slot: int, chain: int = -1) -> list:
+    if chain >= 0:
+        return [(chain, landing, captured) for landing, captured in chk_continue(board, chain)]
+    jumps = []
+    steps = []
+    for cell in range(CHK_CELLS):
+        piece = board[cell]
+        if piece < 0 or piece & 1 != slot:
+            continue
+        jumps.extend((cell, landing, captured) for landing, captured in chk_continue(board, cell))
+        row, column = divmod(cell, CHK_SIDE)
+        for d_row, d_column in _chk_steps(piece):
+            r, c = row + d_row, column + d_column
+            if 0 <= r < CHK_SIDE and 0 <= c < CHK_SIDE and board[r * CHK_SIDE + c] < 0:
+                steps.append((cell, r * CHK_SIDE + c, -1))
+    return jumps or steps
+
+
+def chk_path(board: list, cell: int, to: int) -> tuple:
+    board = list(board)
+    piece = board[cell]
+    landings = []
+    captured = []
+    crowned = False
+    fork = False
+    while True:
+        board[cell] = -1
+        jumped = abs(to // CHK_SIDE - cell // CHK_SIDE) == 2
+        if jumped:
+            board[(cell + to) // 2] = -1
+            captured.append((cell + to) // 2)
+        landings.append(to)
+        if piece < 2 and to // CHK_SIDE == (0 if piece == 0 else CHK_SIDE - 1):
+            piece += 2
+            crowned = True
+        board[to] = piece
+        if crowned or not jumped:
+            break
+        onward = chk_continue(board, to)
+        if len(onward) != 1:
+            fork = len(onward) > 1
+            break
+        cell, to = to, onward[0][0]
+    return board, landings, captured, crowned, fork
+
+
+def chk_act(state: dict, seat_index: int, seat: dict, act: str, cell: int, to: int) -> str:
+    if state["end"]:
+        return MATCH_OVER
+    slot = _slot(state, seat_index)
+    if act == "join":
+        return _join_pair(state, seat_index, seat, slot)
+    if not state["started"]:
+        return C4_NEED_TWO if slot >= 0 else C4_JOIN
+    if slot < 0:
+        return TTT_TWO
+    if slot != state["turn"]:
+        return NOT_YOUR_TURN
+    legal = chk_moves(state["board"], slot, state["chain"])
+    if not any(start == cell and landing == to for start, landing, _captured in legal):
+        return CHK_ILLEGAL
+    man = state["board"][cell] < 2
+    board, landings, captured, _crowned, fork = chk_path(state["board"], cell, to)
+    state["line"] = (state["line"] if state["chain"] >= 0 else [cell]) + landings
+    state["board"] = board
+    state["quiet"] = 0 if captured or man else state["quiet"] + 1
+    if fork:
+        state["chain"] = landings[-1]
+        return ""
+    state["chain"] = -1
+    if not chk_moves(board, 1 - slot):
+        state.update(end="win", winner=slot)
+    elif state["quiet"] >= CHK_QUIET_DRAW:
+        state["end"] = "draw"
+    else:
+        state["turn"] = 1 - slot
+    return ""
 
 
 def _c4_line(board: list, row: int, column: int, slot: int) -> list:
@@ -289,6 +413,10 @@ def seat_left(lounge: dict, seat_index: int) -> bool:
     if _slot(rev, seat_index) >= 0:
         lounge["rev"] = rev_new(rev["match"])
         changed = True
+    chk = lounge["chk"]
+    if _slot(chk, seat_index) >= 0:
+        lounge["chk"] = chk_new(chk["match"])
+        changed = True
     c4 = lounge["c4"]
     slot = _slot(c4, seat_index)
     if slot >= 0:
@@ -313,16 +441,18 @@ def clear(lounge: dict, game: str) -> None:
         lounge["ttt"] = ttt_new(lounge["ttt"]["match"])
     elif game == "rev":
         lounge["rev"] = rev_new(lounge["rev"]["match"])
+    elif game == "chk":
+        lounge["chk"] = chk_new(lounge["chk"]["match"])
     else:
         lounge["c4"] = c4_new(lounge["c4"]["match"])
 
 
 def new_lounge() -> dict:
-    return {"ttt": ttt_new(), "c4": c4_new(), "rev": rev_new()}
+    return {"ttt": ttt_new(), "c4": c4_new(), "rev": rev_new(), "chk": chk_new()}
 
 
 def lounge_view(lounge: dict) -> dict:
-    ttt, c4, rev = lounge["ttt"], lounge["c4"], lounge["rev"]
+    ttt, c4, rev, chk = lounge["ttt"], lounge["c4"], lounge["rev"], lounge["chk"]
     return {
         "ttt": {"match": ttt["match"], "board": "".join("." if mark < 0 else str(mark) for mark in ttt["board"]),
                 "players": [dict(player) for player in ttt["players"]], "turn": ttt["turn"], "end": ttt["end"],
@@ -334,4 +464,8 @@ def lounge_view(lounge: dict) -> dict:
                 "players": [dict(player) for player in rev["players"]], "started": rev["started"],
                 "turn": rev["turn"], "end": rev["end"], "winner": rev["winner"], "passed": rev["passed"],
                 "line": []},
+        "chk": {"match": chk["match"], "board": "".join("." if mark < 0 else str(mark) for mark in chk["board"]),
+                "players": [dict(player) for player in chk["players"]], "started": chk["started"],
+                "turn": chk["turn"], "end": chk["end"], "winner": chk["winner"], "chain": chk["chain"],
+                "line": list(chk["line"])},
     }

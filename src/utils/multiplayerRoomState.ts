@@ -21,7 +21,7 @@ type RoomVoice = { room: string; game: number; where: string; access: string; cf
 
 type VoteMarker = { id: number; kind: string; open: boolean; ended: string; game: string; voted: boolean };
 type BoardMarker = { match: number; opener: number; openerName: string; end: string; winnerName: string };
-type LoungeMarker = { ttt: BoardMarker; c4: BoardMarker; rev: BoardMarker };
+type LoungeMarker = { ttt: BoardMarker; c4: BoardMarker; rev: BoardMarker; chk: BoardMarker };
 
 export type MultiplayerRoomMarker = {
     role: "host" | "guest" | null;
@@ -177,7 +177,7 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     }
 }
 
-const LOUNGE_NAMES: Record<keyof LoungeMarker, string> = { ttt: "Tic-tac-toe", c4: "Connect Four", rev: "Reversi" };
+const LOUNGE_NAMES: Record<keyof LoungeMarker, string> = { ttt: "Tic-tac-toe", c4: "Connect Four", rev: "Reversi", chk: "Checkers" };
 
 function toast(titleKey: string, lineKey: string, vars: Record<string, string>) {
     const language = getCurrentLanguage();
@@ -212,7 +212,7 @@ function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMark
     }
     const ownSeat = after.role === "host" ? 0 : after.seat;
     const language = getCurrentLanguage();
-    for (const name of ["ttt", "c4", "rev"] as const) {
+    for (const name of ["ttt", "c4", "rev", "chk"] as const) {
         const board = after.lounge[name];
         const prior = before.lounge[name];
         const game = t(language, LOUNGE_NAMES[name]);
@@ -249,11 +249,12 @@ function readBoardMarker(raw: unknown): BoardMarker | null {
 }
 
 function readLoungeMarker(raw: unknown): LoungeMarker | null {
-    const lounge = raw as { ttt?: unknown; c4?: unknown; rev?: unknown } | null | undefined;
+    const lounge = raw as { ttt?: unknown; c4?: unknown; rev?: unknown; chk?: unknown } | null | undefined;
     const ttt = readBoardMarker(lounge?.ttt);
     const c4 = readBoardMarker(lounge?.c4);
     const rev = readBoardMarker(lounge?.rev);
-    return ttt && c4 && rev ? { ttt, c4, rev } : null;
+    const chk = readBoardMarker(lounge?.chk);
+    return ttt && c4 && rev && chk ? { ttt, c4, rev, chk } : null;
 }
 
 function onRoomEvent(payload: RoomEvent) {
@@ -322,7 +323,7 @@ function loungeMarkerOf(lounge: MultiplayerLounge | null | undefined): LoungeMar
         end: game.end,
         winnerName: game.end === "win" ? game.players[game.winner]?.name ?? "" : ""
     });
-    return { ttt: board(lounge.ttt), c4: board(lounge.c4), rev: board(lounge.rev) };
+    return { ttt: board(lounge.ttt), c4: board(lounge.c4), rev: board(lounge.rev), chk: board(lounge.chk) };
 }
 
 function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {

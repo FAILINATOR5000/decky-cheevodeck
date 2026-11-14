@@ -911,10 +911,13 @@ _ICON = re.compile(r"/Images/[0-9A-Za-z_]{1,32}\.(png|jpg)")
 _TTT_BOARD = re.compile(r"[.01]{9}")
 _C4_BOARD = re.compile(r"[.0-3]{42}")
 _REV_BOARD = re.compile(r"[.01]{64}")
+_CHK_BOARD = re.compile(r"[.0-3]{64}")
 LOUNGE_ENDS = ("", "win", "draw")
-LOUNGE_GAMES = ("ttt", "c4", "rev")
+LOUNGE_GAMES = ("ttt", "c4", "rev", "chk")
 LOUNGE_ACTS = ("move", "start", "clear", "join")
-_LOUNGE_CELLS = {"ttt": 9, "c4": 7, "rev": 64}
+_LOUNGE_CELLS = {"ttt": 9, "c4": 7, "rev": 64, "chk": 64}
+_LOUNGE_LINE = 8
+_CHK_LINE = 13
 
 
 def _small_int(value, low: int, high: int) -> bool:
@@ -988,7 +991,7 @@ def _lounge_players(raw, most: int):
     return players
 
 
-def _lounge_board(raw, pattern, players_most: int, cells: int):
+def _lounge_board(raw, pattern, players_most: int, cells: int, line_most: int = _LOUNGE_LINE):
     if not isinstance(raw, dict):
         return None
     players = _lounge_players(raw.get("players"), players_most)
@@ -1002,7 +1005,7 @@ def _lounge_board(raw, pattern, players_most: int, cells: int):
         or raw.get("end") not in LOUNGE_ENDS
         or not _small_int(raw.get("winner"), -1, players_most - 1)
         or not isinstance(line, list)
-        or len(line) > 8
+        or len(line) > line_most
         or not all(_small_int(cell, 0, cells - 1) for cell in line)
     ):
         return None
@@ -1016,18 +1019,23 @@ def read_lounge(raw):
     ttt = _lounge_board(raw.get("ttt"), _TTT_BOARD, 2, 9)
     c4 = _lounge_board(raw.get("c4"), _C4_BOARD, 4, 42)
     rev = _lounge_board(raw.get("rev"), _REV_BOARD, 2, 64)
+    chk = _lounge_board(raw.get("chk"), _CHK_BOARD, 2, 64, _CHK_LINE)
     if (
         ttt is None
         or c4 is None
         or rev is None
+        or chk is None
         or type(raw["c4"].get("started")) is not bool
         or type(raw["rev"].get("started")) is not bool
         or not _small_int(raw["rev"].get("passed"), -1, 1)
+        or type(raw["chk"].get("started")) is not bool
+        or not _small_int(raw["chk"].get("chain"), -1, 63)
     ):
         return None
     c4["started"] = raw["c4"]["started"]
     rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
-    return {"ttt": ttt, "c4": c4, "rev": rev}
+    chk.update(started=raw["chk"]["started"], chain=raw["chk"]["chain"])
+    return {"ttt": ttt, "c4": c4, "rev": rev, "chk": chk}
 
 
 def read_vote_press(raw):
@@ -1041,6 +1049,7 @@ def read_lounge_press(raw):
     if not isinstance(raw, dict) or raw.get("game") not in LOUNGE_GAMES or raw.get("act") not in LOUNGE_ACTS:
         return None
     cell = raw.get("cell", 0)
-    if not _small_int(cell, 0, _LOUNGE_CELLS[raw["game"]] - 1):
+    to = raw.get("to", 0)
+    if not _small_int(cell, 0, _LOUNGE_CELLS[raw["game"]] - 1) or not _small_int(to, 0, 63):
         return None
-    return raw["game"], raw["act"], cell
+    return raw["game"], raw["act"], cell, to

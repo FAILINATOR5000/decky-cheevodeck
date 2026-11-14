@@ -26,7 +26,7 @@ COUNTER_KINDS = frozenset((
     "bootcat_line_1", "bootcat_line_2", "bootcat_line_3",
     "pt_find_room", "pt_host", "pt_join", "pt_join_friend", "pt_round_link", "pt_round_couch", "pt_round_stream",
     "pt_full_house", "pt_round_hotspot", "pt_watch", "pt_vote_won", "pt_lounge_played", "pt_win_ttt", "pt_win_c4",
-    "pt_win_rev", "pt_voice", "pt_message", "pt_invite", "pt_friend_accepted",
+    "pt_win_rev", "pt_win_chk", "pt_voice", "pt_message", "pt_invite", "pt_friend_accepted",
 ))
 
 MAIN_TABS = frozenset(("comments", "activity", "compare"))

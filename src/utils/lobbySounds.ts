@@ -2,8 +2,9 @@ export const START_SOUND_MS = 2100;
 
 const CLOSE_AFTER_MS = 10000;
 const WET_GAIN = 0.3;
-const FLIP_TICKS_MAX = 6;
+const TICKS_MAX = 6;
 const FLIP_TICK_GAP = 0.04;
+const CLACK_GAP = 0.08;
 
 const E5 = 659.25;
 const G5 = 783.99;
@@ -147,23 +148,39 @@ export function playDropOther() {
 export function playFlip(count: number) {
     void play([
         { frequency: D6, at: 0, peak: 0.22, decay: 0.16, sweep: 0.08 },
-        ...flipTicks(count, 1)
+        ...ticks(count, 1, 0.08, FLIP_TICK_GAP)
     ], 0.6, 700);
 }
 
 export function playFlipOther(count: number) {
     void play([
         { frequency: G5, at: 0, peak: 0.22, decay: 0.16, sweep: 0.08 },
-        ...flipTicks(count, -1)
+        ...ticks(count, -1, 0.08, FLIP_TICK_GAP)
     ], 0.6, 700);
 }
 
-function flipTicks(count: number, direction: 1 | -1): Voice[] {
-    const ticks: Voice[] = [];
-    for (let i = 0; i < Math.min(count, FLIP_TICKS_MAX); i++) {
-        ticks.push({ frequency: E6 * Math.pow(2, direction * i / 12), at: 0.08 + i * FLIP_TICK_GAP, peak: 0.08, decay: 0.07, sweep: 0.04 });
+export function playSlide(captures: number) {
+    void play([
+        { frequency: A5, at: 0, peak: 0.14, decay: 0.12, sweep: 0.06 },
+        { frequency: D6, at: 0.05, peak: 0.16, decay: 0.14, sweep: 0.06 },
+        ...ticks(captures, 1, 0.13, CLACK_GAP)
+    ], 0.6, 900);
+}
+
+export function playSlideOther(captures: number) {
+    void play([
+        { frequency: D6, at: 0, peak: 0.14, decay: 0.12, sweep: 0.06 },
+        { frequency: A5, at: 0.05, peak: 0.16, decay: 0.14, sweep: 0.06 },
+        ...ticks(captures, -1, 0.13, CLACK_GAP)
+    ], 0.6, 900);
+}
+
+function ticks(count: number, direction: 1 | -1, start: number, gap: number): Voice[] {
+    const made: Voice[] = [];
+    for (let i = 0; i < Math.min(count, TICKS_MAX); i++) {
+        made.push({ frequency: E6 * Math.pow(2, direction * i / 12), at: start + i * gap, peak: 0.08, decay: 0.07, sweep: 0.04 });
     }
-    return ticks;
+    return made;
 }
 
 export function playStart() {
