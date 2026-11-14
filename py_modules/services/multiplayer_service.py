@@ -5648,7 +5648,7 @@ class MultiplayerService:
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"],
                                               rom=rom if local.get("duckstation") or local["fallback"] else None)
                 guest_round = mode == "couch" and role == "guest"
-                if (core_path is not None or guest_round) and not local.get("duckstation"):
+                if (core_path is not None or guest_round or save_port) and not local.get("duckstation"):
                     self._back_up_save(ra, local)
             elif local["emulator"] == "dolphin":
                 marker = self._session_dir / f"session-{sid}.dolphin"
@@ -6178,6 +6178,7 @@ class MultiplayerService:
         sock.setblocking(False)
         began = loop.time()
         answered = False
+        heard = False
         warned = False
         delay = SAVE_PING_SECONDS
         try:
@@ -6193,6 +6194,7 @@ class MultiplayerService:
                 except (OSError, asyncio.TimeoutError):
                     reply = b""
                 self._debug("SAVE_FILES on port %s: %s", port, reply.strip().decode("ascii", "replace") or "no reply")
+                heard = heard or bool(reply)
                 if reply.strip().endswith(b"OK"):
                     if not answered:
                         decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
@@ -6202,7 +6204,7 @@ class MultiplayerService:
                         delay = SAVE_FOLLOW_UP_SECONDS
                     else:
                         delay = SAVE_PING_SECONDS - SAVE_SETTLE_SECONDS
-                elif not answered and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
+                elif not heard and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
                     decky.logger.warning("multiplayer: RetroArch's command port never answered, in-game saves "
                                          "won't be kept")
                     warned = True
@@ -7000,8 +7002,8 @@ def _command_port() -> int:
 def _save_stamp(path: Path):
     try:
         with open(path, "rb") as handle:
-            data = handle.read()
             st = os.fstat(handle.fileno())
+            data = handle.read()
     except OSError:
         return None
     return st, hashlib.sha1(data).digest()
@@ -7017,8 +7019,13 @@ def _keep_save_mtime(path: Path, before) -> bool:
         return False
     try:
         now = os.stat(path)
-        if (now.st_mtime_ns, now.st_size) == (after[0].st_mtime_ns, after[0].st_size):
-            os.utime(path, ns=(now.st_atime_ns, before[0].st_mtime_ns))
+        if (now.st_mtime_ns, now.st_size) != (after[0].st_mtime_ns, after[0].st_size):
+            return False
+        os.utime(path, ns=(now.st_atime_ns, before[0].st_mtime_ns))
+        check = _save_stamp(path)
+        if check is None or check[1] != before[1]:
+            os.utime(path)
+            return True
     except OSError:
         pass
     return False
