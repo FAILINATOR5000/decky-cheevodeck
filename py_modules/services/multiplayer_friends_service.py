@@ -41,7 +41,7 @@ SEEN_INVITES = 256
 ACK_GATHER_SECONDS = 0.3
 LAN_HERE_SECONDS = 10
 LAN_SEEN_SECONDS = 35
-OUTBOX_GAP_SECONDS = 0.1
+OUTBOX_GAP_SECONDS = 0.2
 ACK_MAX = 500
 FIND_ROUNDS = 3
 TOASTS = {
@@ -124,6 +124,9 @@ class MultiplayerFriendsService:
         self._presence = {}
         self._suggestions = []
         self._waiting = {}
+        self._pings = 0
+        self._pongs = 0
+        self._confirming = []
         self._invites = {}
         self._seen_invites = []
         self._invite_acks = {}
@@ -342,6 +345,12 @@ class MultiplayerFriendsService:
                 if not future.done():
                     future.set_result(None)
             self._waiting = {}
+            for _target, future in self._confirming:
+                if not future.done():
+                    future.set_result(False)
+            self._confirming = []
+            self._pings = 0
+            self._pongs = 0
             self._sent_report = None
             self._report_stale = True
             self._sent_room = None
@@ -444,8 +453,8 @@ class MultiplayerFriendsService:
             self._writer = writer
             self._set_up(True)
             decky.logger.info("friends: online")
-            await self._flush_outbox()
             keeper = asyncio.ensure_future(self._keep())
+            flusher = asyncio.ensure_future(self._flush_outbox())
             try:
                 while True:
                     message = await asyncio.wait_for(lobby_client.read_envelope_or_skip(reader), SILENT_SECONDS)
@@ -453,6 +462,7 @@ class MultiplayerFriendsService:
                         self._take(message)
             finally:
                 keeper.cancel()
+                flusher.cancel()
         finally:
             writer.close()
             if self._up:
@@ -477,10 +487,33 @@ class MultiplayerFriendsService:
         async with self._send_lock:
             try:
                 writer.write(lobby_client.envelope(message))
+                if message.get("op") == "ping":
+                    self._pings += 1
                 await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
             except (OSError, asyncio.TimeoutError, FrameError):
                 return False
         return True
+
+    async def _confirmed(self, message: dict) -> bool:
+        writer = self._writer
+        if writer is None:
+            return False
+        future = asyncio.get_running_loop().create_future()
+        entry = None
+        try:
+            async with self._send_lock:
+                writer.write(lobby_client.envelope(message))
+                writer.write(lobby_client.envelope({"op": "ping"}))
+                self._pings += 1
+                entry = (self._pings, future)
+                self._confirming.append(entry)
+                await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
+            return await asyncio.wait_for(future, REPLY_SECONDS) is True
+        except (OSError, asyncio.TimeoutError, FrameError):
+            return False
+        finally:
+            if entry in self._confirming:
+                self._confirming.remove(entry)
 
     async def _update(self) -> None:
         if not self._up:
@@ -536,8 +569,9 @@ class MultiplayerFriendsService:
             return
         sent = []
         for entry in data["outbox"]:
-            if await self._send({"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}):
-                sent.append(entry["ulid"])
+            if not await self._confirmed({"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}):
+                break
+            sent.append(entry["ulid"])
             await asyncio.sleep(OUTBOX_GAP_SECONDS)
 
         def drop(stored):
@@ -548,6 +582,12 @@ class MultiplayerFriendsService:
 
     def _take(self, message: dict) -> None:
         op = message.get("op")
+        if op == "pong":
+            self._pongs += 1
+            for target, future in self._confirming:
+                if target <= self._pongs and not future.done():
+                    future.set_result(True)
+            return
         if op in ("request_ok", "request_no", "msg_ok", "msg_no", "invite_ok", "invite_no"):
             key = message.get("rid") or message.get("mid") or message.get("iid")
             future = self._waiting.get(f"{op.split('_')[0]}:{key}") if isinstance(key, str) else None
@@ -1038,7 +1078,7 @@ class MultiplayerFriendsService:
             if accept:
                 return {"ok": False, "error": "no_request"}
             if request["via"] == "server" and not (await self._until_up()
-                                                   and await self._send({"op": "withdraw", "to": ulid})):
+                                                   and await self._confirmed({"op": "withdraw", "to": ulid})):
                 return {"ok": False, "error": "offline"}
             self._drop_request(ulid)
             return {"ok": True}
@@ -1047,7 +1087,8 @@ class MultiplayerFriendsService:
             delivered = seat is not None and await self._mp.send_friend(seat, "accept" if accept else "decline")
             if not delivered and accept:
                 return {"ok": False, "error": "left_room"}
-        elif not (await self._until_up() and await self._send({"op": "answer", "to": ulid, "accept": bool(accept)})):
+        elif not (await self._until_up()
+                  and await self._confirmed({"op": "answer", "to": ulid, "accept": bool(accept)})):
             return {"ok": False, "error": "offline"}
         if accept:
             self._befriend(ulid, request["name"], request["userPic"], request["pairKey"], request["via"])
@@ -1061,7 +1102,7 @@ class MultiplayerFriendsService:
         if friend is None or not self._unfriend(ulid):
             return {"ok": False, "error": "not_friend"}
         tag = _sign(friend["pairKey"], "remove", {"to": ulid})
-        if not (self._up and await self._send({"op": "remove", "ulid": ulid, "t": tag})):
+        if not (self._up and await self._confirmed({"op": "remove", "ulid": ulid, "t": tag})):
             def later(stored):
                 stored["outbox"].append({"op": "remove", "ulid": ulid, "t": tag})
                 return True

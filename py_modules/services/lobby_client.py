@@ -25,6 +25,13 @@ FRAME_HEAD_BYTES = 4
 CONVERSATION_FRAMES_MAX = 8
 TUNNEL_ASKS_MAX = 64
 REFUSALS = ("taken", "full", "busy")
+KEEPALIVE = (
+    (socket.SOL_SOCKET, "SO_KEEPALIVE", 1),
+    (socket.IPPROTO_TCP, "TCP_KEEPIDLE", 60),
+    (socket.IPPROTO_TCP, "TCP_KEEPINTVL", 15),
+    (socket.IPPROTO_TCP, "TCP_KEEPCNT", 4),
+    (socket.IPPROTO_TCP, "TCP_USER_TIMEOUT", 120000),
+)
 
 ENVELOPE_BYTES = proto.MAX_FRAME_BYTES + 256
 
@@ -50,9 +57,17 @@ def parse_server(value):
 
 async def connect(server):
     host, port = server
-    return await asyncio.wait_for(
+    reader, writer = await asyncio.wait_for(
         asyncio.open_connection(host, port, family=socket.AF_INET), CONNECT_SECONDS
     )
+    sock = writer.get_extra_info("socket")
+    if sock is not None:
+        for level, name, value in KEEPALIVE:
+            try:
+                sock.setsockopt(level, getattr(socket, name), value)
+            except (OSError, AttributeError):
+                pass
+    return reader, writer
 
 
 def envelope(message: dict) -> bytes:
