@@ -25,7 +25,11 @@ function ProblemModal(props: {
                 style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
                 {props.title}
             </HeadingStop>
-            {items === null ? (
+            {items === null && props.titleFirst ? (
+                <HeadingStop focusKey="problem:body" style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
+                    {text}
+                </HeadingStop>
+            ) : items === null ? (
                 <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
                     {text}
                 </div>

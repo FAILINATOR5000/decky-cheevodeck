@@ -3053,6 +3053,8 @@ const JA: LocaleTable = {
     "rmg_steps_guest": "RMGで「Netplay」→「Browse Sessions」を開きます。サーバーは選択済みで、名前も入力済みです。{{game}}を遊んでいるセッションを選んで「Join」を押します。ゲームはホストが開始します。",
     "rmg_steps_controls": "RMGのメニューはコントローラーで操作できません。タッチスクリーンかトラックパッドを使い、キーボードはSteam + Xで出します。",
     "rmg_heads_up": "RetroArchのN64コアは決定的ではないため、ネットプレイがうまく動きません。今のところ数少ない解決策の一つが、単体エミュレーターのRMGを使うことです。なお、N64ゲームをRetroArchで遊ぶ場合、セーブデータはRetroArch側に残ります。また、RMGはRetroAchievementsに対応していないので、RMGは特定のゲームをマルチプレイで遊びたいときだけ使うのがおすすめです。",
+    "60 Hz for Best Experience": "最適な体験には60 Hz",
+    "refresh_note_body": "ローカル／オンラインプレイをスムーズにするため、ホストとゲストの両方がリフレッシュレートを 60 Hz にすることを強くおすすめします。ホストとゲストで画面のタイミングが違うと、コアによっては同期がずれることがあります。また 60 FPS で動くストリームプレイは、割り切れないリフレッシュレートだとカクついて見えることがあります。\n\n変更するには、... ボタンでクイックアクセスメニュー（サイドウィンドウ）を開き、パフォーマンスタブを開いて、フレームレート制限を 60 FPS（60 Hz）に合わせます。30 FPS（60 Hz）などの設定でも問題ありません。\n\nゲームごとのプロファイルを作れば今のゲームだけにこの設定を使えます。「ゲームごとのプロファイルを使用」をオフのままにすれば、すべてに適用されます。",
     "Create Session in RMG Netplay": "RMGのネットプレイでセッションを作成",
     "Join in RMG Netplay": "RMGのネットプレイで参加",
     "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.": "N64のカウチプレイには、Steamに追加したRMG本体が必要です。Steam ROM Managerで追加してください。",

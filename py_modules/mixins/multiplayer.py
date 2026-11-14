@@ -128,6 +128,12 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_vote(self, vote: int = 0, pick: int = 0):
         return await self.multiplayer_service.vote(to_int(vote, 0), to_int(pick, 0))
 
+    async def multiplayer_take_refresh_note(self):
+        if self.settings_store.get_refresh_note_shown(self.settings_store.load_config()):
+            return {"ok": True, "show": False}
+        self.settings_store.mark_refresh_note_shown()
+        return {"ok": True, "show": True}
+
     async def multiplayer_lounge(self, game: str = "", act: str = "", cell: int = 0, to: int = 0):
         return await self.multiplayer_service.lounge_press(str(game or ""), str(act or ""), to_int(cell, 0), to_int(to, 0))
 

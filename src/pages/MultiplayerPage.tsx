@@ -57,7 +57,7 @@ import type {
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
-import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick } from "../api";
+import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick, multiplayerTakeRefreshNote } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
 import {
     forgetMultiplayerRoomTab,
@@ -283,6 +283,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (visible) {
             void screenMaxRefresh().then(setScreenHz);
         }
+    }, [visible]);
+
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+        multiplayerTakeRefreshNote()
+            .then((note) => {
+                if (note.ok && note.show) {
+                    showMultiplayerProblem(language, "60 Hz for Best Experience", t(language, "refresh_note_body"), true);
+                }
+            })
+            .catch((e) => logError("multiplayer: the 60 Hz note", e));
     }, [visible]);
 
     const currentGameId = state.payload?.gameId ?? null;
