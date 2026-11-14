@@ -702,7 +702,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         <Focusable flow-children="column" onButtonDown={handleButton}>
             <PanelSection>
                 <PageNavStrip
-                    title={t(language, "Manage Emulators")}
+                    title={t(language, "Emulators")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
                     help={<PageHelpButton focusKey="emulators:help" guide="manage-emulators" />}

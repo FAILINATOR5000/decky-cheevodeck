@@ -188,7 +188,7 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
         <Focusable flow-children="column">
             <PanelSection>
                 <PageNavStrip
-                    title={t(language, "Offline Hotspot")}
+                    title={t(language, "Hotspot")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
                     help={<PageHelpButton focusKey="offlineHotspot:help" guide="offline-hotspot" />}
