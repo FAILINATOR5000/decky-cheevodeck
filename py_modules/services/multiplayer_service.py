@@ -231,6 +231,7 @@ PS2_SYSTEM = 21
 DSI_SYSTEM = 78
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
+INPUT_DEVICES = Path("/proc/bus/input/devices")
 TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play", "port1": "the multitap on port 1",
              "port2": "the multitap on port 2"}
 PORT_TWO_GAMES = {6294}
@@ -3402,6 +3403,8 @@ class MultiplayerService:
             return {"ok": True, "swap": None, "done": True}
         pads = _virtual_pads(self._user_home)
         guests = [index for index, pad in enumerate(pads) if pad == SUNSHINE_PAD]
+        if len(guests) > _sunshine_pads():
+            return {"ok": True, "swap": None, "done": False}
         wanted = [index for index in range(len(pads)) if index not in guests] + guests
         for position, index in enumerate(wanted):
             if index != position:
@@ -3673,6 +3676,10 @@ class MultiplayerService:
         game_id = current.get("gameId", 0)
         if room is not None:
             decky.logger.info("multiplayer: host launched with %s guests", len(room["roster"]))
+            pads = _virtual_pads(self._user_home)
+            if pads and pads[0] == SUNSHINE_PAD and not _sunshine_pads():
+                decky.logger.warning("multiplayer: Steam's controller list starts with a Stream Play guest who "
+                                     "isn't connected, so the host's controller may have the wrong name in game")
             self._count_host_round(room)
             return {"ok": True, "gameId": game_id}
         joined = self._joined
@@ -6602,6 +6609,16 @@ def _steam_reaper() -> int:
         except OSError:
             continue
     return 0
+
+
+def _sunshine_pads() -> int:
+    vendor, product = (part.removeprefix("0x") for part in SUNSHINE_PAD)
+    try:
+        text = INPUT_DEVICES.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0
+    return sum(1 for block in text.split("\n\n")
+               if f"Vendor={vendor} Product={product}" in block and "libvirtualhid" in block)
 
 
 def _virtual_pads(home: Path) -> list:
