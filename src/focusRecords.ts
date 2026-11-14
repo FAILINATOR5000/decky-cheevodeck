@@ -30,6 +30,7 @@ type PageRegistration = {
     placeholderKey: string | null;
     defaultKey: string | null;
     timing: Partial<LandingTiming> | null;
+    curtainOnSubPop: boolean;
 };
 
 type LandingKind = "pop" | "remount" | "forward" | "recover";
@@ -119,6 +120,7 @@ let ownedEntryId: number | null = null;
 let lastOutcome: LandingOutcome | null = null;
 let unlandedEntryId: number | null = null;
 let ownLanding: OwnLanding | null = null;
+let subPopCurtain: { entryId: number; seq: number } | null = null;
 let lastPress: { button: number; at: number } | null = null;
 let landingSeq = 0;
 let landingVersion = 0;
@@ -744,6 +746,10 @@ export function curtainState(entryId: number | null): { own: boolean; settled: b
     return { own: false, settled: how === "settled" || how === "dropped", canceled: how === "canceled", held: Boolean(outcome?.held) };
 }
 
+export function curtainSubPopSeq(entryId: number | null): number | null {
+    return entryId !== null && subPopCurtain?.entryId === entryId ? subPopCurtain.seq : null;
+}
+
 export function curtainTiming(): LandingTiming {
     const view = topEntry()?.view;
     const own = view ? pages.get(view)?.timing : null;
@@ -768,6 +774,7 @@ export function beginRootMount(): { generation: number; fromModal: boolean } {
     pending = null;
     ownedEntryId = null;
     ownLanding = null;
+    subPopCurtain = null;
     mountReason = null;
     mountedFromModal = consumeModalCloseArm();
     return { generation, fromModal: mountedFromModal };
@@ -919,6 +926,9 @@ function popSubEntry(entry: TrailEntry) {
     const gone = entry.sub.pop();
     logFocusDebug("record", "sub-pop", `${gone?.kind ?? "?"} -> ${nameEntry(entry)}`);
     landingWouldTake(entry, "sub-pop");
+    if (pages.get(entry.view)?.curtainOnSubPop && pending?.entryId === entry.id) {
+        subPopCurtain = { entryId: entry.id, seq: pending.seq };
+    }
 }
 
 function syncSubViews(view: ViewKey, shown: SubView[]) {
@@ -1151,6 +1161,7 @@ type PageLanding = {
     cover?: boolean;
     timing?: Partial<LandingTiming>;
     ownLanding?: { pending: boolean; settled: boolean };
+    curtainOnSubPop?: boolean;
     active?: boolean;
 };
 
@@ -1160,7 +1171,7 @@ export function usePageLanding(registration: {
     tabPath?: (string | null | undefined)[];
     sub?: SubView[];
 } & PageLanding) {
-    const { view, subject, tabPath, sub, defaultKey, ready = true, subjectSettled = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own, active = true } = registration;
+    const { view, subject, tabPath, sub, defaultKey, ready = true, subjectSettled = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own, curtainOnSubPop = false, active = true } = registration;
     const adopted = defaultKey !== undefined;
     const listening = adopted && active;
     const placeholderKey = registration.placeholderKey ?? defaultKey ?? null;
@@ -1181,7 +1192,8 @@ export function usePageLanding(registration: {
             tabPath: (tabPath ?? []).filter((tab): tab is string => typeof tab === "string" && tab !== ""),
             placeholderKey: adopted ? placeholderKey : null,
             defaultKey: defaultKey ?? null,
-            timing: timing ?? null
+            timing: timing ?? null,
+            curtainOnSubPop
         });
         if (sub) {
             syncSubViews(view, sub);

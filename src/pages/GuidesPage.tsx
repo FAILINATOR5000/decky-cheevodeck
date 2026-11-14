@@ -179,7 +179,8 @@ function GuidesPageView(props: GuidesPageProps) {
                 return;
             }
             guidesWindow.openAt(key);
-        }
+        },
+        curtainOnSubPop: true
     });
     const backStandDown = subLandingAhead("guides", subDepth);
 

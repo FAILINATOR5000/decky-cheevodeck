@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { logFocusDebug } from "../../api";
 import { useCovered } from "../../covers";
-import { curtainEntryAtMount, curtainState, curtainTiming, markCurtainRevealed, useLandingVersion } from "../../focusRecords";
+import { curtainEntryAtMount, curtainState, curtainSubPopSeq, curtainTiming, markCurtainRevealed, useLandingVersion } from "../../focusRecords";
 
 const CurtainHidingContext = createContext(false);
 
@@ -12,9 +12,10 @@ export function useCurtainHiding(): boolean {
 export function LandingCurtain(props: { children: ReactNode }) {
     const [mount] = useState(curtainEntryAtMount);
     const [armedLate, setArmedLate] = useState(false);
+    const [popSeq, setPopSeq] = useState<number | null>(null);
     useLandingVersion();
     const covered = useCovered();
-    const armed = mount.armed || armedLate;
+    const armed = mount.armed || armedLate || popSeq !== null;
     const [revealed, setRevealed] = useState(!mount.armed);
     const [guardExpired, setGuardExpired] = useState(!mount.armed);
     const state = curtainState(mount.entryId);
@@ -32,6 +33,17 @@ export function LandingCurtain(props: { children: ReactNode }) {
             setGuardExpired(false);
         }
     }, []);
+
+    useLayoutEffect(function armForSubPop() {
+        const seq = curtainSubPopSeq(mount.entryId);
+        if (seq === null || seq === popSeq) {
+            return;
+        }
+        logFocusDebug("curtain", "armed", `${mount.entryId} sub-pop`);
+        setPopSeq(seq);
+        setRevealed(false);
+        setGuardExpired(false);
+    });
 
     useEffect(function revealOnSettle() {
         if (!armed || revealed || covered || !state.settled) {
@@ -77,7 +89,7 @@ export function LandingCurtain(props: { children: ReactNode }) {
             <div
                 style={armed ? {
                     opacity: revealed ? 1 : 0,
-                    transition: `opacity ${timing.revealFadeMs}ms ease-out`
+                    transition: revealed ? `opacity ${timing.revealFadeMs}ms ease-out` : "none"
                 } : undefined}
             >
                 {props.children}
