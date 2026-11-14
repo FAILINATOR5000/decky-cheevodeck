@@ -285,29 +285,33 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
 
             <div ref={bodyRef}>
                 {step === "console" && (
-                    <ConsoleStep
-                        systems={systemGroups}
-                        recentSystemId={recentSystemId}
-                        consoleIcons={catalogIconsById}
-                        language={language}
-                        showIcons={showIcons}
-                        onPick={handlePickSystem}
-                    />
+                    <Focusable key="step:console">
+                        <ConsoleStep
+                            systems={systemGroups}
+                            recentSystemId={recentSystemId}
+                            consoleIcons={catalogIconsById}
+                            language={language}
+                            showIcons={showIcons}
+                            onPick={handlePickSystem}
+                        />
+                    </Focusable>
                 )}
 
                 {step === "games" && selectedSystem && (
-                    <GameStep
-                        systemName={selectedSystem.name}
-                        rows={filteredRows}
-                        query={query}
-                        onQueryChange={setQuery}
-                        consoleIcons={catalogIconsById}
-                        language={language}
-                        showIcons={showIcons}
-                        onPickRow={handlePickRow}
-                        onBack={handleBackToSystems}
-                        pickedIds={multi ? pickedIds : null}
-                    />
+                    <Focusable key="step:games">
+                        <GameStep
+                            systemName={selectedSystem.name}
+                            rows={filteredRows}
+                            query={query}
+                            onQueryChange={setQuery}
+                            consoleIcons={catalogIconsById}
+                            language={language}
+                            showIcons={showIcons}
+                            onPickRow={handlePickRow}
+                            onBack={handleBackToSystems}
+                            pickedIds={multi ? pickedIds : null}
+                        />
+                    </Focusable>
                 )}
             </div>
 
@@ -369,12 +373,14 @@ function ConsoleStep(props: ConsoleStepProps) {
                 {t(language, "Pick a system")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <ConsoleRow
-                    key={`searchconsole:${allSystems.id}`}
-                    item={allSystems}
-                    iconUrl={null}
-                    list={rowList}
-                />
+                <Focusable autoFocus>
+                    <ConsoleRow
+                        key={`searchconsole:${allSystems.id}`}
+                        item={allSystems}
+                        iconUrl={null}
+                        list={rowList}
+                    />
+                </Focusable>
                 {recentSystem && (
                     <RecentConsoleSection language={language}>
                         <ConsoleRow
@@ -643,6 +649,7 @@ function GameStep(props: GameStepProps) {
                     <DialogButton
                         onClick={onBack}
                         style={compactButtonStyle}
+                        autoFocus
                     >
                         {t(language, "← Consoles")}
                     </DialogButton>
