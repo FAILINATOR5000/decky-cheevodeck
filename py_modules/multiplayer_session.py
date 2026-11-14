@@ -916,7 +916,8 @@ def ppsspp_cpu_flag(home) -> str:
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
-                      share_controls: bool = False, watch_only: bool = False, remap_dir=None, adapter: str = ""):
+                      share_controls: bool = False, watch_only: bool = False, remap_dir=None, adapter: str = "",
+                      command_port: int = 0):
     watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
@@ -934,6 +935,8 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         cfg.append(("netplay_max_connections", str(max(1, guests))))
     if system_dir is not None:
         cfg.append(("system_directory", str(system_dir)))
+    if command_port:
+        cfg += [("network_cmd_enable", "true"), ("network_cmd_port", str(command_port))]
     if mode == "couch":
         cfg.append(("netplay_share_digital", "2"))
         cfg.append(("netplay_share_analog", "2"))

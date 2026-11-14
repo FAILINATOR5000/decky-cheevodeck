@@ -125,6 +125,13 @@ OPEN_TOOL_SCRIPT = "open-tool.sh"
 OPEN_TOOL_WINDOW_SECONDS = 900
 SAVE_BACKUPS = "save-backups"
 SAVE_BACKUPS_KEPT = 5
+SAVE_PING_SECONDS = 3
+SAVE_FOLLOW_UP_SECONDS = 1
+SAVE_SETTLE_SECONDS = 1
+SAVE_REPLY_SECONDS = 1
+SAVE_SILENT_WARN_SECONDS = 30
+RETROARCH_NETPLAY_AUTOSAVE_SINCE = None
+RETROARCH_COMMAND_PORT = 55355
 
 SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
@@ -5601,6 +5608,8 @@ class MultiplayerService:
         sid = secrets.token_hex(8)
         rom = Path(local["path"])
         nick = self._user()
+        save_port = 0
+        save_file = None
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
@@ -5613,11 +5622,16 @@ class MultiplayerService:
                     system_dir = self._session_dir / f"session-{sid}.system"
                     self._build_system_folder(ra, rom, system_dir)
                 remap_dir = self._session_dir / f"session-{sid}.remaps"
+                if (mode == "couch" or local["core"] in proto.NETPACKET_CORES) and not self._retroarch_saves_netplay():
+                    save_port = _command_port()
+                    save_file = ra.save_paths(local["core"], rom)[0]
+                    if mode == "couch" and role == "guest":
+                        save_file = save_file.parent / ".netplay" / save_file.name
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                     system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
-                    adapter=adapter,
+                    adapter=adapter, command_port=save_port,
                 )
                 if adapter and mode == "couch" and players > 2 and not watch:
                     decky.logger.info("multiplayer: %s plugs in %s for %s players", local["core"],
@@ -5689,6 +5703,8 @@ class MultiplayerService:
             "exited": False,
             "error": "",
             "watch": None,
+            "savePort": save_port,
+            "saveFile": save_file,
         }
         if local["emulator"] != "rmg":
             options = session.compose_launch_options(original, args)
@@ -6107,6 +6123,8 @@ class MultiplayerService:
                     "mode": current.get("mode", "")})
         if current["emulator"] in ("dolphin", "rmg") and current.get("mode") == "couch":
             self._notify_steps(current["role"], current["emulator"])
+        if current.get("savePort"):
+            self._spawn(self._ping_saves(current))
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
             self._finish(current)
@@ -6141,6 +6159,51 @@ class MultiplayerService:
             time.sleep(0.5)
         matches = _processes_naming(needle, environ)
         return min(pid for pid, _name in matches) if matches else None
+
+    async def _ping_saves(self, current: dict) -> None:
+        loop = asyncio.get_running_loop()
+        port = current["savePort"]
+        path = current["saveFile"]
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setblocking(False)
+        began = loop.time()
+        answered = False
+        warned = False
+        delay = SAVE_PING_SECONDS
+        try:
+            while True:
+                await asyncio.sleep(delay)
+                if self._session is not current or current["exited"] or self._stopping:
+                    return
+                delay = SAVE_PING_SECONDS
+                before = await asyncio.to_thread(_save_stamp, path)
+                try:
+                    await loop.sock_sendto(sock, b"SAVE_FILES", ("127.0.0.1", port))
+                    reply = await asyncio.wait_for(loop.sock_recv(sock, 64), SAVE_REPLY_SECONDS)
+                except (OSError, asyncio.TimeoutError):
+                    reply = b""
+                self._debug("SAVE_FILES on port %s: %s", port, reply.strip().decode("ascii", "replace") or "no reply")
+                if reply.strip().endswith(b"OK"):
+                    if not answered:
+                        decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
+                    answered = True
+                    await asyncio.sleep(SAVE_SETTLE_SECONDS)
+                    if await asyncio.to_thread(_keep_save_mtime, path, before):
+                        delay = SAVE_FOLLOW_UP_SECONDS
+                    else:
+                        delay = SAVE_PING_SECONDS - SAVE_SETTLE_SECONDS
+                elif not answered and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
+                    decky.logger.warning("multiplayer: RetroArch's command port never answered, in-game saves "
+                                         "won't be kept")
+                    warned = True
+        finally:
+            sock.close()
+
+    def _retroarch_saves_netplay(self) -> bool:
+        if RETROARCH_NETPLAY_AUTOSAVE_SINCE is None:
+            return False
+        version = session.version_tuple(self._flatpak_version(session.RETROARCH_FLATPAK))
+        return version is not None and version >= RETROARCH_NETPLAY_AUTOSAVE_SINCE
 
     def _wait_exit(self, pid: int) -> None:
         try:
@@ -6898,6 +6961,45 @@ def _route_address() -> str:
     finally:
         probe.close()
     return address if proto.is_ipv4(address) and address != "0.0.0.0" else ""
+
+
+def _command_port() -> int:
+    while True:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.bind(("0.0.0.0", 0))
+            port = probe.getsockname()[1]
+        finally:
+            probe.close()
+        if port not in (RETROARCH_COMMAND_PORT, proto.RETROARCH_NETPLAY_PORT):
+            return port
+
+
+def _save_stamp(path: Path):
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+            st = os.fstat(handle.fileno())
+    except OSError:
+        return None
+    return st, hashlib.sha1(data).digest()
+
+
+def _keep_save_mtime(path: Path, before) -> bool:
+    after = _save_stamp(path)
+    if after is None:
+        return False
+    if before is None or after[1] != before[1]:
+        return True
+    if after[0].st_mtime_ns == before[0].st_mtime_ns:
+        return False
+    try:
+        now = os.stat(path)
+        if (now.st_mtime_ns, now.st_size) == (after[0].st_mtime_ns, after[0].st_size):
+            os.utime(path, ns=(now.st_atime_ns, before[0].st_mtime_ns))
+    except OSError:
+        pass
+    return False
 
 
 def _address_exists(address: str) -> bool:
