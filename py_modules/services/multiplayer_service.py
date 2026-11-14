@@ -232,6 +232,8 @@ DSI_SYSTEM = 78
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
 INPUT_DEVICES = Path("/proc/bus/input/devices")
+GUEST_SLOT = ("name=Xbox One controller", f"VID={SUNSHINE_PAD[0]}", f"PID={SUNSHINE_PAD[1]}", "handle=0x{}",
+              "type=xboxone")
 TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play", "port1": "the multitap on port 1",
              "port2": "the multitap on port 2"}
 PORT_TWO_GAMES = {6294}
@@ -4571,6 +4573,14 @@ class MultiplayerService:
         room["notice"] = None
         room["playingSince"] = None
         decky.logger.info("multiplayer: start, round %s with seats %s", room["round"], room["roster"])
+        if room["mode"] == "stream":
+            try:
+                if _seed_guest_slots(self._user_home, len(room["roster"])):
+                    decky.logger.info("stream: wrote %s guest slots into Steam's controller list before the launch",
+                                      len(room["roster"]))
+            except OSError as e:
+                decky.logger.warning("stream: couldn't write the guests' slots into Steam's controller list (%s)",
+                                     type(e).__name__)
         self._announce()
         return {"ok": True, "appid": room["local"]["appid"], "title": room["title"], "round": room["round"]}
 
@@ -6609,6 +6619,48 @@ def _steam_reaper() -> int:
         except OSError:
             continue
     return 0
+
+
+def _slot_blocks(text: str) -> list:
+    blocks = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("[slot "):
+            blocks.append([])
+        elif blocks and line:
+            blocks[-1].append(line)
+    return blocks
+
+
+def _block_pad(block: list) -> tuple:
+    fields = dict(line.split("=", 1) for line in block if "=" in line)
+    return fields.get("VID", "").lower(), fields.get("PID", "").lower()
+
+
+def _seed_guest_slots(home: Path, guests: int) -> bool:
+    path = home / VIRTUAL_PADS
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        owner = path.stat()
+    except FileNotFoundError:
+        return False
+    slots = _slot_blocks(text)
+    hosts = [block for block in slots if _block_pad(block) != SUNSHINE_PAD]
+    kept = [block for block in slots if _block_pad(block) == SUNSHINE_PAD]
+    written = [[line.format(number) for line in GUEST_SLOT] for number in range(1, guests + 1)]
+    blocks = hosts + (kept + written)[:guests]
+    wanted = "".join(f"[slot {index}]\n" + "".join(line + "\n" for line in block) for index, block in enumerate(blocks))
+    if wanted == text:
+        return False
+    temp = path.with_name(path.name + ".cheevodeck")
+    temp.write_text(wanted, encoding="utf-8")
+    try:
+        os.chown(temp, owner.st_uid, owner.st_gid)
+    except OSError:
+        pass
+    os.chmod(temp, stat.S_IMODE(owner.st_mode))
+    os.replace(temp, path)
+    return True
 
 
 def _sunshine_pads() -> int:
