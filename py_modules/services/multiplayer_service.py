@@ -140,6 +140,8 @@ SETTLE_SECONDS = 5
 SUNSHINE_PARK_SECONDS = 120
 PARK_UNPAIR_AGAIN_SECONDS = 21
 APP_ENDED_GRACE_SECONDS = 10
+STREAM_GAME_CHECK_SECONDS = 3
+STREAM_GAME_GONE_CHECKS = 2
 FLATPAK_SECONDS = 10
 FLATPAK_RECHECK_SECONDS = 10
 HASH_WAIT_SECONDS = 900
@@ -6062,6 +6064,7 @@ class MultiplayerService:
             current["seen"] = True
             self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
                         "mode": "stream"})
+            await self._follow_steam_game(current)
             return
         needle = str(current["files"][0])
         pid = await asyncio.to_thread(self._find_emulator, needle, ARGV_SECONDS, current["emulator"] == "rmg")
@@ -6084,6 +6087,21 @@ class MultiplayerService:
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
             self._finish(current)
+
+    async def _follow_steam_game(self, current: dict) -> None:
+        reaper = 0
+        gone = 0
+        while self._session is current and not current["exited"] and not self._stopping:
+            await asyncio.sleep(STREAM_GAME_CHECK_SECONDS)
+            if self._session is not current or current["exited"]:
+                return
+            if not (reaper and _is_reaper(reaper)):
+                reaper = await asyncio.to_thread(_steam_reaper)
+            gone = 0 if reaper else gone + 1
+            if gone >= STREAM_GAME_GONE_CHECKS:
+                decky.logger.info("multiplayer: the round's Steam app is gone and Steam never said so, ending the session")
+                self._finish(current)
+                return
 
     def _find_emulator(self, needle: str, limit: float, environ: bool = False):
         deadline = time.monotonic() + limit
@@ -6559,6 +6577,31 @@ def _ini_section(path: Path, name: str) -> dict:
     except OSError:
         return {}
     return values
+
+
+def _is_reaper(pid: int) -> bool:
+    try:
+        with open(f"/proc/{pid}/comm", "rb") as handle:
+            return handle.read(32).strip() == b"reaper"
+    except OSError:
+        return False
+
+
+def _steam_reaper() -> int:
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return 0
+    for entry in entries:
+        if not entry.isdigit() or not _is_reaper(int(entry)):
+            continue
+        try:
+            with open(f"/proc/{entry}/cmdline", "rb") as handle:
+                if b"SteamLaunch" in handle.read(4096):
+                    return int(entry)
+        except OSError:
+            continue
+    return 0
 
 
 def _virtual_pads(home: Path) -> list:
