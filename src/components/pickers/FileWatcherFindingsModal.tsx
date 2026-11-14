@@ -95,6 +95,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     const [step, setStep] = useState<Step>("roots");
     const [rootGroups, setRootGroups] = useState<RootGroup[] | null>(null);
     const [selectedRoot, setSelectedRoot] = useState<RootGroup | null>(null);
+    const [loadTarget, setLoadTarget] = useState<{ group: RootGroup | null } | null>(null);
     const [rows, setRows] = useState<FileWatcherListRow[]>([]);
     const [loadingRows, setLoadingRows] = useState(false);
     const [truncated, setTruncated] = useState(false);
@@ -103,6 +104,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
 
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
+    const returnRootKeyRef = useRef<string | null>(null);
 
     const labelsById = useMemo(() => {
         const map = new Map<number, string>();
@@ -141,14 +143,13 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
                 groups.sort((a, b) => a.label.localeCompare(b.label, language, { sensitivity: "base" }));
                 setRootGroups(groups);
                 if (groups.length <= 1) {
-                    setSelectedRoot(groups[0] ?? null);
-                    setStep("rows");
+                    setLoadTarget({ group: groups[0] ?? null });
                 }
             }
             catch (e) {
                 logError("fileWatcherFindingRoots", e);
                 setRootGroups([]);
-                setStep("rows");
+                setLoadTarget({ group: null });
             }
         })();
         return () => {
@@ -157,17 +158,26 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     }, [bucket, labelsById, language]);
 
     useEffect(() => {
-        if (step !== "rows" || bucket === "skipped") {
+        if (loadTarget === null || bucket === "skipped") {
             return;
         }
         let cancelled = false;
-        setRows([]);
+        let shown = false;
         setTruncated(false);
         setLoadingRows(true);
+        const show = (collected: FileWatcherListRow[]) => {
+            if (!shown) {
+                shown = true;
+                setSelectedRoot(loadTarget.group);
+                setStep("rows");
+            }
+            setRows([...collected]);
+        };
         void (async () => {
             const collected: FileWatcherListRow[] = [];
             const fetchPage = pageFetcher(bucket);
-            const rootId = selectedRoot && selectedRoot.rootId !== ALL_ROOTS_ID ? selectedRoot.rootId : null;
+            const group = loadTarget.group;
+            const rootId = group && group.rootId !== ALL_ROOTS_ID ? group.rootId : null;
             try {
                 let afterRootId = 0;
                 let afterRelPath = "";
@@ -183,7 +193,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
                     if (cancelled) {
                         return;
                     }
-                    setRows([...collected]);
+                    show(collected);
                     if (batch.length < FETCH_PAGE_ROWS) {
                         return;
                     }
@@ -200,6 +210,9 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
             }
             finally {
                 if (!cancelled) {
+                    if (!shown) {
+                        show(collected);
+                    }
                     setLoadingRows(false);
                 }
             }
@@ -207,7 +220,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
         return () => {
             cancelled = true;
         };
-    }, [step, bucket, selectedRoot]);
+    }, [loadTarget, bucket]);
 
     useEffect(() => {
         if (focusedTopForStepRef.current === step) {
@@ -218,13 +231,14 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
             return;
         }
         const prefix = step === "roots" ? "filewatcher:findroot:" : "filewatcher:finding:";
-        const first = root.querySelector(
-            `[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`
-        ) as HTMLElement | null;
+        const back = step === "roots" ? returnRootKeyRef.current : null;
+        const first = ((back && root.querySelector(`[data-focus-key="${back}"] button, [data-focus-key="${back}"] [tabindex]`))
+            || root.querySelector(`[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`)) as HTMLElement | null;
         if (!first) {
             return;
         }
         focusedTopForStepRef.current = step;
+        returnRootKeyRef.current = null;
         first.focus();
     }, [step, rootGroups, rows.length]);
 
@@ -280,14 +294,18 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     }
 
     function handlePickRoot(group: RootGroup) {
+        if (loadTarget !== null && step === "roots") {
+            return;
+        }
         focusedTopForStepRef.current = null;
-        setSelectedRoot(group);
-        setStep("rows");
+        setLoadTarget({ group });
         setQuery("");
     }
 
     function handleBackToRoots() {
         focusedTopForStepRef.current = null;
+        returnRootKeyRef.current = selectedRoot ? `filewatcher:findroot:${selectedRoot.rootId}` : null;
+        setLoadTarget(null);
         setSelectedRoot(null);
         setStep("roots");
         setQuery("");
