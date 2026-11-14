@@ -502,6 +502,8 @@ class MultiplayerFriendsService:
         entry = None
         try:
             async with self._send_lock:
+                if writer is not self._writer:
+                    return False
                 writer.write(lobby_client.envelope(message))
                 writer.write(lobby_client.envelope({"op": "ping"}))
                 self._pings += 1
@@ -571,12 +573,12 @@ class MultiplayerFriendsService:
         for entry in data["outbox"]:
             if not await self._confirmed({"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}):
                 break
-            sent.append(entry["ulid"])
+            sent.append((entry["ulid"], entry["t"]))
             await asyncio.sleep(OUTBOX_GAP_SECONDS)
 
         def drop(stored):
             before = len(stored["outbox"])
-            stored["outbox"] = [entry for entry in stored["outbox"] if entry["ulid"] not in sent]
+            stored["outbox"] = [entry for entry in stored["outbox"] if (entry["ulid"], entry["t"]) not in sent]
             return len(stored["outbox"]) != before
         self._mutate(drop)
 
