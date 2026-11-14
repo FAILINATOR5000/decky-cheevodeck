@@ -33,6 +33,7 @@ export function PanelProviders(props: {
                     <DolphinMapperProvider
                         isActive={props.view === "dolphinMapper"}
                         language={props.language}
+                        settings={props.settings}
                     >
                         <MemoriesTransferProvider
                             isActive={props.view === "memoriesTransfer"}

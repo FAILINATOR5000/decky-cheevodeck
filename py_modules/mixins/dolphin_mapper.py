@@ -17,6 +17,7 @@ STEAMDECK_CONTROLLER_VID = "28de"
 STEAMDECK_CONTROLLER_PID = "1205"
 USB_DEVICES_DIR = Path("/sys/bus/usb/devices")
 USB_DRIVER_DIR = Path("/sys/bus/usb/drivers/usb")
+STEAM_VIRTUAL_PADS = Path(".local/share/Steam/config/virtualgamepadinfo.txt")
 
 _chown_warned = False
 
@@ -312,6 +313,44 @@ class DolphinMapperMixin(PluginContext):
             "ok": True,
             "dolphinAdvancedCollapsed": self.settings_store.update_dolphin_advanced_collapsed(value),
         }
+
+    async def save_dolphin_pad_order_collapsed(self, value):
+        return {
+            "ok": True,
+            "dolphinPadOrderCollapsed": self.settings_store.update_dolphin_pad_order_collapsed(value),
+        }
+
+    async def get_steam_controller_slots(self):
+        return await asyncio.to_thread(self._steam_controller_slots_sync)
+
+    def _steam_controller_slots_sync(self):
+        try:
+            text = (self.user_home / STEAM_VIRTUAL_PADS).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return {"slots": []}
+        blocks = []
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("[slot ") and line.endswith("]"):
+                number = line[len("[slot "):-1].strip()
+                blocks.append({"slot": int(number) if number.isdigit() else len(blocks)})
+            elif blocks and "=" in line:
+                key, _sep, value = line.partition("=")
+                blocks[-1][key.strip()] = value.strip()
+        mapper_types = {name: kind for kind, name in dolphin_ini.SDL_DEVICE_NAMES.items()}
+        slots = []
+        for block in blocks:
+            name = block.get("name", "")
+            slots.append({
+                "slot": block["slot"],
+                "name": name,
+                "vid": block.get("VID", "").lower(),
+                "pid": block.get("PID", "").lower(),
+                "handle": block.get("handle", ""),
+                "type": block.get("type", ""),
+                "mapperType": mapper_types.get(name),
+            })
+        return {"slots": slots}
 
     async def save_dolphin_collapsed_tags(self, tags):
         return self.dolphin_mappings_store.set_collapsed_tags(tags)

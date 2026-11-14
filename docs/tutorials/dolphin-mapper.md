@@ -14,6 +14,12 @@ Oh yeah, I forgot to mention, you can even create custom mappings! Got one Xbox 
 
 When activating a multiplayer mapping, for the best results, make sure no controllers are connected first, and then connect each controller one at a time, preferably in the order of the mapping. You should be good to go! If you are on a Steam Deck or anything with a built-in controller, see the **Disable Steam Deck Controller** section first below under [Advanced Stuff](#advanced-stuff).
 
+## Reorder Controllers
+
+Right below **Back** is **Reorder Controllers**. Open it up and you'll see every controller Steam has connected, in player order. Dolphin hands out its ports by controller name, so this order decides which controller is Player 1, Player 2 and so on. No more turning every controller off and back on one at a time to get the order right!
+
+While a game is running, open the Quick Access Menu over it and press the up or down arrow on a controller to move it. The game sees the change right away. Not sure which controller is which? Press the ping button and that controller will rumble or flash. The battery button shows how charged that controller is, and pressing it opens its details, including the exact name Dolphin sees and which mapping type it matches. Steam only lets you change the order while a game is running, so outside a game the list just shows you the current order.
+
 ## Advanced Stuff
 
 Under the Advanced section, you can do some crazy stuff here:

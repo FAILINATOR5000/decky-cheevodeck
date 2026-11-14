@@ -665,6 +665,7 @@ _KNOBS = (
     Knob("playersNearYouTapMode", default="profile"),
     Knob("playersNearYouCollapsed", default=False),
     Knob("dolphinAdvancedCollapsed", default=True),
+    Knob("dolphinPadOrderCollapsed", default=True),
     Knob("dolphinMappingsSeeded", default=False, reset=False, ship=False),
     Knob("dolphinStreamHostSeeded", default=False, reset=False, ship=False),
     Knob("gamesListCacheMinutes", default=20),
@@ -1831,6 +1832,11 @@ class SettingsStore:
         cfg = self._update_config("dolphinAdvancedCollapsed", bool(value))
 
         return self.get_dolphin_advanced_collapsed(cfg)
+
+    def update_dolphin_pad_order_collapsed(self, value: bool) -> bool:
+        cfg = self._update_config("dolphinPadOrderCollapsed", bool(value))
+
+        return self.get_dolphin_pad_order_collapsed(cfg)
 
     def mark_dolphin_mappings_seeded(self) -> None:
         self._update_config("dolphinMappingsSeeded", True)
@@ -5043,6 +5049,9 @@ class SettingsStore:
 
     def get_dolphin_advanced_collapsed(self, cfg: dict) -> bool:
         return bool(cfg.get("dolphinAdvancedCollapsed", True))
+
+    def get_dolphin_pad_order_collapsed(self, cfg: dict) -> bool:
+        return bool(cfg.get("dolphinPadOrderCollapsed", True))
 
     def get_dolphin_mappings_seeded(self, cfg: dict) -> bool:
         return bool(cfg.get("dolphinMappingsSeeded", False))

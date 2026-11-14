@@ -392,6 +392,15 @@ export type DeckControllerStatus = {
     present: boolean;
     disabled: boolean;
 };
+export type SteamControllerSlot = {
+    slot: number;
+    name: string;
+    vid: string;
+    pid: string;
+    handle: string;
+    type: string;
+    mapperType: ControllerType | null;
+};
 export type SetDeckControllerResponse = {
     ok: boolean;
     error?: string;
@@ -970,6 +979,7 @@ export type SettingsResponse = {
     playersNearYouTapMode: PlayersNearYouTapMode;
     playersNearYouCollapsed: boolean;
     dolphinAdvancedCollapsed: boolean;
+    dolphinPadOrderCollapsed: boolean;
     gamesListCacheMinutes: number;
     awardsListCacheMinutes: number;
     wantToPlayCacheMinutes: number;

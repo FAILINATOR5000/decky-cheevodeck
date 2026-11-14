@@ -132,6 +132,7 @@ import type {
     DolphinMapperMode,
     DolphinSystemFilter,
     DolphinMappingInput,
+    SteamControllerSlot,
     LoadDolphinMappingsResponse,
     DolphinMappingResponse,
     ReorderDolphinMappingsResponse,
@@ -1625,6 +1626,10 @@ export const savePlayersNearYouMode = callable<
 export const saveDolphinAdvancedCollapsed = callable<[boolean], { ok: boolean; dolphinAdvancedCollapsed: boolean }>(
     "save_dolphin_advanced_collapsed"
 );
+export const saveDolphinPadOrderCollapsed = callable<[boolean], { ok: boolean; dolphinPadOrderCollapsed: boolean }>(
+    "save_dolphin_pad_order_collapsed"
+);
+export const getSteamControllerSlots = callable<[], { slots: SteamControllerSlot[] }>("get_steam_controller_slots");
 export const saveDolphinCollapsedTags = callable<[string[]], { ok: boolean; collapsedTags: string[] }>(
     "save_dolphin_collapsed_tags"
 );

@@ -269,6 +269,7 @@ export function useSettingsController({
     const [playersNearYouTapMode, setPlayersNearYouTapMode] = useState<PlayersNearYouTapMode>("profile");
     const [playersNearYouCollapsed, setPlayersNearYouCollapsed] = useState(false);
     const [dolphinAdvancedCollapsed, setDolphinAdvancedCollapsed] = useState(true);
+    const [dolphinPadOrderCollapsed, setDolphinPadOrderCollapsed] = useState(true);
     const [bigListThreshold, setBigListThreshold] = useState(9999);
     const [alwaysStaggerMounting, setAlwaysStaggerMounting] = useState(false);
     const [returnStaggerFrames, setReturnStaggerFrames] = useState(0);
@@ -575,6 +576,7 @@ export function useSettingsController({
         setPlayersNearYouTapMode(source.playersNearYouTapMode);
         setPlayersNearYouCollapsed(source.playersNearYouCollapsed);
         setDolphinAdvancedCollapsed(source.dolphinAdvancedCollapsed);
+        setDolphinPadOrderCollapsed(source.dolphinPadOrderCollapsed);
         setBigListThreshold(source.bigListThreshold);
         setAlwaysStaggerMounting(source.alwaysStaggerMounting);
         setReturnStaggerFrames(source.returnStaggerFrames);
@@ -862,6 +864,7 @@ export function useSettingsController({
         playersNearYouTapMode,
         playersNearYouCollapsed,
         dolphinAdvancedCollapsed,
+        dolphinPadOrderCollapsed,
         bigListThreshold,
         alwaysStaggerMounting,
         returnStaggerFrames,
@@ -1113,6 +1116,7 @@ export function useSettingsController({
         setPlayersNearYouTapMode,
         setPlayersNearYouCollapsed,
         setDolphinAdvancedCollapsed,
+        setDolphinPadOrderCollapsed,
         setBigListThreshold,
         setAlwaysStaggerMounting,
         setReturnStaggerFrames,

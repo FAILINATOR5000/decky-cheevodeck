@@ -54,6 +54,8 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
+import { ControllerOrderSection, PAD_ORDER_FOCUS_KEY } from "../components/mapping/ControllerOrderSection";
+import { useControllerOrder } from "../hooks/useControllerOrder";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -151,8 +153,12 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         onReorderToward,
         saveMapping,
         applyMapping,
-        deleteMapping
+        deleteMapping,
+        padOrderCollapsed,
+        savePadOrderCollapsed
     } = useDolphinMapper();
+
+    const padOrder = useControllerOrder(view === "dolphinMapper" && !padOrderCollapsed);
 
     const allTags = useMemo(
         () => orderedTagsByRecency(mappings.map((mapping) => ({
@@ -238,8 +244,15 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         view: "dolphinMapper",
         active: view === "dolphinMapper",
         defaultKey: "dolphinMapper:back",
-        ready: loaded || loadFailed,
+        ready: (loaded || loadFailed) && (padOrderCollapsed || padOrder.settled),
         reveal: (key) => {
+            if (key.startsWith(`${PAD_ORDER_FOCUS_KEY}:`)) {
+                if (!padOrderCollapsed) {
+                    return false;
+                }
+                savePadOrderCollapsed(false);
+                return true;
+            }
             if (!key.startsWith(CARD_FOCUS_PREFIX)) {
                 return false;
             }
@@ -497,6 +510,31 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 onClick={onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
             />
+
+            <PanelSectionRow>
+                <FocusableItem
+                    focusKey={PAD_ORDER_FOCUS_KEY}
+                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                    onClick={() => savePadOrderCollapsed(!padOrderCollapsed)}
+                    bottomSeparator="standard"
+                >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                        {t(language, "Reorder Controllers")}
+                        <CollapseChevron collapsed={padOrderCollapsed} />
+                    </div>
+                </FocusableItem>
+            </PanelSectionRow>
+
+            {!padOrderCollapsed && (
+                <ControllerOrderSection
+                    language={language}
+                    pads={padOrder.pads}
+                    settled={padOrder.settled}
+                    inGame={padOrder.inGame}
+                    onMove={padOrder.move}
+                    onPing={padOrder.ping}
+                />
+            )}
 
             <PanelSectionRow>
                 <FocusableItem
