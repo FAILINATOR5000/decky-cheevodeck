@@ -80,6 +80,7 @@ let running: RunningSnapshot = { appid: 0, playedGameId: 0 };
 let roundGameId = 0;
 type PlayFollow = { appid: number; kind: string; timer: number; started: boolean };
 let playFollow: PlayFollow | null = null;
+let playBackupAppid = 0;
 const runningListeners = new Set<() => void>();
 
 function publish(next: Partial<MultiplayerSessionSnapshot>) {
@@ -345,11 +346,14 @@ export async function playGame(gameId: number, appid: number, fallback: boolean,
         const result = fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
         if (result.ok) {
             stopPlayFollow();
+            playBackupAppid = appid;
             const follow: PlayFollow = { appid, kind, timer: 0, started: false };
             follow.timer = window.setTimeout(() => {
                 if (playFollow === follow && !follow.started) {
                     playFollow = null;
-                    endPlayBackups();
+                    if (playBackupAppid === appid) {
+                        endPlayBackups();
+                    }
                 }
             }, PLAY_START_WAIT_MS);
             playFollow = follow;
@@ -497,6 +501,7 @@ function followCurrentGame() {
 }
 
 function endPlayBackups() {
+    playBackupAppid = 0;
     saveBackupsPlayEnded().catch((e) => logError("play: the save backup after the game", e));
 }
 
@@ -551,10 +556,12 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
         publishRunning({ appid: 0 });
     }
     const follow = playFollow;
+    if (playBackupAppid && event?.unAppID === playBackupAppid && !event.bRunning) {
+        endPlayBackups();
+    }
     if (follow && event?.unAppID === follow.appid) {
         if (!event.bRunning) {
             stopPlayFollow();
-            endPlayBackups();
         }
         else if (!follow.started) {
             follow.started = true;
