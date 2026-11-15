@@ -410,6 +410,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const roomCore = hosted?.core ?? joined?.room.core ?? local?.core ?? "";
     const runsPpsspp = roomCore === "ppsspp" || roomCore === "ppsspp-standalone";
     const runsRmg = mp.mode === "couch" && roomCore === "rmg-standalone";
+    const pingsSaves = (hosted?.emulator ?? joined?.room.emulator ?? local?.emulator) === "retroarch"
+        && (mp.mode === "couch" || roomCore === "gpsp" || roomCore === "melondsds");
     const roomTitle = hosted?.title ?? joined?.room.title ?? local?.title ?? "";
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const shownCheck = gateCheck ?? mp.check;
@@ -501,7 +503,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : []),
-        ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : [])
+        ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : []),
+        ...(pingsSaves ? [t(language, "retroarch_exit_heads_up")] : [])
     ];
     const tips = [
         ...(mp.mode === "link" ? [problemText(language, "link_system")] : []),
