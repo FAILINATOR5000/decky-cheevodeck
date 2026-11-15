@@ -31,7 +31,7 @@ def session_id(user_dir: Path):
     return st.st_dev, st.st_ino
 
 
-def put_back(user_dir: Path, *, since: float, backups: Path, before=None) -> str:
+def put_back(user_dir: Path, *, since: float, backups: Path, install: str, before=None) -> str:
     session = user_dir / SESSION
     if session.is_symlink() or not session.is_dir():
         return "no session left, Dolphin put it back itself or there was nothing to"
@@ -58,7 +58,7 @@ def put_back(user_dir: Path, *, since: float, backups: Path, before=None) -> str
     refused = False
     for kind, title in _game_titles(session):
         try:
-            count = _put_title_back(user_dir, session, kind, title, backups)
+            count = _put_title_back(user_dir, session, kind, title, backups, f"wii-{install}-{kind}{title}-")
         except (OSError, Refused) as e:
             decky.logger.warning("multiplayer: couldn't put the Wii save for %s/%s back (%s: %s)", kind, title,
                                  type(e).__name__, e)
@@ -115,7 +115,7 @@ def _game_titles(session: Path) -> list:
     return found
 
 
-def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backups: Path) -> int:
+def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backups: Path, prefix: str) -> int:
     source = session / "title" / kind / title / "data"
     wanted = _contents(source)
     linked = user_dir / "Wii" / "title" / kind / title / "data"
@@ -132,8 +132,8 @@ def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backup
         _no_clash(real, relative)
 
     if have:
-        _back_up(real, have, backups / f"wii-{kind}{title}-{time.strftime('%Y%m%d%H%M%S')}")
-        _prune(backups, f"wii-{kind}{title}-")
+        _back_up(real, have, backups / f"{prefix}{time.strftime('%Y%m%d%H%M%S')}")
+        _prune(backups, prefix)
 
     touched = {real}
     for relative in changed:

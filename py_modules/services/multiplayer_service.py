@@ -5658,7 +5658,8 @@ class MultiplayerService:
                     user_dir = session.dolphin_user_dir(self._user_home, local["install"])
                     config = session.dolphin_config(self._user_home, local["install"])
                     if user_dir is not None and config is not None:
-                        wii_nand = {"user": user_dir, "config": config, "before": wii_saves.session_id(user_dir)}
+                        wii_nand = {"user": user_dir, "config": config, "install": local["install"],
+                                    "before": wii_saves.session_id(user_dir)}
                 if mode == "couch":
                     args = session.dolphin_netplay_args(
                         host_ip=own_ip if role == "host" else host_ip, nick=nick, hardcore=hardcore, marker=marker,
@@ -6218,7 +6219,8 @@ class MultiplayerService:
                 self._debug("Wii saves: the host's Write Save Data is off")
                 return
             outcome = wii_saves.put_back(nand["user"], since=current["startedAt"],
-                                         backups=self._session_dir / SAVE_BACKUPS, before=nand["before"])
+                                         backups=self._session_dir / SAVE_BACKUPS, install=nand["install"],
+                                         before=nand["before"])
             self._debug("Wii saves: %s", outcome)
         except Exception as e:
             decky.logger.warning("multiplayer: the Wii save copy-back failed (%s)", type(e).__name__)
