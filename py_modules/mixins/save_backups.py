@@ -75,6 +75,9 @@ class SaveBackupsMixin(PluginContext):
             return {"ok": False}
         return {"ok": True, **saved}
 
+    async def clear_all_save_backups(self):
+        return {"ok": await asyncio.to_thread(self.save_backups.clear_all)}
+
     async def save_backups_set_console(self, system_id: int = 0, off: bool = False):
         if type(system_id) is not int or type(off) is not bool:
             return {"ok": False}

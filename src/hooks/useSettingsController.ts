@@ -80,6 +80,8 @@ export function useSettingsController({
     const [mpSuggestFriends, setMpSuggestFriends] = useState(true);
     const [mpShortcutFallback, setMpShortcutFallback] = useState(true);
     const [playShortcutFallback, setPlayShortcutFallback] = useState(true);
+    const [playBackups, setPlayBackups] = useState(true);
+    const [playTogetherBackups, setPlayTogetherBackups] = useState(true);
     const [lobbyServer, setLobbyServer] = useState("");
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
     const [recoveryButtonCombo, setRecoveryButtonCombo] = useState(false);
@@ -380,6 +382,8 @@ export function useSettingsController({
         setMpSuggestFriends(source.mpSuggestFriends);
         setMpShortcutFallback(source.mpShortcutFallback);
         setPlayShortcutFallback(source.playShortcutFallback);
+        setPlayBackups(source.playBackups);
+        setPlayTogetherBackups(source.playTogetherBackups);
         setLobbyServer(source.lobbyServer);
         setAutomaticRecovery(source.automaticRecovery);
         setRecoveryButtonCombo(source.recoveryButtonCombo);
@@ -672,6 +676,8 @@ export function useSettingsController({
         mpSuggestFriends,
         mpShortcutFallback,
         playShortcutFallback,
+        playBackups,
+        playTogetherBackups,
         lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
@@ -931,6 +937,8 @@ export function useSettingsController({
         setMpSuggestFriends,
         setMpShortcutFallback,
         setPlayShortcutFallback,
+        setPlayBackups,
+        setPlayTogetherBackups,
         setLobbyServer,
         setAutomaticRecovery,
         setRecoveryButtonCombo,

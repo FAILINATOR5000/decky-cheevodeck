@@ -483,6 +483,8 @@ _KNOBS = (
     Knob("hotspotIntroOff", default=False, normalize=True, read=READ_BOOL),
     Knob("hotspotDedicated", default=True, normalize=True, read=READ_BOOL),
     Knob("playShortcutFallback", default=True, normalize=True, read=READ_BOOL),
+    Knob("playBackups", default=True, normalize=True, read=READ_BOOL),
+    Knob("playTogetherBackups", default=True, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
@@ -2428,6 +2430,16 @@ class SettingsStore:
         cfg = self._update_config("playShortcutFallback", bool(value))
 
         return bool(cfg.get("playShortcutFallback", True))
+
+    def update_play_backups(self, value: bool) -> bool:
+        cfg = self._update_config("playBackups", bool(value))
+
+        return bool(cfg.get("playBackups", True))
+
+    def update_play_together_backups(self, value: bool) -> bool:
+        cfg = self._update_config("playTogetherBackups", bool(value))
+
+        return bool(cfg.get("playTogetherBackups", True))
 
     def update_browser_snapshot(self, value: bool) -> bool:
         cfg = self._update_config("browserSnapshot", bool(value))

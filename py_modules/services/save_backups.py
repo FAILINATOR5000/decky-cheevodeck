@@ -66,6 +66,10 @@ class SaveBackups:
         game_id = target["gameId"]
         if trigger not in TRIGGERS or game_id < 0:
             return False
+        cfg = self._settings_store.load_config()
+        play, together = cfg.get("playBackups", True) is not False, cfg.get("playTogetherBackups", True) is not False
+        if not {"play": play, "together": together, "restore": play or together}[trigger]:
+            return False
         if self._game_settings.console_off(target.get("systemId", 0)):
             return False
         return game_id == 0 or not self._game_settings.get(game_id)["off"]

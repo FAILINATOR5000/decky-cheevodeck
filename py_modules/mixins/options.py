@@ -745,6 +745,22 @@ class OptionsMixin(PluginContext):
             "playShortcutFallback": value,
         }
 
+    async def save_play_backups(self, play_backups: bool):
+        value = self.settings_store.update_play_backups(play_backups)
+
+        return {
+            "ok": True,
+            "playBackups": value,
+        }
+
+    async def save_play_together_backups(self, play_together_backups: bool):
+        value = self.settings_store.update_play_together_backups(play_together_backups)
+
+        return {
+            "ok": True,
+            "playTogetherBackups": value,
+        }
+
     async def save_browser_snapshot(self, browser_snapshot: bool):
         value = self.settings_store.update_browser_snapshot(browser_snapshot)
         self.back_button_service.sync()

@@ -3681,6 +3681,14 @@ const JA: LocaleTable = {
     "Mid-session": "プレイ中",
     "Before Wii copy-back": "Wii への書き戻し前",
     "Before restore": "復元前",
+    "Save Backups": "セーブデータのバックアップ",
+    "Play Backups": "プレイ時のバックアップ",
+    "Play Together Backups": "Play Together のバックアップ",
+    "Clear All Backups": "すべてのバックアップを消去",
+    "All backups cleared": "すべてのバックアップを消去しました",
+    "help_play_backups": "「プレイ」で起動するたびに、その前後と起動中にゲームのセーブデータをコピーします。起動中の間隔は、そのゲームのバックアップ画面で設定します。",
+    "help_play_together_backups": "このデバイスで遊ぶ Play Together の各ラウンドの前後と途中に、セーブデータをコピーします。オフにして止まるのはコピーだけで、ラウンド中の保存はそのまま続きます。",
+    "help_clear_all_save_backups": "このデバイスにあるすべてのゲームのセーブデータのバックアップを削除します。セーブデータ自体はそのままです。元に戻せません。",
 };
 
 export default JA;

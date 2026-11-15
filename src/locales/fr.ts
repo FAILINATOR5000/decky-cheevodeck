@@ -3856,6 +3856,14 @@ const FR: LocaleTable = {
     "Mid-session": "En cours de session",
     "Before Wii copy-back": "Avant la recopie Wii",
     "Before restore": "Avant la restauration",
+    "Save Backups": "Sauvegardes de parties",
+    "Play Backups": "Sauvegardes en jouant",
+    "Play Together Backups": "Sauvegardes Play Together",
+    "Clear All Backups": "Effacer toutes les sauvegardes",
+    "All backups cleared": "Toutes les sauvegardes effacées",
+    "help_play_backups": "Copie la partie d'un jeu avant et après chaque lancement avec Jouer, et pendant qu'il tourne, à l'intervalle choisi dans la fenêtre Sauvegardes de ce jeu.",
+    "help_play_together_backups": "Copie ta partie avant et après chaque manche Play Together sur cet appareil, et pendant qu'elle se déroule. Cela n'arrête que les copies : l'enregistrement pendant les manches reste actif.",
+    "help_clear_all_save_backups": "Supprime toutes les sauvegardes de parties de cet appareil, pour tous les jeux. Tes parties elles-mêmes ne sont pas touchées. Action irréversible.",
 };
 
 export default FR;

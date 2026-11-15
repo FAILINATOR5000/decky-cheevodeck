@@ -265,6 +265,8 @@ type OptionsPageState = {
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
     playShortcutFallback: boolean;
+    playBackups: boolean;
+    playTogetherBackups: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
@@ -459,6 +461,7 @@ type OptionsPageActions = {
     onClearAllTracked: () => void | Promise<void>;
     onClearAllTrackedSets: () => void | Promise<void>;
     onClearActivityCache: () => void | Promise<void>;
+    onClearAllSaveBackups: () => void | Promise<void>;
     onClearMilestoneProgress: () => void | Promise<void>;
     onClearDolphinMappings: () => void | Promise<void>;
     onResetDolphinMappings: () => void | Promise<void>;
@@ -531,6 +534,8 @@ type OptionsPageActions = {
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onTogglePlayShortcutFallback: (nextValue: boolean) => void | Promise<void>;
+    onTogglePlayBackups: (nextValue: boolean) => void | Promise<void>;
+    onTogglePlayTogetherBackups: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
@@ -2484,6 +2489,35 @@ function CacheTab(props: CacheTabProps) {
                 onConfirm={actions.onClearMilestoneProgress}
                 disabled={disabled}
                 help={t(state.language, "help_clear_milestone_progress")}
+                separator
+            />
+            <SectionTitle label={t(state.language, "Save Backups")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:playBackups"
+                label={t(state.language, "Play Backups")}
+                value={state.playBackups}
+                onChange={actions.onTogglePlayBackups}
+                disabled={disabled}
+                help={t(state.language, "help_play_backups")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:playTogetherBackups"
+                label={t(state.language, "Play Together Backups")}
+                value={state.playTogetherBackups}
+                onChange={actions.onTogglePlayTogetherBackups}
+                disabled={disabled}
+                help={t(state.language, "help_play_together_backups")}
+            />
+            <OptionConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:clear-all-save-backups"
+                idleLabel={t(state.language, "Clear All Backups")}
+                armedLabel={t(state.language, "Press again to confirm")}
+                onConfirm={actions.onClearAllSaveBackups}
+                disabled={disabled}
+                help={t(state.language, "help_clear_all_save_backups")}
                 separator
             />
             <SectionTitle label={t(state.language, "Cheevo Check Data")} />

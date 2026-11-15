@@ -303,6 +303,11 @@ export const saveMpVoiceSensitivity = callable<[number], { ok: boolean; mpVoiceS
 export const savePlayShortcutFallback = callable<[boolean], { ok: boolean; playShortcutFallback: boolean }>(
     "save_play_shortcut_fallback"
 );
+export const savePlayBackups = callable<[boolean], { ok: boolean; playBackups: boolean }>("save_play_backups");
+export const savePlayTogetherBackups = callable<[boolean], { ok: boolean; playTogetherBackups: boolean }>(
+    "save_play_together_backups"
+);
+export const clearAllSaveBackups = callable<[], { ok: boolean }>("clear_all_save_backups");
 export const saveAutomaticRecovery = callable<[boolean], { ok: boolean; automaticRecovery: boolean }>(
     "save_automatic_recovery"
 );

@@ -3856,6 +3856,14 @@ const PT: LocaleTable = {
     "Mid-session": "Durante a sessão",
     "Before Wii copy-back": "Antes da cópia de volta para o Wii",
     "Before restore": "Antes de restaurar",
+    "Save Backups": "Backups de saves",
+    "Play Backups": "Backups ao jogar",
+    "Play Together Backups": "Backups do Play Together",
+    "Clear All Backups": "Limpar todos os backups",
+    "All backups cleared": "Todos os backups apagados",
+    "help_play_backups": "Copia o save de um jogo antes e depois de cada início pelo Jogar, e enquanto ele roda, no intervalo definido na janela Backups desse jogo.",
+    "help_play_together_backups": "Copia seu save antes e depois de cada rodada do Play Together neste dispositivo, e enquanto ela roda. Isso só para as cópias: o salvamento durante as rodadas continua ligado.",
+    "help_clear_all_save_backups": "Apaga todos os backups de saves deste dispositivo, de todos os jogos. Seus saves em si não são alterados. Não dá para desfazer.",
 };
 
 export default PT;

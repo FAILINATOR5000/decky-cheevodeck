@@ -151,6 +151,9 @@ import {
     saveMpSuggestFriends,
     saveMpShortcutFallback,
     savePlayShortcutFallback,
+    savePlayBackups,
+    savePlayTogetherBackups,
+    clearAllSaveBackups,
     saveAutomaticRecovery,
     saveRecoveryButtonCombo,
     saveRecoveryLogs,
@@ -511,6 +514,8 @@ type UseOptionsControllerArgs = {
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
     playShortcutFallback: boolean;
+    playBackups: boolean;
+    playTogetherBackups: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -589,6 +594,8 @@ type UseOptionsControllerArgs = {
     setMpSuggestFriends: Dispatch<SetStateAction<boolean>>;
     setMpShortcutFallback: Dispatch<SetStateAction<boolean>>;
     setPlayShortcutFallback: Dispatch<SetStateAction<boolean>>;
+    setPlayBackups: Dispatch<SetStateAction<boolean>>;
+    setPlayTogetherBackups: Dispatch<SetStateAction<boolean>>;
     setLobbyServer: Dispatch<SetStateAction<string>>;
     setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
     setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
@@ -1005,6 +1012,8 @@ export function buildOptionsController({
     mpSuggestFriends,
     mpShortcutFallback,
     playShortcutFallback,
+    playBackups,
+    playTogetherBackups,
     lobbyServer,
     automaticRecovery,
     recoveryButtonCombo,
@@ -1083,6 +1092,8 @@ export function buildOptionsController({
     setMpSuggestFriends,
     setMpShortcutFallback,
     setPlayShortcutFallback,
+    setPlayBackups,
+    setPlayTogetherBackups,
     setLobbyServer,
     setAutomaticRecovery,
     setRecoveryButtonCombo,
@@ -1353,6 +1364,8 @@ export function buildOptionsController({
         setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
         setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? true));
         setPlayShortcutFallback(Boolean(result.playShortcutFallback ?? true));
+        setPlayBackups(Boolean(result.playBackups ?? true));
+        setPlayTogetherBackups(Boolean(result.playTogetherBackups ?? true));
         setLobbyServer(String(result.lobbyServer ?? ""));
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
@@ -3628,6 +3641,24 @@ export function buildOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.playShortcutFallback ?? fallbackValue),
         });
 
+    const onTogglePlayBackups = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: playBackups,
+            applyValue: setPlayBackups,
+            saveCall: savePlayBackups,
+            getSavedValue: (result, fallbackValue) => Boolean(result.playBackups ?? fallbackValue),
+        });
+
+    const onTogglePlayTogetherBackups = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: playTogetherBackups,
+            applyValue: setPlayTogetherBackups,
+            saveCall: savePlayTogetherBackups,
+            getSavedValue: (result, fallbackValue) => Boolean(result.playTogetherBackups ?? fallbackValue),
+        });
+
     const onToggleAutomaticRecovery = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3674,6 +3705,15 @@ export function buildOptionsController({
             toaster.toast({ title: t(language, "Activity"), body: t(language, "Cache cleared") });
         } catch (e) {
             logError("options: clearing the Activity cache", e);
+        }
+    };
+
+    const onClearAllSaveBackups = async () => {
+        try {
+            await clearAllSaveBackups();
+            toaster.toast({ title: t(language, "Save Backups"), body: t(language, "All backups cleared") });
+        } catch (e) {
+            logError("options: clearing every save backup", e);
         }
     };
 
@@ -4054,6 +4094,8 @@ export function buildOptionsController({
         mpSuggestFriends,
         mpShortcutFallback,
         playShortcutFallback,
+        playBackups,
+        playTogetherBackups,
         lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
@@ -4332,6 +4374,8 @@ export function buildOptionsController({
         onToggleMpSuggestFriends,
         onToggleMpShortcutFallback,
         onTogglePlayShortcutFallback,
+        onTogglePlayBackups,
+        onTogglePlayTogetherBackups,
         onEditLobbyServer,
         onToggleAutomaticRecovery,
         onToggleRecoveryButtonCombo,
@@ -4339,6 +4383,7 @@ export function buildOptionsController({
         onToggleStormbreaker,
         onClearRecoveryLogs,
         onClearActivityCache,
+        onClearAllSaveBackups,
         onClearMilestoneProgress,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,

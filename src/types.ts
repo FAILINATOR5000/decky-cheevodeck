@@ -891,6 +891,8 @@ export type SettingsResponse = {
     mpVoicePttToggle: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
+    playBackups: boolean;
+    playTogetherBackups: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;

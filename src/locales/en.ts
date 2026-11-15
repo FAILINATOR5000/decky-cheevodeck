@@ -3835,4 +3835,12 @@ export const EN: LocaleTable = {
     "Mid-session": "Mid-session",
     "Before Wii copy-back": "Before Wii copy-back",
     "Before restore": "Before restore",
+    "Save Backups": "Save Backups",
+    "Play Backups": "Play Backups",
+    "Play Together Backups": "Play Together Backups",
+    "Clear All Backups": "Clear All Backups",
+    "All backups cleared": "All backups cleared",
+    "help_play_backups": "Copies a game's save before and after each Play launch, and while it runs at the interval set in that game's Backups window.",
+    "help_play_together_backups": "Copies your save before and after each Play Together round on this device, and while it runs. This only stops the copies: saving during rounds stays on.",
+    "help_clear_all_save_backups": "Deletes every save backup on this device, for every game. Your saves themselves are left alone. Can't be undone.",
 };

@@ -3823,6 +3823,14 @@ const DE: LocaleTable = {
     "Mid-session": "Während der Sitzung",
     "Before Wii copy-back": "Vor dem Wii-Zurückkopieren",
     "Before restore": "Vor dem Wiederherstellen",
+    "Save Backups": "Spielstand-Sicherungen",
+    "Play Backups": "Sicherungen beim Spielen",
+    "Play Together Backups": "Play-Together-Sicherungen",
+    "Clear All Backups": "Alle Sicherungen löschen",
+    "All backups cleared": "Alle Sicherungen gelöscht",
+    "help_play_backups": "Kopiert den Spielstand eines Spiels vor und nach jedem Start über Spielen, und während es läuft im Abstand, der im Sicherungen-Fenster des Spiels eingestellt ist.",
+    "help_play_together_backups": "Kopiert deinen Spielstand vor und nach jeder Play-Together-Runde auf diesem Gerät, und während sie läuft. Das stoppt nur die Kopien: Das Speichern während der Runden bleibt an.",
+    "help_clear_all_save_backups": "Löscht alle Spielstand-Sicherungen auf diesem Gerät, für jedes Spiel. Deine Spielstände selbst bleiben unberührt. Kann nicht rückgängig gemacht werden.",
 };
 
 export default DE;

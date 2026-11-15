@@ -3938,6 +3938,14 @@ const PL: LocaleTable = {
     "Mid-session": "W trakcie sesji",
     "Before Wii copy-back": "Przed skopiowaniem z powrotem na Wii",
     "Before restore": "Przed przywróceniem",
+    "Save Backups": "Kopie zapasowe zapisów",
+    "Play Backups": "Kopie przy graniu",
+    "Play Together Backups": "Kopie Play Together",
+    "Clear All Backups": "Wyczyść wszystkie kopie",
+    "All backups cleared": "Wyczyszczono wszystkie kopie",
+    "help_play_backups": "Kopiuje zapis gry przed każdym uruchomieniem przez Graj i po nim, a w trakcie gry co tyle, ile ustawiono w oknie Kopie zapasowe tej gry.",
+    "help_play_together_backups": "Kopiuje twój zapis przed każdą rundą Play Together na tym urządzeniu, po niej i w jej trakcie. To wyłącza tylko kopie: zapisywanie podczas rund dalej działa.",
+    "help_clear_all_save_backups": "Usuwa wszystkie kopie zapasowe zapisów na tym urządzeniu, dla każdej gry. Same zapisy pozostają nietknięte. Nie można cofnąć.",
 };
 
 export default PL;
