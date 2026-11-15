@@ -51,7 +51,7 @@ def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
     if fst.st_mtime < since:
         decky.logger.warning("multiplayer: the WiiSession left behind is older than this round, leaving it alone")
         return "refused"
-    if not _dolphin_gone():
+    if not dolphin_gone():
         decky.logger.warning("multiplayer: Dolphin is still running, leaving its WiiSession alone")
         return "refused"
     try:
@@ -80,7 +80,7 @@ def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
     return f"copied {', '.join(copied)}" if copied else "every game save already matched"
 
 
-def _dolphin_gone() -> bool:
+def dolphin_gone() -> bool:
     for attempt in range(GONE_CHECKS):
         if attempt:
             time.sleep(GONE_CHECK_SECONDS)

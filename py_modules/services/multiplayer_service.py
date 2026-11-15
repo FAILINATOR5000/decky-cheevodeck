@@ -6166,6 +6166,8 @@ class MultiplayerService:
                 await asyncio.to_thread(self._repair_empty_saves, current)
             if current.get("wiiNand"):
                 await asyncio.to_thread(self._put_wii_saves_back, current)
+            if current["emulator"] == "dolphin" and current.get("backup") is not None:
+                await asyncio.to_thread(wii_saves.dolphin_gone)
             await self._end_backup(current)
             self._finish(current)
 
