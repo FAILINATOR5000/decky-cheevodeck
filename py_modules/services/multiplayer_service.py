@@ -33,7 +33,7 @@ from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
-from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int
+from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
 
 LEASE_SECONDS = 30
 VISIT_CAP_SECONDS = 600
@@ -6135,6 +6135,8 @@ class MultiplayerService:
             self._spawn(self._ping_saves(current))
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
+            if current.get("saveCopies"):
+                await asyncio.to_thread(self._repair_empty_saves, current)
             if current.get("wiiNand"):
                 await asyncio.to_thread(self._put_wii_saves_back, current)
             self._finish(current)
@@ -6188,6 +6190,9 @@ class MultiplayerService:
                     return
                 delay = SAVE_PING_SECONDS
                 before = await asyncio.to_thread(_save_stamps, paths)
+                for path, stamp in zip(paths, before, strict=True):
+                    if stamp is not None and stamp[2]:
+                        current.setdefault("saveCopies", {})[path] = stamp[2]
                 try:
                     await loop.sock_sendto(sock, b"SAVE_FILES", ("127.0.0.1", port))
                     reply = await asyncio.wait_for(loop.sock_recv(sock, 64), SAVE_REPLY_SECONDS)
@@ -6207,6 +6212,27 @@ class MultiplayerService:
                     warned = True
         finally:
             sock.close()
+
+    def _repair_empty_saves(self, current: dict) -> None:
+        for path, data in current["saveCopies"].items():
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            if not stat.S_ISREG(st.st_mode) or st.st_size != 0:
+                continue
+            try:
+                target = user_file_target(path, child_owner())
+                with atomic_file(target, trusted=target.parent, keep_mode=stat.S_IMODE(st.st_mode),
+                                 tmp_name=f".{target.name}.cheevodeck-tmp") as out:
+                    out.write(data)
+                    out.flush()
+                    os.fsync(out.fileno())
+            except OSError as e:
+                decky.logger.warning("multiplayer: couldn't put back %s (%s)", path.name, type(e).__name__)
+                continue
+            decky.logger.info("multiplayer: RetroArch was closed in the middle of saving %s, CheevoDeck put back "
+                              "the last complete copy", path.name)
 
     def _put_wii_saves_back(self, current: dict) -> None:
         nand = current["wiiNand"]
@@ -7004,7 +7030,7 @@ def _save_stamp(path: Path):
             data = handle.read()
     except OSError:
         return None
-    return st, hashlib.sha1(data).digest()
+    return st, hashlib.sha1(data).digest(), data
 
 
 def _save_stamps(paths: list) -> list:
