@@ -16,6 +16,7 @@ DISC_TYPE = "00010000"
 GONE_CHECKS = 6
 GONE_CHECK_SECONDS = 0.5
 TMP_SUFFIX = ".cheevodeck-tmp"
+CONFLICT_MARK = ".sync-conflict-"
 _HEX8 = re.compile(r"[0-9a-f]{8}")
 
 
@@ -99,12 +100,12 @@ def dolphin_gone() -> bool:
     for attempt in range(GONE_CHECKS):
         if attempt:
             time.sleep(GONE_CHECK_SECONDS)
-        if not _dolphin_running():
+        if not running((b"dolphin-emu",)):
             return True
     return False
 
 
-def _dolphin_running() -> bool:
+def running(names) -> bool:
     for name in os.listdir("/proc"):
         if not name.isdigit():
             continue
@@ -113,7 +114,7 @@ def _dolphin_running() -> bool:
                 head, _sep, tail = handle.read().rpartition(b")")
         except OSError:
             continue
-        if head.partition(b"(")[2] == b"dolphin-emu" and tail.split()[:1] not in ([b"Z"], [b"X"]):
+        if head.partition(b"(")[2] in names and tail.split()[:1] not in ([b"Z"], [b"X"]):
             return True
     return False
 
@@ -148,19 +149,20 @@ def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, back_u
     return match_folder(session / "title" / kind / title / "data", linked, before)
 
 
-def match_folder(source: Path, linked: Path, before=None) -> int:
+def match_folder(source: Path, linked: Path, before=None, exact: bool = False) -> int:
     wanted = contents(source)
     real = user_file_target(linked, child_owner())
     if not real.is_dir():
         raise Refused("the real data folder isn't a folder")
     have = contents(real)
     changed = sorted(relative for relative, digest in wanted.items() if have.get(relative) != digest)
-    if not changed:
+    extra = sorted(relative for relative in set(have) - set(wanted) if CONFLICT_MARK not in relative)
+    if not changed and not (exact and extra):
         return 0
     for relative in changed:
         _no_clash(real, relative)
 
-    if have and before is not None:
+    if have and changed and before is not None:
         before()
 
     touched = {real}
@@ -183,7 +185,7 @@ def match_folder(source: Path, linked: Path, before=None) -> int:
             os.fsync(out.fileno())
     for folder in touched:
         _sync_dir(folder)
-    for relative in sorted(set(have) - set(wanted)):
+    for relative in extra:
         target = real / relative
         fd = open_dir(target.parent, real)
         try:

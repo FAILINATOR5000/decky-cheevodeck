@@ -6168,6 +6168,8 @@ class MultiplayerService:
         if current.get("savePort"):
             self._spawn(self._ping_saves(current))
         await asyncio.to_thread(self._wait_exit, pid)
+        if current.get("backup") is not None:
+            self._backups.stop_timer(current["id"])
         if not self._stopping:
             if current.get("saveCopies"):
                 await asyncio.to_thread(self._repair_empty_saves, current)

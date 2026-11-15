@@ -37,6 +37,7 @@ _GROUP = re.compile(r"[a-z0-9_]{1,64}(-[a-z0-9_]{1,64}){0,2}")
 _STAMP = re.compile(r"(\d{14})-(" + "|".join(re.escape(reason) for reason in REASONS) + r")")
 _SHA = re.compile(r"[0-9a-f]{64}")
 _CORE = re.compile(r"[a-z0-9_]{1,64}")
+_TITLE = re.compile(r"[0-9a-f]{16}")
 
 
 class SaveBackups:
@@ -67,8 +68,13 @@ class SaveBackups:
         if trigger not in TRIGGERS or game_id < 0:
             return False
         cfg = self._settings_store.load_config()
-        play, together = cfg.get("playBackups", True) is not False, cfg.get("playTogetherBackups", True) is not False
-        if not {"play": play, "together": together, "restore": play or together}[trigger]:
+        play_on = cfg.get("playBackups", True) is not False
+        together_on = cfg.get("playTogetherBackups", True) is not False
+        if trigger == "play" and not play_on:
+            return False
+        if trigger == "together" and not together_on:
+            return False
+        if trigger == "restore" and not (play_on or together_on):
             return False
         if self._game_settings.console_off(target.get("systemId", 0)):
             return False
@@ -79,18 +85,19 @@ class SaveBackups:
         group = group_name(target)
         if reason not in REASONS or group is None or not self._wanted(target, trigger):
             return True
-        with self._lock:
-            reads = target["paths"]
-            if reason == "mid" and "live" in target:
+        reads = target["paths"]
+        if reason == "mid":
+            if "live" in target:
                 live = target["live"]()
                 if live is None:
                     self._debug("%s has no session save to copy yet", game_id)
                     return True
                 reads = [live]
+            if not _steady(reads):
+                self._debug("%s's save is still being written, no mid-session copy this time", game_id)
+                return True
+        with self._lock:
             try:
-                if reason == "mid" and not _steady(reads):
-                    self._debug("%s's save is still being written, no mid-session copy this time", game_id)
-                    return True
                 sources = _snapshot(target["paths"], reads)
             except (OSError, wii_saves.Refused) as e:
                 decky.logger.warning("save backups: couldn't read the save for %s (%s)", game_id, type(e).__name__)
@@ -123,8 +130,8 @@ class SaveBackups:
             moment = max(moment, last + 1)
         name = f"{time.strftime('%Y%m%d%H%M%S', time.localtime(moment))}-{reason}"
         building = folder / f".{name}{TMP_SUFFIX}"
-        if os.path.lexists(building):
-            _remove_tree(building)
+        if os.path.lexists(building) and not self._remove(building):
+            raise wii_saves.Refused("a half-built backup is in the way")
         ensure_dir(building)
         try:
             for source in sources:
@@ -146,12 +153,13 @@ class SaveBackups:
                 "title": target.get("title", ""),
                 "reason": reason,
                 "at": int(moment),
-                "sources": [{"path": source["path"], "file": source["file"], "kind": source["kind"],
-                             "sha256": source["sha256"]} for source in sources],
+                "sources": [_recorded(source) for source in sources],
             }, compact=True)
+            if not self._inside(folder):
+                raise wii_saves.Refused("the backup folder is a link")
             os.rename(building, folder / name)
         except BaseException:
-            _remove_tree(building)
+            self._remove(building)
             raise
 
     def _backups_in(self, folder: Path) -> list:
@@ -174,8 +182,37 @@ class SaveBackups:
             if extra <= 0:
                 break
             if name != spare:
-                _remove_tree(folder / name)
+                self._remove(folder / name)
                 extra -= 1
+
+    def _inside(self, path: Path) -> bool:
+        try:
+            parts = path.relative_to(self._root).parts
+        except ValueError:
+            return False
+        level = self._root
+        for part in (None, *parts):
+            if part is not None:
+                level = level / part
+            try:
+                if stat.S_ISLNK(os.lstat(level).st_mode):
+                    return False
+            except FileNotFoundError:
+                return True
+        return True
+
+    def _remove(self, path: Path) -> bool:
+        if not self._inside(path):
+            decky.logger.warning("save backups: refusing to remove %s, a folder on its way is a link", path.name)
+            return False
+        try:
+            if not os.path.lexists(path):
+                return True
+            shutil.rmtree(path)
+            return True
+        except OSError as e:
+            decky.logger.warning("save backups: couldn't remove %s (%s)", path.name, type(e).__name__)
+            return False
 
     def _meta(self, folder: Path):
         raw = load_json_file(folder / META, None)
@@ -225,6 +262,11 @@ class SaveBackups:
         if found is not None:
             found[2].cancel()
 
+    def stop_timer(self, key: str) -> None:
+        found = self._follows.get(key)
+        if found is not None:
+            found[2].cancel()
+
     def stop(self) -> None:
         for key in list(self._follows):
             self.forget(key)
@@ -268,29 +310,45 @@ class SaveBackups:
             return {"ok": False, "error": "running"}
         with self._lock:
             folder = self._root / str(game_id) / group / name
-            meta = self._meta(folder)
+            meta = self._meta(folder) if self._inside(folder) else None
             if meta is None or meta["raGameId"] != game_id:
                 return {"ok": False, "error": "gone"}
             if any(not os.path.isdir(os.path.dirname(source["path"])) for source in meta["sources"]):
                 return {"ok": False, "error": "missing_folder"}
             target = {"gameId": game_id, "systemId": meta["systemId"], "emulator": meta["emulator"],
-                      "install": meta["install"],
-                      "core": meta["core"], "coreName": meta["coreName"], "title": meta["title"],
-                      "paths": [Path(source["path"]) for source in meta["sources"]]}
+                      "install": meta["install"], "core": meta["core"], "coreName": meta["coreName"],
+                      "title": meta["title"], "paths": [Path(source["path"]) for source in meta["sources"]]}
             if group_name(target) != group:
                 return {"ok": False, "error": "gone"}
+            owner = child_owner()
+            try:
+                stored = {}
+                for source in meta["sources"]:
+                    held = folder / source["file"]
+                    if source["kind"] == "file":
+                        stored[source["file"]] = wii_saves.read_plain(held)
+                    else:
+                        wii_saves.contents(held)
+                for source in meta["sources"]:
+                    if source["kind"] == "folder" and not os.path.lexists(source["path"]):
+                        user_file_target(os.path.dirname(source["path"]), owner)
+                    else:
+                        user_file_target(source["path"], owner)
+            except (OSError, wii_saves.Refused) as e:
+                decky.logger.warning("save backups: won't restore %s for %s (%s: %s)", name, game_id,
+                                     type(e).__name__, e)
+                return {"ok": False, "error": "failed"}
             if not self.back_up(target, "restore", "restore", spare=name):
                 return {"ok": False, "error": "failed"}
             try:
                 for source in meta["sources"]:
-                    stored = folder / source["file"]
+                    path = Path(source["path"])
                     if source["kind"] == "file":
-                        _put_file(Path(source["path"]), wii_saves.read_plain(stored))
+                        _put_file(path, stored[source["file"]])
                     else:
-                        linked = Path(source["path"])
-                        if not os.path.lexists(linked):
-                            ensure_dir(linked, trusted=linked.parent)
-                        wii_saves.match_folder(stored, linked)
+                        if not os.path.lexists(path):
+                            ensure_dir(path, trusted=path.parent)
+                        wii_saves.match_folder(folder / source["file"], path, exact=True)
             except (OSError, wii_saves.Refused) as e:
                 decky.logger.warning("save backups: couldn't restore %s for %s (%s: %s)", name, game_id,
                                      type(e).__name__, e)
@@ -302,10 +360,13 @@ class SaveBackups:
         if game_id < 0:
             return False
         with self._lock:
-            return _remove_tree(self._root / str(game_id))
+            return self._remove(self._root / str(game_id))
 
     def clear_all(self) -> bool:
         with self._lock:
+            if not self._inside(self._root):
+                decky.logger.warning("save backups: save-backups is a link, not clearing it")
+                return False
             try:
                 names = os.listdir(self._root)
             except FileNotFoundError:
@@ -314,7 +375,7 @@ class SaveBackups:
                 return False
             ok = True
             for name in names:
-                ok = _remove_tree(self._root / name) and ok
+                ok = self._remove(self._root / name) and ok
         decky.logger.info("save backups: cleared every backup")
         return ok
 
@@ -328,7 +389,11 @@ def group_name(target: dict):
         install = target.get("install") or ""
         if install not in ("", "flatpak", "appimage"):
             return None
-        return f"dolphin-{install}" if install else "dolphin"
+        group = f"dolphin-{install}" if install else "dolphin"
+        title = str(target.get("title") or "").lower()
+        if target["gameId"] == 0 and _TITLE.fullmatch(title):
+            group = f"{group}-{title}"
+        return group
     return None
 
 
@@ -341,17 +406,7 @@ def group_label(meta: dict) -> str:
 
 
 def emulator_running() -> bool:
-    for name in os.listdir("/proc"):
-        if not name.isdigit():
-            continue
-        try:
-            with open(f"/proc/{name}/stat", "rb") as handle:
-                head, _sep, tail = handle.read().rpartition(b")")
-        except OSError:
-            continue
-        if head.partition(b"(")[2] in RUNNING_NAMES and tail.split()[:1] not in ([b"Z"], [b"X"]):
-            return True
-    return False
+    return wii_saves.running(RUNNING_NAMES)
 
 
 def _plain_name(name: str) -> bool:
@@ -359,27 +414,29 @@ def _plain_name(name: str) -> bool:
 
 
 def _snapshot(paths, reads) -> list:
+    owner = child_owner()
     sources = []
     for path, read in zip(paths, reads, strict=True):
-        path, read = Path(path), Path(read)
+        path = Path(path)
         if not _plain_name(path.name):
             continue
         try:
-            st = os.stat(read)
+            real = user_file_target(read, owner)
+            st = os.stat(real)
         except FileNotFoundError:
             continue
         if stat.S_ISDIR(st.st_mode):
-            digests = wii_saves.contents(read)
-            if not digests:
+            files = {relative: wii_saves.read_plain(real / relative) for relative in sorted(wii_saves.contents(real))
+                     if wii_saves.CONFLICT_MARK not in relative}
+            if not files:
                 continue
-            files = {relative: wii_saves.read_plain(read / relative) for relative in sorted(digests)}
             summary = "".join(f"{relative}\0{hashlib.sha1(data).hexdigest()}\n" for relative, data in files.items())
             sources.append({"path": str(path), "file": path.name, "kind": "folder", "files": files,
                             "sha256": hashlib.sha256(summary.encode("utf-8")).hexdigest()})
             continue
         if not stat.S_ISREG(st.st_mode) or st.st_size == 0:
             continue
-        data = _read_save(read)
+        data = wii_saves.read_plain(real)
         if not data:
             continue
         sources.append({"path": str(path), "file": path.name, "kind": "file", "data": data,
@@ -387,17 +444,13 @@ def _snapshot(paths, reads) -> list:
     return sources
 
 
+def _recorded(source: dict) -> dict:
+    return {"path": source["path"], "file": source["file"], "kind": source["kind"], "sha256": source["sha256"]}
+
+
 def _same(kept: list, sources: list) -> bool:
     return {(source["file"], source["sha256"]) for source in kept} == \
         {(source["file"], source["sha256"]) for source in sources}
-
-
-def _read_save(path: Path) -> bytes:
-    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
-    with os.fdopen(fd, "rb") as handle:
-        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-            raise wii_saves.Refused(f"{path.name} isn't a plain file")
-        return handle.read()
 
 
 def _newest_mtime(paths) -> float:
@@ -436,34 +489,31 @@ def _write_bytes(path: Path, data: bytes) -> None:
 
 def _put_file(path: Path, data: bytes) -> None:
     target = user_file_target(path, child_owner())
+    _write_into(target.parent, target.name, data)
+    _sync_dir(target.parent)
+
+
+def _write_into(folder: Path, name: str, data: bytes) -> None:
     keep = None
     try:
-        st = os.lstat(target)
+        st = os.lstat(folder / name)
         if not stat.S_ISREG(st.st_mode):
-            raise wii_saves.Refused(f"{target.name} isn't a plain file")
+            raise wii_saves.Refused(f"{name} isn't a plain file")
         keep = stat.S_IMODE(st.st_mode)
     except FileNotFoundError:
         pass
-    with atomic_file(target, trusted=target.parent, keep_mode=keep, tmp_name=f".{target.name}{TMP_SUFFIX}") as out:
+    with atomic_file(folder / name, trusted=folder, keep_mode=keep, tmp_name=f".{name}{TMP_SUFFIX}") as out:
         out.write(data)
         out.flush()
         os.fsync(out.fileno())
-    fd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+
+
+def _sync_dir(folder: Path) -> None:
+    fd = os.open(folder, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     try:
         os.fsync(fd)
     finally:
         os.close(fd)
-
-
-def _remove_tree(path: Path) -> bool:
-    try:
-        if path.is_symlink() or not path.is_dir():
-            return not os.path.lexists(path)
-        shutil.rmtree(path)
-        return True
-    except OSError as e:
-        decky.logger.warning("save backups: couldn't remove %s (%s)", path.name, type(e).__name__)
-        return False
 
 
 def clean_game_id(value) -> int:
