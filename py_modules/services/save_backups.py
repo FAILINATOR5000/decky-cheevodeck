@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import os
 import re
@@ -28,6 +29,7 @@ REASONS = ("launch", "couch", "link", "stream", "end", "mid", "wii-copy-back", "
 TRIGGERS = ("play", "together", "restore")
 STEADY_SECONDS = 5
 STEADY_TRIES = 3
+OFF_RECHECK_MINUTES = 5
 TMP_SUFFIX = ".cheevodeck-tmp"
 RUNNING_NAMES = (b"retroarch", b"dolphin-emu")
 
@@ -39,9 +41,11 @@ _CORE = re.compile(r"[a-z0-9_]{1,64}")
 
 class SaveBackups:
 
-    def __init__(self, *, runtime_dir, settings_store):
+    def __init__(self, *, runtime_dir, settings_store, game_settings):
         self._root = Path(runtime_dir) / ROOT
         self._settings_store = settings_store
+        self._game_settings = game_settings
+        self._follows = {}
         self._lock = threading.RLock()
 
     def _debug(self, message: str, *args) -> None:
@@ -59,7 +63,9 @@ class SaveBackups:
             return False
 
     def _wanted(self, game_id: int, trigger: str) -> bool:
-        return trigger in TRIGGERS and game_id >= 0
+        if trigger not in TRIGGERS or game_id < 0:
+            return False
+        return game_id == 0 or not self._game_settings.get(game_id)["off"]
 
     def back_up(self, target: dict, reason: str, trigger: str, spare: str = "") -> bool:
         game_id = target["gameId"]
@@ -177,6 +183,35 @@ class SaveBackups:
         texts = {key: raw.get(key) if isinstance(raw.get(key), str) else "" for key in
                  ("emulator", "install", "core", "coreName", "title")}
         return {"raGameId": game_id, "reason": reason, "at": at, "sources": cleaned, **texts}
+
+    def follow(self, key: str, target: dict, trigger: str) -> None:
+        self.forget(key)
+        self._follows[key] = (target, trigger, asyncio.ensure_future(self._mid_session(target, trigger)))
+
+    async def _mid_session(self, target: dict, trigger: str) -> None:
+        while True:
+            settings = await asyncio.to_thread(self._game_settings.get, target["gameId"])
+            minutes = 0 if settings["off"] else settings["interval"]
+            await asyncio.sleep((minutes or OFF_RECHECK_MINUTES) * 60)
+            if minutes:
+                await asyncio.to_thread(self.back_up, target, "mid", trigger)
+
+    async def end(self, key: str) -> None:
+        found = self._follows.pop(key, None)
+        if found is None:
+            return
+        target, trigger, task = found
+        task.cancel()
+        await asyncio.to_thread(self.back_up, target, "end", trigger)
+
+    def forget(self, key: str) -> None:
+        found = self._follows.pop(key, None)
+        if found is not None:
+            found[2].cancel()
+
+    def stop(self) -> None:
+        for key in list(self._follows):
+            self.forget(key)
 
     def list_game(self, game_id: int) -> list:
         base = self._root / str(game_id)

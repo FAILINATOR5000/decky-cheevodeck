@@ -1162,6 +1162,10 @@ export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: stri
 export const multiplayerLaunchEnded = callable<[], { ok: boolean }>("multiplayer_launch_ended");
 export const multiplayerPlayInfo = callable<[number, PlayPick | Record<string, never> | null], PlayInfo>("multiplayer_play_info");
 export const multiplayerPlayChoices = callable<[number], PlayChoices>("multiplayer_play_choices");
+export const saveBackupsPlayStarted = callable<[number, PlayPick | Record<string, never> | null], { ok: boolean }>(
+    "save_backups_play_started"
+);
+export const saveBackupsPlayEnded = callable<[], { ok: boolean }>("save_backups_play_ended");
 export const multiplayerCouchChoices = callable<[number], CouchChoices>("multiplayer_couch_choices");
 export const multiplayerSavePlayPick = callable<[number, "play" | "couch", PlayPick | null], { ok: boolean }>("multiplayer_save_play_pick");
 export const multiplayerSetStreamPick = callable<[number, PlayPick | null, boolean], { ok: boolean }>("multiplayer_set_stream_pick");

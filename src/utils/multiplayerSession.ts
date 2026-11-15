@@ -13,6 +13,8 @@ import {
     multiplayerStart,
     multiplayerStartCancel,
     refreshCurrentGame,
+    saveBackupsPlayEnded,
+    saveBackupsPlayStarted,
     streamPadSwap
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
@@ -339,6 +341,7 @@ export async function playGame(gameId: number, appid: number, fallback: boolean,
     }
     launching = true;
     try {
+        await saveBackupsPlayStarted(gameId, choice).catch((e) => logError("play: the save backup before launch", e));
         const result = fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
         if (result.ok) {
             stopPlayFollow();
@@ -346,9 +349,13 @@ export async function playGame(gameId: number, appid: number, fallback: boolean,
             follow.timer = window.setTimeout(() => {
                 if (playFollow === follow && !follow.started) {
                     playFollow = null;
+                    endPlayBackups();
                 }
             }, PLAY_START_WAIT_MS);
             playFollow = follow;
+        }
+        else {
+            endPlayBackups();
         }
         return result;
     }
@@ -489,6 +496,10 @@ function followCurrentGame() {
     }, FOLLOW_AFTER_MS);
 }
 
+function endPlayBackups() {
+    saveBackupsPlayEnded().catch((e) => logError("play: the save backup after the game", e));
+}
+
 function stopPlayFollow() {
     if (playFollow) {
         window.clearTimeout(playFollow.timer);
@@ -543,6 +554,7 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
     if (follow && event?.unAppID === follow.appid) {
         if (!event.bRunning) {
             stopPlayFollow();
+            endPlayBackups();
         }
         else if (!follow.started) {
             follow.started = true;

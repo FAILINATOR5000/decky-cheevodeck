@@ -6136,6 +6136,7 @@ class MultiplayerService:
             current["seen"] = True
             self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
                         "mode": "stream"})
+            self._follow_backups(current)
             await self._follow_steam_game(current)
             return
         needle = str(current["files"][0])
@@ -6152,6 +6153,7 @@ class MultiplayerService:
         current["seen"] = True
         current["pid"] = pid
         decky.logger.info("multiplayer: following the emulator, pid %s", pid)
+        self._follow_backups(current)
         self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
                     "mode": current.get("mode", "")})
         if current["emulator"] in ("dolphin", "rmg") and current.get("mode") == "couch":
@@ -6260,10 +6262,13 @@ class MultiplayerService:
             decky.logger.info("multiplayer: RetroArch was closed in the middle of saving %s, CheevoDeck put back "
                               "the last complete copy", path.name)
 
+    def _follow_backups(self, current: dict) -> None:
+        if current.get("backup") is not None:
+            self._backups.follow(current["id"], current["backup"], "together")
+
     async def _end_backup(self, current: dict) -> None:
-        backup = current.pop("backup", None)
-        if backup is not None:
-            await asyncio.to_thread(self._backups.back_up, backup, "end", "together")
+        if current.pop("backup", None) is not None:
+            await self._backups.end(current["id"])
 
     def _put_wii_saves_back(self, current: dict) -> None:
         nand = current["wiiNand"]

@@ -39,6 +39,7 @@ from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.save_backups import SaveBackups
+from save_backup_settings_store import SaveBackupSettingsStore
 from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
 from services.emulator_service import EmulatorService
@@ -130,6 +131,7 @@ from mixins.activity import ActivityMixin
 from mixins.milestones import MilestonesMixin
 from mixins.data_transfer import DataTransferMixin
 from mixins.multiplayer import MultiplayerMixin
+from mixins.save_backups import SaveBackupsMixin
 from mixins.stream_play import StreamPlayMixin
 from mixins.offline_hotspot import OfflineHotspotMixin
 from mixins.emulators import EmulatorsMixin
@@ -196,6 +198,7 @@ class Plugin(
     MilestonesMixin,
     DataTransferMixin,
     MultiplayerMixin,
+    SaveBackupsMixin,
     StreamPlayMixin,
     OfflineHotspotMixin,
     EmulatorsMixin,
@@ -827,7 +830,10 @@ class Plugin(
             debug=self._stream_debug,
             debug_on=lambda: self.settings_store.get_debug_logging(self.settings_store.load_config()),
         )
-        self.save_backups = SaveBackups(runtime_dir=self.runtime_dir, settings_store=self.settings_store)
+        self.save_backup_settings_store = SaveBackupSettingsStore(base_dir=self.runtime_dir,
+                                                                  settings_store=self.settings_store)
+        self.save_backups = SaveBackups(runtime_dir=self.runtime_dir, settings_store=self.settings_store,
+                                        game_settings=self.save_backup_settings_store)
         self.multiplayer_service = MultiplayerService(
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
@@ -1223,6 +1229,7 @@ class Plugin(
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()
         self.multiplayer_service.settle(1.0)
+        self.save_backups.stop()
         self.emulator_service.stop()
         self.multiplayer_friends_service.stop()
         self.ez_friends_heal_service.stop()
@@ -1758,6 +1765,7 @@ class Plugin(
         self.freeze_watchdog_service.sync()
         self.multiplayer_friends_service.settings_changed()
         self.multiplayer_volumes_store.clear()
+        self.save_backup_settings_store.remove_account(cfg.get("activeUlid"))
 
         return {
             "ok": True,
