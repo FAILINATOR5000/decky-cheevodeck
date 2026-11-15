@@ -1,6 +1,7 @@
 import asyncio
 import time
 
+import decky
 from mixins._context import PluginContext
 from utils import to_int
 
@@ -52,6 +53,33 @@ class MyGamesMixin(PluginContext):
         if result.get("error"):
             listing["error"] = result["error"]
         return listing
+
+    def _active_ulid(self) -> str:
+        return str(self.settings_store.load_config().get("activeUlid") or "").strip()
+
+    async def _feed_own_games_list(self, ulid: str, result) -> None:
+        payload = result.get("payload") if isinstance(result, dict) else None
+        if not ulid or not isinstance(payload, dict):
+            return
+        try:
+            await asyncio.to_thread(self._patch_own_games_list, ulid, payload)
+        except Exception as e:
+            decky.logger.warning("my games: couldn't patch the games list: %s", type(e).__name__)
+
+    def _patch_own_games_list(self, ulid: str, payload: dict) -> None:
+        if self._active_ulid() != ulid:
+            return
+        wrote = self.games_list_cache_store.patch(ulid, payload.get("gameId"), {
+            "numAwarded": payload.get("numAwardedToUser"),
+            "numAwardedHardcore": payload.get("numAwardedToUserHardcore"),
+            "maxPossible": payload.get("numAchievements"),
+            "highestAwardKind": payload.get("highestAwardKind"),
+            "title": payload.get("title"),
+            "consoleName": payload.get("consoleName"),
+            "imageIcon": payload.get("imageIcon"),
+        })
+        if wrote and self._debug_logging:
+            decky.logger.info("my games: patched game %s into the games list", payload.get("gameId"))
 
 
 def _progress(row) -> dict | None:

@@ -103,10 +103,12 @@ class GamesAchievementsMixin(PluginContext):
         }
 
     async def check_current_game(self):
+        ulid = self._active_ulid()
         async with self._game_check_slot():
             result = await asyncio.to_thread(self._check_current_game_sync)
 
         await self.resolve_pending_memories(result.get("currentGameId"))
+        await self._feed_own_games_list(ulid, result)
         return result
 
     def _check_current_game_sync(self):
@@ -138,11 +140,13 @@ class GamesAchievementsMixin(PluginContext):
         )
 
     async def refresh_current_game(self, force: bool = False):
+        ulid = self._active_ulid()
         async with self._game_check_slot():
             result = await asyncio.to_thread(self._refresh_current_game_sync, bool(force))
         if self._memories_switch_pending:
             game_id = norm_game_id(((result or {}).get("payload") or {}).get("gameId"))
             await self._follow_game_switch({"currentGameId": game_id, "cachedGameId": game_id})
+        await self._feed_own_games_list(ulid, result)
         return result
 
     def _refresh_current_game_sync(self, force):
@@ -170,8 +174,11 @@ class GamesAchievementsMixin(PluginContext):
         )
 
     async def get_game_payload(self, game_id=None, force: bool = False):
+        ulid = self._active_ulid()
         async with self._ra_slot():
-            return await asyncio.to_thread(self._get_game_payload_sync, game_id, bool(force))
+            result = await asyncio.to_thread(self._get_game_payload_sync, game_id, bool(force))
+        await self._feed_own_games_list(ulid, result)
+        return result
 
     def _get_game_payload_sync(self, game_id, force=False):
         cfg = self.settings_store.load_config()
