@@ -1252,6 +1252,8 @@ class MultiplayerService:
                 continue
             if mode == "couch" and not ra.can_couch(core):
                 continue
+            if mode == "couch" and core in proto.NETPACKET_CORES:
+                continue
             if mode == "link" and core != session.LINK_CORES.get(system_id):
                 continue
             cores.append(core)
@@ -2372,7 +2374,8 @@ class MultiplayerService:
                     if mode == "link":
                         return ("saves_by_core", detail), warnings
                     warnings.append({"code": "saves_by_core", "detail": detail})
-                warnings.append({"code": "core_override",
+                swapped = mode == "couch" and local["shortcutCore"] not in self._compatible(ra, "couch", system_id)
+                warnings.append({"code": "core_swap_couch" if swapped else "core_override",
                                  "detail": {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}})
             if session.emudeck_netplay_on(self._user_home):
                 return ("emudeck_netplay", {}), warnings

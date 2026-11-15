@@ -3025,6 +3025,7 @@ const JA: LocaleTable = {
     "The host's game didn't let you in. Try again.": "ホストのゲームに入れませんでした。もう一度お試しください。",
     "Couldn't open a room on this network": "このネットワークではルームを開けませんでした",
     "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.": "このセッションでは{{core}}を使います。ショートカットは{{shortcutCore}}のままです。",
+    "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.": "Couch Play ではこちらのほうがうまく動くため、このセッションでは {{core}} を使います。ショートカットは {{shortcutCore}} のままです。",
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "RetroArchのセーブがコアごとに分かれているため、{{core}}からはいつものセーブが見えません。",
     "Your RetroArch or core version differs from the host's.": "RetroArchまたはコアのバージョンがホストと異なります。",
     "Your copy is a different version of the game from the host's.": "あなたのゲームはホストとは別のバージョンです。",

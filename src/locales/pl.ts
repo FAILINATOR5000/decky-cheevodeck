@@ -3270,6 +3270,7 @@ const PL: LocaleTable = {
     "The host's game didn't let you in. Try again.": "Gra hosta cię nie wpuściła. Spróbuj ponownie.",
     "Couldn't open a room on this network": "Nie udało się otworzyć pokoju w tej sieci",
     "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.": "Ta sesja używa {{core}}. Skrót zostaje przy {{shortcutCore}}.",
+    "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.": "W tej sesji używany jest {{core}}, bo lepiej działa w Couch Play. Twój skrót zostaje przy {{shortcutCore}}.",
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Zapisy RetroArch są sortowane według rdzenia, więc {{core}} nie zobaczy twojego zwykłego zapisu.",
     "Your RetroArch or core version differs from the host's.": "Twoja wersja RetroArch lub rdzenia różni się od wersji hosta.",
     "Your copy is a different version of the game from the host's.": "Twoja kopia to inna wersja gry niż u hosta.",

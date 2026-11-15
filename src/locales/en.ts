@@ -3167,6 +3167,7 @@ export const EN: LocaleTable = {
     "The host's game didn't let you in. Try again.": "The host's game didn't let you in. Try again.",
     "Couldn't open a room on this network": "Couldn't open a room on this network",
     "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.": "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
+    "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.": "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.",
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
     "Your RetroArch or core version differs from the host's.": "Your RetroArch or core version differs from the host's.",
     "Your copy is a different version of the game from the host's.": "Your copy is a different version of the game from the host's.",

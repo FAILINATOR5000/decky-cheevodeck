@@ -3239,6 +3239,7 @@ const RU: LocaleTable = {
     "The host's game didn't let you in. Try again.": "Игра хоста тебя не пустила. Попробуй ещё раз.",
     "Couldn't open a room on this network": "Не удалось открыть комнату в этой сети",
     "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.": "В этом сеансе используется {{core}}. Ярлык остаётся на {{shortcutCore}}.",
+    "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.": "В этой сессии используется {{core}}, потому что он лучше работает в Couch Play. Ярлык остаётся на {{shortcutCore}}.",
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Сохранения RetroArch разложены по ядрам, поэтому {{core}} не увидит твоё обычное сохранение.",
     "Your RetroArch or core version differs from the host's.": "Твоя версия RetroArch или ядра отличается от версии хоста.",
     "Your copy is a different version of the game from the host's.": "Твоя копия — другая версия игры, не как у хоста.",

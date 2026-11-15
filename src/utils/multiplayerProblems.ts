@@ -106,6 +106,7 @@ const PROBLEM_TEXT: Record<string, string> = {
 
 const WARNING_TEXT: Record<string, string> = {
     core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
+    core_swap_couch: "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.",
     saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
     crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
     version_mismatch: "Your RetroArch or core version differs from the host's.",
