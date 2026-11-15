@@ -1,4 +1,3 @@
-import { toaster } from "@decky/api";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useEffect, useMemo, useState } from "react";
 
@@ -6,9 +5,11 @@ import { saveBackupsClear, saveBackupsInfo, saveBackupsRestore, saveBackupsSetCo
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { SaveBackupReason, SaveBackupsInfo } from "../../types";
+import { showToastAfter } from "../../utils/delayedToast";
 import { logError } from "../../utils/errors";
 import { formatDateTime } from "../../utils/fileWatcher";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { PRESS_TOAST_DELAY_MS } from "../../utils/navSound";
 import { modalSize } from "../../utils/scale";
 import { confirmAmber, modalBodyStyle, warnAmber } from "../../utils/style";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
@@ -156,7 +157,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                 const body = result.ok
                     ? t(language, "Save restored")
                     : t(language, RESTORE_ERRORS[result.error ?? ""] ?? "Couldn't restore this backup.");
-                toaster.toast({ title: t(language, "Backups"), body });
+                showToastAfter({ title: t(language, "Backups"), body }, PRESS_TOAST_DELAY_MS);
             })
             .catch((e) => logError("save backups: the restore threw", e))
             .finally(() => {

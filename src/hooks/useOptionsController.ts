@@ -345,6 +345,8 @@ import { applyFrontendSettings } from "../utils/frontendSettings";
 import { setVoiceSettings } from "../utils/voiceChat";
 import { reloadRoomVolumes } from "../utils/gameVolume";
 import { clearActivityMonths } from "../utils/activityCache";
+import { showToastAfter } from "../utils/delayedToast";
+import { PRESS_TOAST_DELAY_MS } from "../utils/navSound";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -3711,7 +3713,7 @@ export function buildOptionsController({
     const onClearAllSaveBackups = async () => {
         try {
             if ((await clearAllSaveBackups()).ok) {
-                toaster.toast({ title: t(language, "Save Backups"), body: t(language, "All backups cleared") });
+                showToastAfter({ title: t(language, "Save Backups"), body: t(language, "All backups cleared") }, PRESS_TOAST_DELAY_MS);
             }
         } catch (e) {
             logError("options: clearing every save backup", e);
