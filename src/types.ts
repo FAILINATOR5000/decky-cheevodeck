@@ -2985,6 +2985,12 @@ export type ActivitySubject = { ulid: string; username: string; own: boolean };
 
 export type MultiplayerMode = "link" | "couch" | "stream";
 export type MultiplayerAdapter = "auto" | "team" | "4way" | "port1" | "port2";
+export type MultiplayerGameOptions = {
+    checkFrames: number;
+    share: boolean;
+    seats: number;
+    watch: boolean;
+};
 
 export type MultiplayerTab = "play" | "friends";
 
@@ -3147,6 +3153,7 @@ export type MultiplayerHostedRoom = {
     adapter: MultiplayerAdapter;
     adapterAuto: "" | "team" | "4way" | "port1" | "port2";
     adapterShown: boolean;
+    checkFrames: number;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";

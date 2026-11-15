@@ -1768,6 +1768,7 @@ class Plugin(
         self.multiplayer_friends_service.settings_changed()
         self.multiplayer_volumes_store.clear()
         self.save_backup_settings_store.remove_account(cfg.get("activeUlid"))
+        self.multiplayer_service.forget_game_options(cfg.get("activeUlid"))
 
         return {
             "ok": True,

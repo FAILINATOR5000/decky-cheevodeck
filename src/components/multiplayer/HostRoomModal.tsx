@@ -32,6 +32,8 @@ type HostRequest = {
     core: string;
     share: boolean;
     watch: boolean;
+    seats: number;
+    checkFrames: number;
 };
 
 type HostPlace = {
@@ -61,7 +63,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         () => (place.online && !localOnly ? picks.where : "local")
     );
     const [name, setName] = useState(() => t(language, "Room"));
-    const [seats, setSeats] = useState(picks.seats);
+    const [seats, setSeats] = useState(request.seats);
     const [access, setAccess] = useState<MultiplayerAccess>(picks.access);
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
@@ -89,7 +91,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         }
         setHosting(true);
         setLine({ tone: "busy", text: t(language, "Hosting...") });
-        rememberMultiplayerHostPicks(seats, status, place.online && !localOnly ? where : picks.where, access);
+        rememberMultiplayerHostPicks(status, place.online && !localOnly ? where : picks.where, access);
         rememberMultiplayerVoice(voice);
         stopReading.current = request.mode === "couch"
             ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))
@@ -98,7 +100,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
-                access === "friends", voice, screenSize());
+                access === "friends", voice, screenSize(), request.checkFrames);
             stopReading.current();
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });

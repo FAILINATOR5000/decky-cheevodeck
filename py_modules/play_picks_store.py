@@ -15,7 +15,7 @@ from utils import (
 
 CURRENT_SCHEMA_VERSION = 1
 FILENAME = "play_picks.json"
-USES = ("play", "couch")
+USES = ("play",)
 
 
 def clean_pick(raw):

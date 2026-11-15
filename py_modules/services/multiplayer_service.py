@@ -28,6 +28,7 @@ import rom_headers
 import steam_shortcuts
 import subprocess_util
 from cheevo_check_systems import RAW_DISC_EXTENSIONS, by_console_id
+from multiplayer_game_options_store import MultiplayerGameOptionsStore
 from play_picks_store import PlayPicksStore, clean_pick
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
@@ -97,6 +98,7 @@ PAGE_CHOICES = {
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
            "mine": False, "after": None}
 NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
+ROOM_OPTION_KEYS = ("checkFrames", "share", "seats", "watch")
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
 BAD_TAGS_PER_ADDRESS = 3
@@ -403,6 +405,7 @@ class MultiplayerService:
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
         self._picks = PlayPicksStore(base_dir=Path(runtime_dir))
+        self._game_options = MultiplayerGameOptionsStore(base_dir=Path(runtime_dir), settings_store=settings_store)
         self._sunshine_parked = False
         self._park_task = None
         self._session_picks = {}
@@ -1433,7 +1436,7 @@ class MultiplayerService:
             return None, "link_gc_no_lan", {}
         if mode == "couch" and system_id == session.DS_SYSTEM:
             return None, "ds_no_couch", {}
-        saved = self._picks.get(game_id, "couch") if use_saved and room is None and mode == "couch" else None
+        saved = self._game_options.get(game_id)["pick"] if use_saved and room is None and mode == "couch" else None
         own_pick, vehicle, saved_core = None, None, ""
         if saved is not None:
             saved_core = saved["core"]
@@ -1861,11 +1864,26 @@ class MultiplayerService:
             "emulators": emulators,
             "defaultCore": local["coreName"] if local is not None and local.get("coreName") else "",
             "cores": local["choices"] if local is not None else [],
-            "saved": self._picks.get(game_id, "couch"),
+            "saved": self._game_options.get(game_id)["pick"],
         }
 
     def save_play_pick(self, game_id: int, use: str, pick) -> dict:
+        if use == "couch":
+            return {"ok": self._game_options.set(game_id, {"pick": clean_pick(pick) if pick else None})}
         return {"ok": self._picks.set(game_id, use, clean_pick(pick) if pick else None)}
+
+    def game_options(self, game_id: int) -> dict:
+        saved = self._game_options.get(game_id)
+        return {"ok": True, "options": {key: saved[key] for key in ROOM_OPTION_KEYS}}
+
+    def set_game_options(self, game_id: int, changes: dict) -> dict:
+        if self._room is not None or self._joined is not None:
+            return {"ok": False, "error": ERROR_BUSY}
+        wanted = {key: value for key, value in changes.items() if key in ROOM_OPTION_KEYS}
+        return {"ok": self._game_options.set(game_id, wanted)}
+
+    def forget_game_options(self, ulid) -> None:
+        self._game_options.remove_account(ulid)
 
     def set_stream_pick(self, game_id: int, pick, remember: bool) -> dict:
         cleaned = clean_pick(pick) if pick else None
@@ -2917,7 +2935,7 @@ class MultiplayerService:
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
                    where: str = "local", watch: bool = False, friends: bool = False, voice: bool = False,
-                   screen: str = "") -> dict:
+                   screen: str = "", check_frames: int = session.DEFAULT_CHECK_FRAMES) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -2940,6 +2958,7 @@ class MultiplayerService:
             if online and _lan_only(mode, local):
                 return {"ok": False, "error": ERROR_GATE, "gate": ERROR_LAN_ONLY, "detail": {}}
             described = await asyncio.to_thread(self._describe, mode, local)
+            saved = await asyncio.to_thread(self._game_options.get, local["gameId"])
 
             seats = min(max(size, 2), proto.MAX_SEATS)
             ulid, pic = self._identity()
@@ -2969,7 +2988,9 @@ class MultiplayerService:
                 "owner": ulid if friends else "",
                 "share": bool(share) and mode == "couch",
                 "watch": bool(watch) and mode in ("couch", "stream"),
-                "adapter": "auto",
+                "adapter": saved["adapter"] if saved["adapter"] in session.adapters_for(described["core"]) else "auto",
+                "checkFrames": check_frames if mode == "couch" and check_frames in session.CHECK_FRAMES
+                else session.DEFAULT_CHECK_FRAMES,
                 "voice": bool(voice),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
@@ -3051,6 +3072,7 @@ class MultiplayerService:
             self._seen_order.clear()
             self._housekeeper = self._spawn(self._keep_house(room))
             self._announce()
+            await asyncio.to_thread(self._game_options.set, room["gameId"], self._hosted_options(room))
             decky.logger.info(
                 "multiplayer: hosting %s, %s on %s, %s seats%s%s",
                 local["gameId"], mode, local["core"], seats,
@@ -3059,6 +3081,14 @@ class MultiplayerService:
             )
             self._count("pt_host")
             return {"ok": True, "room": self._host_view(room)}
+
+    def _hosted_options(self, room: dict) -> dict:
+        options = {"seats": room["max"]}
+        if room["mode"] in ("couch", "stream"):
+            options["watch"] = room["watch"]
+        if room["mode"] == "couch":
+            options.update(share=room["share"], checkFrames=room["checkFrames"])
+        return options
 
     def _describe(self, mode: str, local: dict) -> dict:
         return {
@@ -3118,7 +3148,8 @@ class MultiplayerService:
         status = self._joined["status"] if self._joined is not None else None
         return status.get("adapter", "") if status else ""
 
-    async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None) -> dict:
+    async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None,
+                           check_frames=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -3129,27 +3160,29 @@ class MultiplayerService:
         if voice is not None:
             if bool(voice) != room["voice"]:
                 self._set_room_voice(room, bool(voice))
-            if hardcore is None and core is None and share is None and watch is None and adapter is None:
+            if hardcore is None and core is None and share is None and watch is None and adapter is None \
+                    and check_frames is None:
                 return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
         if core is not None and core != room["core"]:
             return await self.change_game(room["mode"], room["gameId"], core)
-        changed = False
-        if hardcore is not None and bool(hardcore) != room["hardcore"]:
+        changed = {}
+        hardcore_changed = hardcore is not None and bool(hardcore) != room["hardcore"]
+        if hardcore_changed:
             room["hardcore"] = bool(hardcore)
-            changed = True
         if share is not None and bool(share) != room["share"]:
-            room["share"] = bool(share)
-            changed = True
+            room["share"] = changed["share"] = bool(share)
         if watch is not None and bool(watch) != room["watch"]:
-            room["watch"] = bool(watch)
-            changed = True
+            room["watch"] = changed["watch"] = bool(watch)
         if (adapter == "auto" or adapter in session.adapters_for(room["core"])) and adapter != room["adapter"]:
-            room["adapter"] = adapter
-            changed = True
-        if changed:
+            room["adapter"] = changed["adapter"] = adapter
+        if room["mode"] == "couch" and check_frames in session.CHECK_FRAMES and check_frames != room["checkFrames"]:
+            room["checkFrames"] = changed["checkFrames"] = check_frames
+        if changed or hardcore_changed:
             self._changed(room)
+        if changed:
+            await asyncio.to_thread(self._game_options.set, room["gameId"], changed)
         return {"ok": True, "room": self._host_view(room)}
 
     def _tell_voice_room(self) -> None:
@@ -3240,7 +3273,10 @@ class MultiplayerService:
                     else:
                         await asyncio.to_thread(self._stream_host.stop)
             if game_id != room["gameId"]:
-                room["adapter"] = "auto"
+                saved = await asyncio.to_thread(self._game_options.get, game_id)
+                if self._room is not room or room["state"] != "lobby":
+                    return {"ok": False, "error": ERROR_SEATED}
+                self._take_game_options(room, mode, described["core"], saved)
             room.update(described, mode=mode, local=local, hostState=state, hostGate=gate or "", hostDetail=detail)
             if state:
                 decky.logger.info("multiplayer: the host changed to %s, %s, and isn't set up for it (%s)", game_id, mode, gate)
@@ -3248,6 +3284,17 @@ class MultiplayerService:
                 decky.logger.info("multiplayer: the host changed to %s, %s on %s", game_id, mode, local["core"])
             self._changed(room)
             return {"ok": True, "room": self._host_view(room)}
+
+    def _take_game_options(self, room: dict, mode: str, core: str, saved: dict) -> None:
+        room["adapter"] = saved["adapter"] if saved["adapter"] in session.adapters_for(core) else "auto"
+        room["share"] = saved["share"] and mode == "couch"
+        room["watch"] = saved["watch"] and mode in ("couch", "stream")
+        room["checkFrames"] = saved["checkFrames"] if mode == "couch" else session.DEFAULT_CHECK_FRAMES
+        seated = 1 + max(index for index, seat in enumerate(room["seats"]) if seat is not None)
+        size = max(saved["seats"], seated)
+        if size != room["max"]:
+            room["seats"] = room["seats"][:size] + [None] * (size - len(room["seats"]))
+            room["max"] = size
 
     async def refresh_room_pick(self, game_id: int) -> None:
         async with self._lock:
@@ -3613,6 +3660,7 @@ class MultiplayerService:
             "watch": room["watch"],
             "adapter": room["adapter"],
             "adapterAuto": room["tapAuto"],
+            "checkFrames": room["checkFrames"],
             "adapterShown": bool(room["tapAuto"]) and room["max"] > 2
                 and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],
@@ -5639,6 +5687,7 @@ class MultiplayerService:
             hardcore = room["hardcore"] if mode in ("couch", "stream") else bool(hardcore)
             share = room["share"]
             watch = room["watch"]
+            check_frames = room["checkFrames"]
             adapter = self._room_tap(room)
             players = room["max"] if _drop_in(room) else 1 + len(roster)
             peer = None
@@ -5659,6 +5708,7 @@ class MultiplayerService:
             hardcore = status["hardcore"] if mode == "couch" else joined["hardcore"]
             share = joined["row"]["share"]
             watch = joined["row"].get("watch", False)
+            check_frames = session.DEFAULT_CHECK_FRAMES
             adapter = status.get("adapter", "")
             players = status["players"]
             peer = joined["row"]
@@ -5727,7 +5777,7 @@ class MultiplayerService:
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                     system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
-                    adapter=adapter, command_port=save_port,
+                    adapter=adapter, command_port=save_port, check_frames=check_frames,
                 )
                 if adapter and mode == "couch" and players > 2 and not watch:
                     decky.logger.info("multiplayer: %s plugs in %s for %s players", local["core"],

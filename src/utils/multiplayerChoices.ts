@@ -17,7 +17,6 @@ type Choices = {
     share: boolean;
     watch: boolean;
     voice: boolean;
-    seats: number;
     status: string;
     where: MultiplayerWhere;
     access: MultiplayerAccess;
@@ -42,7 +41,6 @@ const choices: Choices = {
     share: false,
     watch: false,
     voice: false,
-    seats: 4,
     status: "",
     where: "local",
     access: "public",
@@ -84,9 +82,7 @@ export function rememberMultiplayerVoice(value: boolean) {
     choices.voice = value;
 }
 
-export function rememberMultiplayerHostPicks(seats: number, status: string, where: MultiplayerWhere,
-    access: MultiplayerAccess) {
-    choices.seats = seats;
+export function rememberMultiplayerHostPicks(status: string, where: MultiplayerWhere, access: MultiplayerAccess) {
     choices.status = status;
     choices.where = where;
     choices.access = access;

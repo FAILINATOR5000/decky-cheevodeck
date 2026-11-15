@@ -161,6 +161,21 @@ const UPDATE_LINES: Record<string, { key: string; color?: string }> = {
 
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
 
+const SYNC_FREQUENCIES = [600, 1800, 3600, 7200, 10800, 14400, 18000, 36000, 54000];
+
+function syncFrequencyLabel(language: LanguageCode, frames: number) {
+    if (frames === 0) {
+        return t(language, "Off");
+    }
+    if (frames === 600) {
+        return t(language, "Default (10 sec)");
+    }
+    const seconds = frames / 60;
+    return seconds < 60
+        ? t(language, "{{count}} sec", { count: seconds })
+        : t(language, "{{count}} min", { count: seconds / 60 });
+}
+
 const ADAPTER_LABELS: Record<string, string> = {
     team: "Multiplayer Adapter: Team Player",
     "4way": "Multiplayer Adapter: 4-Way Play",
@@ -853,7 +868,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             hardcore: mp.hardcore,
             core: "",
             share: mp.shareControls,
-            watch: mp.watchOnly
+            watch: mp.watchOnly,
+            seats: mp.seats,
+            checkFrames: mp.checkFrames
         };
         const place = {
             online: mp.lobby,
@@ -999,7 +1016,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             disabled={hardcoreLocked}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:hardcore"
-            focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host"]}
+            focusFallback={["multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", joined ? "multiplayer:leave" : "multiplayer:host"]}
             onChange={actions.setHardcore}
             help={t(language, hardcoreLocked ? "Close the room to change it" : "help_multiplayer_hardcore")}
         />
@@ -1036,6 +1053,43 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
+    const syncOffRow = (
+        <ToggleRow
+            bottomSeparator="none"
+            controlled
+            label={t(language, "Disable Sync Check")}
+            value={mp.checkFrames === 0}
+            disabled={roomLocked}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:synccheck"
+            focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+            onChange={(next) => actions.setSyncCheck(next ? 0 : 600)}
+            help={t(language, roomLocked ? "Close the room to change it"
+                : "Fixes audio stutter for some games, but risks desync between players if core versions or settings differ.")}
+        />
+    );
+
+    const syncFrequencyRow = (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:synccheck"
+                focusFallback={["multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+                disabled={roomLocked || mp.checkFrames === 0}
+                onClick={() => actions.setSyncCheck(
+                    SYNC_FREQUENCIES[(SYNC_FREQUENCIES.indexOf(mp.checkFrames) + 1) % SYNC_FREQUENCIES.length])}
+                help={t(language, roomLocked ? "Close the room to change it"
+                    : "How often RetroArch checks that players are in sync. If turning the check off causes desyncs, keep it on and make it less frequent: the audio stutter happens less often.")}
+            >
+                <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{t(language, "Sync Check Frequency")}</span>
+                    <span style={{ flexShrink: 0 }}>{syncFrequencyLabel(language, mp.checkFrames)}</span>
+                </div>
+            </FocusableItem>
+        </PanelSectionRow>
+    );
+
     const ps1Tap = hosted?.adapterAuto === "port1" || hosted?.adapterAuto === "port2";
     const adapterNext: Record<MultiplayerAdapter, MultiplayerAdapter> = ps1Tap
         ? { auto: "port1", port1: "port2", port2: "auto", team: "auto", "4way": "auto" }
@@ -1047,7 +1101,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:adapter"
-                focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+                focusFallback={["multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
                 disabled={roomLocked}
                 onClick={() => actions.setAdapter(adapterNext[hosted.adapter])}
                 help={t(language, roomLocked ? "Close the room to change it" : ps1Tap ? "help_multiplayer_multitap" : "help_multiplayer_adapter")}
@@ -1065,7 +1119,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             value={hosted.voice}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:voice"
-            focusFallback={["multiplayer:adapter", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+            focusFallback={["multiplayer:toggle:hardcore", "multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:host"]}
             onChange={actions.setVoice}
         />
     );
@@ -1376,8 +1430,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showAdapter = Boolean(hosted?.adapterShown);
     const roomKeys = [showCores && mp.mode !== "link" ? "multiplayer:core" : "",
         showRunsWith ? "multiplayer:runswith" : "",
-        showHardcore ? "multiplayer:toggle:hardcore" : "", showShare ? "multiplayer:toggle:share" : "",
-        showWatch ? "multiplayer:toggle:watch" : "", showAdapter ? "multiplayer:adapter" : "",
+        showShare ? "multiplayer:toggle:share" : "", showWatch ? "multiplayer:toggle:watch" : "",
+        showShare ? "multiplayer:toggle:synccheck" : "", showShare ? "multiplayer:synccheck" : "",
+        showAdapter ? "multiplayer:adapter" : "", showHardcore ? "multiplayer:toggle:hardcore" : "",
         hosted ? "multiplayer:toggle:voice" : "",
         joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"].filter(Boolean);
     const roomHasOptions = showCores || showHardcore || showWatch || hosted !== null;
@@ -1701,14 +1756,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             value={chatToastsInGame}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:chattoasts"
-            focusFallback={["multiplayer:toggle:voice", "multiplayer:adapter", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", exitKey]}
+            focusFallback={["multiplayer:toggle:voice", "multiplayer:toggle:hardcore", "multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", exitKey]}
             onChange={(next) => void changeChatToastsInGame(next)}
             help={t(language, "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.")}
         />
     );
+    const perGameShown = !joined && (showCores || showRunsWith || showWatch || showAdapter);
     const optionRows = (roomHasOptions || inSession) && (
         <>
-            <SectionTitle label={t(language, "Options")} />
+            {(joined || perGameShown) && (
+                <SectionTitle label={t(language, joined ? "Options" : "Per-Game Options")} />
+            )}
             {inSession && !roomHasOptions && (
                 <PanelSectionRow>
                     <div style={bodyTextStyle()}>{t(language, "The host sets this room's options.")}</div>
@@ -1716,10 +1774,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
             {coreRows}
             {runsWithRow}
-            {showHardcore && hardcoreRow}
             {showShare && shareRow}
             {showWatch && watchRow}
+            {showShare && syncOffRow}
+            {showShare && syncFrequencyRow}
             {showAdapter && adapterRow}
+            {!joined && (showHardcore || voiceRow || chatToastRow) && <SectionTitle label={t(language, "Options")} />}
+            {showHardcore && hardcoreRow}
             {voiceRow}
             {chatToastRow}
         </>

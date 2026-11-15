@@ -20,6 +20,8 @@ PPSSPP_CONFIGS = (
 EMUDECK_SETTINGS = (".config/EmuDeck/settings.sh", "emudeck/settings.sh")
 
 RETROARCH_FLATPAK = "org.libretro.RetroArch"
+DEFAULT_CHECK_FRAMES = 600
+CHECK_FRAMES = (0, 600, 1800, 3600, 7200, 10800, 14400, 18000, 36000, 54000)
 PPSSPP_FLATPAK = "org.ppsspp.PPSSPP"
 
 PPSSPP_STANDALONE = "ppsspp-standalone"
@@ -922,7 +924,7 @@ def ppsspp_cpu_flag(home) -> str:
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
                       share_controls: bool = False, watch_only: bool = False, remap_dir=None, adapter: str = "",
-                      command_port: int = 0):
+                      command_port: int = 0, check_frames: int = DEFAULT_CHECK_FRAMES):
     watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
@@ -942,6 +944,8 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         cfg.append(("system_directory", str(system_dir)))
     if command_port:
         cfg += [("network_cmd_enable", "true"), ("network_cmd_port", str(command_port))]
+    if mode == "couch" and role == "host" and check_frames != DEFAULT_CHECK_FRAMES:
+        cfg.append(("netplay_check_frames", str(check_frames)))
     if mode == "couch":
         cfg.append(("netplay_share_digital", "2"))
         cfg.append(("netplay_share_analog", "2"))

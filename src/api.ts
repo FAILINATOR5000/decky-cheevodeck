@@ -57,6 +57,7 @@ import type {
     MultiplayerHostedRoom,
     MultiplayerMessage,
     MultiplayerAdapter,
+    MultiplayerGameOptions,
     MultiplayerMode,
     MultiplayerRestoreRecord,
     MultiplayerRoomRow,
@@ -852,13 +853,17 @@ export const multiplayerPickGameFile = callable<[gameId: number, path: string], 
 export const multiplayerForgetPickedGame = callable<[gameId: number], { ok: boolean }>("multiplayer_forget_picked_game");
 export const multiplayerPickStartFolder = callable<[], { ok: boolean; folder: string }>("multiplayer_pick_start_folder");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string, number],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?],
+    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
+export const multiplayerGameOptions = callable<[number], { ok: boolean; options: MultiplayerGameOptions }>("multiplayer_game_options");
+export const multiplayerSetGameOptions = callable<[number, Partial<MultiplayerGameOptions>], { ok: boolean; error?: string }>(
+    "multiplayer_set_game_options"
+);
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
 export const multiplayerDropSeat = callable<[number, string], { ok: boolean; error?: string }>("multiplayer_drop_seat");
 export const multiplayerJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_join");

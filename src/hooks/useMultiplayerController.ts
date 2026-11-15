@@ -10,11 +10,13 @@ import {
     multiplayerModes,
     multiplayerSavePlayPick,
     multiplayerCloseRoom,
+    multiplayerGameOptions,
     multiplayerGames,
     multiplayerGuestGame,
     multiplayerLeave,
     multiplayerRoomOptions,
     multiplayerRoomStatus,
+    multiplayerSetGameOptions,
     multiplayerSetVisible
 } from "../api";
 import type {
@@ -23,6 +25,7 @@ import type {
     PlayPick,
     MultiplayerGame,
     MultiplayerAdapter,
+    MultiplayerGameOptions,
     MultiplayerMode,
     MultiplayerRoomStatus,
     Payload
@@ -55,6 +58,8 @@ import { useFixPlan, type FixAnswer } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
 
 const TICK_MS = 2000;
+const DEFAULT_CHECK_FRAMES = 600;
+const DEFAULT_SEATS = 4;
 const RENEW_EVERY = 5;
 const SAME_DIALOG_MS = 8000;
 const JOIN_WAIT_MS = 8000;
@@ -174,6 +179,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [hardcore, setHardcoreState] = useState(() => multiplayerChoices().hardcore);
     const [shareControls, setShareState] = useState(() => multiplayerChoices().share);
     const [watchOnly, setWatchState] = useState(() => multiplayerChoices().watch);
+    const [gameOptions, setGameOptions] = useState<{ gameId: number; options: MultiplayerGameOptions } | null>(null);
     const [visibleError, setVisibleError] = useState("");
     const [status, setStatus] = useState<MultiplayerRoomStatus | null>(null);
     const [check, setCheck] = useState<MultiplayerCheck | null>(null);
@@ -245,6 +251,29 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setPickedGameId(last);
         }
     }, [roomGameId]);
+    const inRoom = hosted !== null || joined !== null;
+    useEffect(() => {
+        if (!isActive || inRoom || ownGameId === null) {
+            return;
+        }
+        let alive = true;
+        multiplayerGameOptions(ownGameId)
+            .then((answer) => {
+                if (!alive || !answer.ok) {
+                    return;
+                }
+                const { options } = answer;
+                setGameOptions({ gameId: ownGameId, options });
+                rememberMultiplayerShare(options.share);
+                rememberMultiplayerWatch(options.watch);
+                setShareState(options.share);
+                setWatchState(options.watch);
+            })
+            .catch((e) => logError("multiplayer: reading the game's room options", e));
+        return () => {
+            alive = false;
+        };
+    }, [isActive, inRoom, ownGameId]);
     const checkRoom = joined ? joined.room.room : "";
     const checkCore = hosted ? hosted.core : "";
     const checkKey = [mode, gameId ?? 0, checkCore, checkRoom].join("|");
@@ -621,6 +650,16 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function saveForGame(changes: Partial<MultiplayerGameOptions>) {
+        if (inRoom || ownGameId === null) {
+            return;
+        }
+        const forGame = ownGameId;
+        setGameOptions((was) => was?.gameId === forGame ? { ...was, options: { ...was.options, ...changes } } : was);
+        multiplayerSetGameOptions(forGame, changes)
+            .catch((e) => logError("multiplayer: saving the game's room options", e));
+    }
+
     function setHardcore(next: boolean) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
@@ -632,6 +671,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function setShare(next: boolean) {
         rememberMultiplayerShare(next);
         setShareState(next);
+        saveForGame({ share: next });
         if (hosted) {
             void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next, null, null));
         }
@@ -640,8 +680,16 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function setWatch(next: boolean) {
         rememberMultiplayerWatch(next);
         setWatchState(next);
+        saveForGame({ watch: next });
         if (hosted) {
             void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, next, null));
+        }
+    }
+
+    function setSyncCheck(frames: number) {
+        saveForGame({ checkFrames: frames });
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, null, frames));
         }
     }
 
@@ -726,6 +774,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 : hosted && (mode === "couch" || mode === "stream") ? hosted.hardcore : joined ? joined.hardcore : hardcore,
             shareControls: hosted ? hosted.share : shareControls,
             watchOnly: hosted ? hosted.watch : watchOnly,
+            checkFrames: hosted ? hosted.checkFrames
+                : gameOptions?.gameId === gameId ? gameOptions.options.checkFrames : DEFAULT_CHECK_FRAMES,
+            seats: gameOptions?.gameId === gameId ? gameOptions.options.seats : DEFAULT_SEATS,
             visibleError,
             hosted,
             joined,
@@ -755,6 +806,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setHardcore,
             setShare,
             setWatch,
+            setSyncCheck,
             setAdapter,
             setVoice,
             closeRoom,
