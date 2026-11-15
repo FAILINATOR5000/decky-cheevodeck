@@ -8,6 +8,7 @@ import {
 } from "../../api";
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { useModalBack } from "../../hooks/useModalBack";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { AllSystemsIcon } from "./PickerConsoleRow";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
@@ -145,6 +146,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
 
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
+    const returnKeyRef = useRef<string | null>(null);
 
     const systemGroups = useMemo(() => {
         const byId = new Map<number, SystemGroup>();
@@ -192,13 +194,14 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
             return;
         }
         const prefix = step === "console" ? "searchconsole:" : "searchgame:";
-        const firstRow = root.querySelector(
-            `[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`
-        ) as HTMLElement | null;
+        const back = step === "console" ? returnKeyRef.current : null;
+        const firstRow = ((back && root.querySelector(`[data-focus-key="${back}"] button, [data-focus-key="${back}"] [tabindex]`))
+            || root.querySelector(`[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`)) as HTMLElement | null;
         if (!firstRow) {
             return;
         }
         focusedTopForStepRef.current = step;
+        returnKeyRef.current = null;
         firstRow.focus();
     }, [step, systemGroups, systemRows]);
 
@@ -214,6 +217,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
     }
 
     function handleBackToSystems() {
+        returnKeyRef.current = selectedSystem ? `searchconsole:${selectedSystem.id}` : null;
         if (selectedSystem && selectedSystem.id !== ALL_CONSOLES_ID) {
             setRecentSystemId(selectedSystem.id);
         }
@@ -222,6 +226,16 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
         setSelectedSystem(null);
         setQuery("");
     }
+
+    function stepBack(): boolean {
+        if (step !== "games") {
+            return false;
+        }
+        handleBackToSystems();
+        return true;
+    }
+
+    const handleCancel = useModalBack(stepBack, close);
 
     function handlePickRow(row: CheevoCheckBrowseRow) {
         if (multi && row.gameId > 0) {
@@ -259,7 +273,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
     }, [systemRows, titleKeys, query]);
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
             <style>{FADE_IN_KEYFRAMES}</style>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>

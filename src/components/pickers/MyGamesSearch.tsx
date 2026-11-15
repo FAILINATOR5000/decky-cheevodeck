@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { DialogButton, Focusable, TextField } from "@decky/ui";
 
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
@@ -98,6 +98,7 @@ type MyGamesSearchProps = {
     focusOnOpen: boolean;
     canLoad: boolean;
     consoles: TrackedSetConsole[];
+    stepBackRef: MutableRefObject<() => boolean>;
     onPick: (game: TrackedSetPickerGame) => void;
     close: () => void;
 };
@@ -167,6 +168,14 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
         setRefreshNote("");
         setSystemKey(null);
     }
+
+    props.stepBackRef.current = () => {
+        if (systemKey === null) {
+            return false;
+        }
+        backToSystems();
+        return true;
+    };
 
     function refresh() {
         if (fetching === "loud") {

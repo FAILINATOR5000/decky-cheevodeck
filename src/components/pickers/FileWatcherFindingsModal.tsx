@@ -12,6 +12,7 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { focusHeldRow, useWhenHeld } from "../../hooks/useWhenHeld";
+import { useModalBack } from "../../hooks/useModalBack";
 import { t, type LanguageCode } from "../../locales";
 import type {
     FileWatcherBucket,
@@ -312,6 +313,16 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
         setArmedKey(null);
     }
 
+    function stepBack(): boolean {
+        if (step !== "rows" || (rootGroups?.length ?? 0) <= 1) {
+            return false;
+        }
+        handleBackToRoots();
+        return true;
+    }
+
+    const handleCancel = useModalBack(stepBack, close);
+
     const rowPressRef = useRef(handleRowPress);
     rowPressRef.current = handleRowPress;
     const rowFocusRef = useRef(rowWindow.onItemFocus);
@@ -331,7 +342,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     const showRootStep = step === "roots" && (rootGroups?.length ?? 0) > 1;
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                 {bucketLabel(bucket, language)}

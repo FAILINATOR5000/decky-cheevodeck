@@ -8,6 +8,7 @@ import {
     saveLastConsoleId
 } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { useModalBack } from "../../hooks/useModalBack";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ErrorText } from "../ui/ErrorText";
 import { SubTabButton } from "../ui/SubTabButton";
@@ -66,6 +67,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
     const [tab, setTab] = useState<SearchTab | null>(() => openingTab(myGames.listing));
     const [tabFromOpen, setTabFromOpen] = useState(true);
     const tabPressedRef = useRef(false);
+    const myGamesStepBackRef = useRef<() => boolean>(() => false);
     const [openSettled, setOpenSettled] = useState(false);
 
     const [step, setStep] = useState<Step>("console");
@@ -89,6 +91,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
 
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
+    const returnKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -164,13 +167,14 @@ export function GameSearchModal(props: GameSearchModalProps) {
             return;
         }
         const prefix = step === "console" ? "searchconsole:" : "searchgame:";
-        const firstRow = root.querySelector(
-            `[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`
-        ) as HTMLElement | null;
+        const back = step === "console" ? returnKeyRef.current : null;
+        const firstRow = ((back && root.querySelector(`[data-focus-key="${back}"] button, [data-focus-key="${back}"] [tabindex]`))
+            || root.querySelector(`[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`)) as HTMLElement | null;
         if (!firstRow) {
             return;
         }
         focusedTopForStepRef.current = step;
+        returnKeyRef.current = null;
         firstRow.focus();
     }, [tab, step, consoles, games]);
 
@@ -236,6 +240,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
     }
 
     function handleBackToConsoles() {
+        returnKeyRef.current = selectedConsole ? `searchconsole:${selectedConsole.id}` : null;
         if (selectedConsole) {
             setRecentConsoleId(selectedConsole.id);
         }
@@ -247,6 +252,16 @@ export function GameSearchModal(props: GameSearchModalProps) {
         setQuery("");
         setRefreshState("idle");
     }
+
+    function stepBack(): boolean {
+        if (tab === "all" && step === "games") {
+            handleBackToConsoles();
+            return true;
+        }
+        return tab === "mine" && myGamesStepBackRef.current();
+    }
+
+    const handleCancel = useModalBack(stepBack, close);
 
     function handleRefresh() {
         if (!selectedConsole || refreshState === "refreshing") {
@@ -270,7 +285,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
     }, [games, titleKeys, query]);
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
             <style>{FADE_IN_KEYFRAMES}</style>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
@@ -301,6 +316,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
                             focusOnOpen={tabFromOpen}
                             canLoad={openSettled || !tabFromOpen}
                             consoles={consoles}
+                            stepBackRef={myGamesStepBackRef}
                             onPick={onPick}
                             close={close}
                         />

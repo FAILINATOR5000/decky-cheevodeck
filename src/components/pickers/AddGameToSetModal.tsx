@@ -8,6 +8,7 @@ import {
 } from "../../api";
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { useModalBack } from "../../hooks/useModalBack";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
@@ -68,6 +69,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
 
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
+    const returnKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -122,13 +124,14 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
             return;
         }
         const prefix = step === "console" ? "setsconsole:" : "setsgame:";
-        const firstRow = root.querySelector(
-            `[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`
-        ) as HTMLElement | null;
+        const back = step === "console" ? returnKeyRef.current : null;
+        const firstRow = ((back && root.querySelector(`[data-focus-key="${back}"] button, [data-focus-key="${back}"] [tabindex]`))
+            || root.querySelector(`[data-focus-key^="${prefix}"] button, [data-focus-key^="${prefix}"] [tabindex]`)) as HTMLElement | null;
         if (!firstRow) {
             return;
         }
         focusedTopForStepRef.current = step;
+        returnKeyRef.current = null;
         firstRow.focus();
     }, [step, consoles, games]);
 
@@ -187,6 +190,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
     }
 
     function handleBackToConsoles() {
+        returnKeyRef.current = selectedConsole ? `setsconsole:${selectedConsole.id}` : null;
         if (selectedConsole) {
             setRecentConsoleId(selectedConsole.id);
         }
@@ -198,6 +202,16 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
         setQuery("");
         setRefreshState("idle");
     }
+
+    function stepBack(): boolean {
+        if (step !== "games") {
+            return false;
+        }
+        handleBackToConsoles();
+        return true;
+    }
+
+    const handleCancel = useModalBack(stepBack, close);
 
     function handleRefresh() {
         if (!selectedConsole || refreshState === "refreshing") {
@@ -239,7 +253,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
     const modalTitle = t(language, "Add Game to {{name}}", { name: setName });
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
             <style>{FADE_IN_KEYFRAMES}</style>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
