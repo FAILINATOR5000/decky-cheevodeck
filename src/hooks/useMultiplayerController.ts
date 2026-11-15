@@ -235,6 +235,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     useEffect(() => {
         if (roomGameId !== null) {
             lastRoomGameRef.current = roomGameId;
+            rememberMultiplayerGame(roomGameId);
             return;
         }
         const last = lastRoomGameRef.current;
