@@ -9,6 +9,7 @@ import {
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { AllSystemsIcon } from "./PickerConsoleRow";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
@@ -49,23 +50,6 @@ const INITIAL_ROWS = 40;
 const ROW_STEP = 40;
 const ROW_LOAD_AHEAD = 12;
 const SENTINEL_ROOT_MARGIN_PX = 600;
-
-function AllSystemsIcon(props: { size?: number }) {
-    const size = props.size ?? 18;
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <rect x="3" y="3" width="8" height="8" rx="1.5" />
-            <rect x="13" y="3" width="8" height="8" rx="1.5" />
-            <rect x="3" y="13" width="8" height="8" rx="1.5" />
-            <rect x="13" y="13" width="8" height="8" rx="1.5" />
-        </svg>
-    );
-}
 
 const VERIFY_HEADINGS: Record<string, string> = {
     verified: "Verified",

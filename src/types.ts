@@ -1929,6 +1929,31 @@ export type TrackedSetConsole = {
     active: boolean;
 };
 
+export type MyGame = {
+    gameId: number;
+    title: string;
+    systemId: number;
+    system: string;
+    imageIcon: string;
+    onDevice: boolean;
+    progress: {
+        numAwarded: number;
+        maxPossible: number;
+        highestAwardKind: string | null;
+    } | null;
+};
+
+export type MyGamesList = {
+    ok: boolean;
+    scanned: boolean;
+    cached: boolean;
+    stale: boolean;
+    games: MyGame[];
+    recentSystemId: number;
+    needsSettings?: boolean;
+    error?: string;
+};
+
 export type TrackedSetPickerGame = {
     gameId: number;
     title: string;

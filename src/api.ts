@@ -188,6 +188,7 @@ import type {
     ClearAllTrackedSetsResponse,
     TrackedSetConsoleListResponse,
     TrackedSetGameListResponse,
+    MyGamesList,
     TrackedSetGameSort,
     TrackedSetFilter,
     TrackedSetViewMode,
@@ -3271,6 +3272,11 @@ export const reorderSetGames = callable<[string, (string | number)[], TrackedSet
 export const clearAllTrackedSets = callable<[], ClearAllTrackedSetsResponse>("clear_all_tracked_sets");
 export const getSetConsoleList = callable<[], TrackedSetConsoleListResponse>("get_set_console_list");
 export const getSetGameList = callable<[number, boolean?], TrackedSetGameListResponse>("get_set_game_list");
+export const myGamesList = callable<[], MyGamesList>("my_games_list");
+export const refreshMyGames = callable<[], MyGamesList>("refresh_my_games");
+export const saveMyGamesLastSystemId = callable<[number], { ok: boolean; myGamesLastSystemId: number }>(
+    "save_my_games_last_system_id"
+);
 export const checkSetCompletion = callable<[string, boolean], TrackedSetResponse>("check_set_completion");
 export const checkAllSetsCompletion = callable<[], CheckAllSetsResponse>("check_all_sets_completion");
 export const saveTrackedSetsAutoCheck = callable<[boolean], { ok: boolean; trackedSetsAutoCheck: boolean }>(

@@ -725,6 +725,7 @@ _KNOBS = (
     Knob("badgesSortOrder", default="oldest", normalize=True),
     Knob("lastConsoleId", default=0),
     Knob("cheevoCheckLastSystemId", default=0),
+    Knob("myGamesLastSystemId", default=0),
     Knob("socialEntryDefault", default="friends", normalize=True),
     Knob("savedCommentsPrefs", factory=_default_saved_comments_prefs, normalize=True),
     Knob("activityCardAction", default="achievement", normalize=True),
@@ -2755,6 +2756,28 @@ class SettingsStore:
         with self._config_lock:
             cfg = self.ensure_display_settings(self.load_config())
             cfg["cheevoCheckLastSystemId"] = next_id
+            self.save_config(cfg)
+            return next_id
+
+    def get_my_games_last_system_id(self, cfg: dict | None = None) -> int:
+        source = self.load_config() if cfg is None else cfg
+        try:
+            value = int(source.get("myGamesLastSystemId", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+        return value if value > 0 else 0
+
+    def update_my_games_last_system_id(self, value) -> int:
+        try:
+            next_id = int(value or 0)
+        except (TypeError, ValueError):
+            next_id = 0
+        if next_id < 0:
+            next_id = 0
+
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            cfg["myGamesLastSystemId"] = next_id
             self.save_config(cfg)
             return next_id
 

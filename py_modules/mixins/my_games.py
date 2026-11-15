@@ -29,10 +29,13 @@ class MyGamesMixin(PluginContext):
                 by_game[to_int(row["gameId"], 0)] = row
 
         scanned = self.multiplayer_service.my_games()
+        profile = _profile_games(by_game)
         if scanned is not None:
-            games = [{**game, "progress": _progress(by_game.get(game["gameId"]))} for game in scanned]
+            games = [{**game, "onDevice": True, "progress": _progress(by_game.get(game["gameId"]))} for game in scanned]
+            found = {game["gameId"] for game in scanned}
+            games += [{**game, "onDevice": False} for game in profile if game["gameId"] not in found]
         else:
-            games = _profile_games(by_game)
+            games = [{**game, "onDevice": True} for game in profile]
         games.sort(key=lambda game: game["title"].lower())
         return {
             "ok": True,
@@ -40,6 +43,13 @@ class MyGamesMixin(PluginContext):
             "cached": rows is not None,
             "stale": rows is None or int(time.time()) - cached_at > MY_GAMES_STALE_SECONDS,
             "games": games,
+            "recentSystemId": self.settings_store.get_my_games_last_system_id(cfg),
+        }
+
+    async def save_my_games_last_system_id(self, system_id):
+        return {
+            "ok": True,
+            "myGamesLastSystemId": self.settings_store.update_my_games_last_system_id(system_id),
         }
 
     async def refresh_my_games(self):

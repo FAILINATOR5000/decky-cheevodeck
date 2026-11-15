@@ -1,29 +1,38 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import {
     getLastConsoleId,
     getSetGameList,
-    prefetchGameIcons,
     saveLastConsoleId
 } from "../../api";
-import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ErrorText } from "../ui/ErrorText";
-import { FadeImage } from "../ui/FadeImage";
-import { FocusableItem } from "../ui/FocusableItem";
+import { SubTabButton } from "../ui/SubTabButton";
+import { MyGamesSearch } from "./MyGamesSearch";
 import { InlineSpinner } from "../ui/InlineSpinner";
+import {
+    PickerGameRow,
+    pickerDetailStyle,
+    pickerRowMetrics,
+    pickerStrongStyle,
+    useWarmWindowIcons,
+    type PickerGameRowListProps
+} from "./PickerGameRow";
+import { ConsoleRow, type ConsoleRowListProps } from "./PickerConsoleRow";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type {
+    MyGamesList,
     TrackedSetConsole,
     TrackedSetPickerGame
 } from "../../types";
 import { cachedConsoles, getCurrentLastConsoleId, loadConsoles, setCurrentLastConsoleId } from "../../utils/consoleCatalog";
 import { logError } from "../../utils/errors";
-import { modalBodyStyle, smallTextStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
+import { fetchMyGames, readMyGames, useMyGames } from "../../utils/myGames";
+import { modalBodyStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 
@@ -36,8 +45,28 @@ export type GameSearchModalProps = {
 
 type Step = "console" | "games";
 
+type SearchTab = "mine" | "all";
+
+let rememberedTab: SearchTab | null = null;
+
+function openingTab(listing: MyGamesList | null): SearchTab | null {
+    if (rememberedTab === "all") {
+        return "all";
+    }
+    if (listing === null) {
+        return null;
+    }
+    return listing.scanned || listing.cached ? "mine" : "all";
+}
+
 export function GameSearchModal(props: GameSearchModalProps) {
     const { language, showIcons, onPick, close } = props;
+
+    const myGames = useMyGames();
+    const [tab, setTab] = useState<SearchTab | null>(() => openingTab(myGames.listing));
+    const [tabFromOpen, setTabFromOpen] = useState(true);
+    const tabPressedRef = useRef(false);
+    const [openSettled, setOpenSettled] = useState(false);
 
     const [step, setStep] = useState<Step>("console");
 
@@ -91,6 +120,27 @@ export function GameSearchModal(props: GameSearchModalProps) {
     useEffect(() => {
         let cancelled = false;
         void (async () => {
+            const listing = await readMyGames();
+            if (cancelled) {
+                return;
+            }
+            setOpenSettled(true);
+            if (listing === null) {
+                return;
+            }
+            setTab((current) => (tabPressedRef.current ? current : openingTab(listing) ?? current));
+            if (listing.stale && (listing.scanned || listing.cached)) {
+                fetchMyGames(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
             try {
                 const result = await getLastConsoleId();
                 if (!cancelled) {
@@ -106,7 +156,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
     }, []);
 
     useLayoutEffect(function focusTopOfListWhenReady() {
-        if (focusedTopForStepRef.current === step) {
+        if (tab !== "all" || focusedTopForStepRef.current === step) {
             return;
         }
         const root = bodyRef.current;
@@ -122,7 +172,15 @@ export function GameSearchModal(props: GameSearchModalProps) {
         }
         focusedTopForStepRef.current = step;
         firstRow.focus();
-    }, [step, consoles, games]);
+    }, [tab, step, consoles, games]);
+
+    function handlePickTab(next: SearchTab) {
+        rememberedTab = next;
+        tabPressedRef.current = true;
+        focusedTopForStepRef.current = step;
+        setTabFromOpen(false);
+        setTab(next);
+    }
 
     const loadGames = async (consoleId: number, refresh: boolean) => {
         const runId = gamesRunIdRef.current + 1;
@@ -219,36 +277,69 @@ export function GameSearchModal(props: GameSearchModalProps) {
                 {t(language, "Select a Game")}
             </div>
 
+            <Focusable flow-children="row" style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+                <SubTabButton
+                    label={t(language, "My Games")}
+                    active={tab === "mine"}
+                    onClick={() => handlePickTab("mine")}
+                    focusKey="mygames:tab:mine"
+                />
+                <SubTabButton
+                    label={t(language, "All Games")}
+                    active={tab === "all"}
+                    onClick={() => handlePickTab("all")}
+                    focusKey="mygames:tab:all"
+                />
+            </Focusable>
+
             <div ref={bodyRef}>
-                {step === "console" && (
-                    <ConsoleStep
-                        consoles={consoles}
-                        loading={consolesLoading}
-                        error={consolesError}
-                        loadingConsoleId={gamesLoading ? selectedConsole?.id ?? null : null}
-                        recentConsoleId={recentConsoleId}
-                        language={language}
-                        showIcons={showIcons}
-                        onPick={handlePickConsole}
-                    />
+                {tab === "mine" && (
+                    <Focusable key="gamesearch:tab:mine">
+                        <MyGamesSearch
+                            language={language}
+                            showIcons={showIcons}
+                            focusOnOpen={tabFromOpen}
+                            canLoad={openSettled || !tabFromOpen}
+                            consoles={consoles}
+                            onPick={onPick}
+                            close={close}
+                        />
+                    </Focusable>
                 )}
 
-                {step === "games" && selectedConsole && (
-                    <GameStep
-                        consoleName={selectedConsole.name}
-                        games={filteredGames}
-                        totalGames={games.length}
-                        loading={gamesLoading}
-                        error={gamesError}
-                        query={query}
-                        onQueryChange={setQuery}
-                        refreshState={refreshState}
-                        onRefresh={handleRefresh}
-                        language={language}
-                        showIcons={showIcons}
-                        onPickGame={handlePickGame}
-                        onBack={handleBackToConsoles}
-                    />
+                {tab === "all" && (
+                    <Focusable key="gamesearch:tab:all">
+                        {step === "console" && (
+                            <ConsoleStep
+                                consoles={consoles}
+                                loading={consolesLoading}
+                                error={consolesError}
+                                loadingConsoleId={gamesLoading ? selectedConsole?.id ?? null : null}
+                                recentConsoleId={recentConsoleId}
+                                language={language}
+                                showIcons={showIcons}
+                                onPick={handlePickConsole}
+                            />
+                        )}
+
+                        {step === "games" && selectedConsole && (
+                            <GameStep
+                                consoleName={selectedConsole.name}
+                                games={filteredGames}
+                                totalGames={games.length}
+                                loading={gamesLoading}
+                                error={gamesError}
+                                query={query}
+                                onQueryChange={setQuery}
+                                refreshState={refreshState}
+                                onRefresh={handleRefresh}
+                                language={language}
+                                showIcons={showIcons}
+                                onPickGame={handlePickGame}
+                                onBack={handleBackToConsoles}
+                            />
+                        )}
+                    </Focusable>
                 )}
             </div>
 
@@ -292,7 +383,8 @@ function ConsoleStep(props: ConsoleStepProps) {
         metrics: pickerRowMetrics(),
         onPick: (item) => {
             consolePickRef.current(item);
-        }
+        },
+        keyPrefix: "searchconsole:"
     }), [language, showIcons]);
 
     const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
@@ -340,115 +432,6 @@ function ConsoleStep(props: ConsoleStepProps) {
         </div>
     );
 }
-
-function pickerRowMetrics() {
-    return {
-        iconSize: modalSize(44),
-        iconGap: modalSize(7),
-        rowPaddingY: modalSize(2),
-        contentGap: modalSize(3),
-        titleFontSize: modalSize(15.5),
-        titleLineHeight: 1.2,
-        bodyFontSize: modalSize(11.5),
-        bodyLineHeight: 1.31,
-        pointsFontSize: modalSize(11),
-        pointsLineHeight: 1.12
-    };
-}
-
-type PickerRowMetrics = ReturnType<typeof pickerRowMetrics>;
-
-type ConsoleRowListProps = {
-    language: LanguageCode;
-    showIcons: boolean;
-    metrics: PickerRowMetrics;
-    onPick: (item: TrackedSetConsole) => void;
-};
-
-type ConsoleRowProps = {
-    item: TrackedSetConsole;
-    dimmed: boolean;
-    list: ConsoleRowListProps;
-};
-
-const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
-    const { item, dimmed, list } = props;
-    const { language, showIcons, metrics } = list;
-
-    const fallbackLetter = item.name.trim().charAt(0).toUpperCase() || "?";
-
-    function handleClick() {
-        list.onPick(item);
-    }
-
-    return (
-        <FocusableItem
-            focusKey={`searchconsole:${item.id}`}
-            onClick={handleClick}
-            outerStyle={{ width: "100%", minWidth: 0 }}
-        >
-            <div
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    gap: `${Math.max(8, metrics.iconGap - 2)}px`,
-                    alignItems: "center",
-                    padding: `${Math.max(3, Math.round(metrics.rowPaddingY * 0.42))}px 0`,
-                    minWidth: 0,
-                    opacity: dimmed ? 0.5 : 1
-                }}
-            >
-                {showIcons && (
-                    <div
-                        style={{
-                            width: `${metrics.iconSize}px`,
-                            height: `${metrics.iconSize}px`,
-                            borderRadius: "7px",
-                            overflow: "hidden",
-                            flexShrink: 0,
-                            background: "rgba(255,255,255,0.10)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                            fontWeight: 800
-                        }}
-                    >
-                        {item.iconUrl ? (
-                            <img
-                                src={item.iconUrl}
-                                alt=""
-                                decoding="async"
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "contain",
-                                    display: "block"
-                                }}
-                            />
-                        ) : (
-                            fallbackLetter
-                        )}
-                    </div>
-                )}
-                <div
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: `${metrics.titleFontSize}px`,
-                        lineHeight: metrics.titleLineHeight,
-                        fontWeight: 800,
-                        textAlign: "left",
-                        wordBreak: "break-word"
-                    }}
-                >
-                    {item.name || t(language, "Unknown console")}
-                </div>
-            </div>
-        </FocusableItem>
-    );
-});
 
 type GameStepProps = {
     consoleName: string;
@@ -505,63 +488,35 @@ function GameStep(props: GameStepProps) {
     });
     const mountedGames = gameWindow.mountedItems;
 
-    const warmedGameIdsRef = useRef<Set<number>>(new Set());
-
-    const iconFetchInFlightRef = useRef(false);
-    const desiredIconGamesRef = useRef<TrackedSetPickerGame[] | null>(null);
-
-    const kickIconPrefetch = useCallback(async function kickIconPrefetch() {
-        if (iconFetchInFlightRef.current) {
-            return;
-        }
-        iconFetchInFlightRef.current = true;
-        try {
-            while (desiredIconGamesRef.current) {
-                const target = desiredIconGamesRef.current;
-                desiredIconGamesRef.current = null;
-                const warmed = warmedGameIdsRef.current;
-                const freshRows: Array<{ gameId: number; imageIcon: string | null }> = [];
-                for (const game of target) {
-                    if (warmed.has(game.gameId)) {
-                        continue;
-                    }
-                    warmed.add(game.gameId);
-                    freshRows.push({ gameId: game.gameId, imageIcon: game.imageIcon ?? null });
-                }
-                if (freshRows.length === 0) {
-                    continue;
-                }
-                await prefetchGameIcons(freshRows);
-            }
-        } finally {
-            iconFetchInFlightRef.current = false;
-        }
-    }, []);
-
-    useEffect(function prefetchMountedWindowIcons() {
-        if (!showIcons || mountedGames.length === 0) {
-            return;
-        }
-        desiredIconGamesRef.current = mountedGames;
-        void kickIconPrefetch();
-    }, [mountedGames, showIcons, kickIconPrefetch]);
+    useWarmWindowIcons(mountedGames, showIcons);
 
     const gamePickRef = useRef(onPickGame);
     gamePickRef.current = onPickGame;
     const gameFocusRef = useRef(gameWindow.onItemFocus);
     gameFocusRef.current = gameWindow.onItemFocus;
 
-    const gameRowList = useMemo<PickerGameRowListProps>(() => ({
-        language,
-        showIcons,
-        metrics: pickerRowMetrics(),
-        onPick: (game) => {
-            gamePickRef.current(game);
-        },
-        onRowFocus: (index) => {
-            gameFocusRef.current(index);
-        }
-    }), [language, showIcons]);
+    const gameRowList = useMemo<PickerGameRowListProps>(() => {
+        const metrics = pickerRowMetrics();
+        return {
+            keyPrefix: "searchgame:",
+            showIcons,
+            metrics,
+            onPick: (game) => {
+                gamePickRef.current(game);
+            },
+            onRowFocus: (index) => {
+                gameFocusRef.current(index);
+            },
+            detail: (game) => (
+                <>
+                    <div style={pickerDetailStyle(metrics)}>{game.consoleName || ""}</div>
+                    <div style={pickerStrongStyle(metrics)}>
+                        {t(language, "{{count}} achievements", { count: game.maxPossible })}
+                    </div>
+                </>
+            )
+        };
+    }, [language, showIcons]);
 
     const refreshRow = (
         <Focusable
@@ -660,138 +615,3 @@ function GameStep(props: GameStepProps) {
         </div>
     );
 }
-
-type PickerGameRowListProps = {
-    language: LanguageCode;
-    showIcons: boolean;
-    metrics: PickerRowMetrics;
-    onPick: (game: TrackedSetPickerGame) => void;
-    onRowFocus: (index: number) => void;
-};
-
-type PickerGameRowProps = {
-    game: TrackedSetPickerGame;
-    index: number;
-    list: PickerGameRowListProps;
-    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
-};
-
-const PickerGameRow = React.memo(function PickerGameRow(props: PickerGameRowProps) {
-    const { game, list } = props;
-    const { language, showIcons, metrics } = list;
-
-    const { iconDataUri, cold } = useResilientGameIcon(game.gameId, game.imageIcon, "getGameIconCached (search picker row)");
-
-    const fallbackLetter = game.title.trim().charAt(0).toUpperCase() || "?";
-
-    function handleClick() {
-        list.onPick(game);
-    }
-
-    function handleFocus() {
-        list.onRowFocus(props.index);
-    }
-
-    return (
-        <FocusableItem
-            focusKey={`searchgame:${game.gameId}`}
-            onClick={handleClick}
-            onFocus={handleFocus}
-            onGamepadFocus={handleFocus}
-            onGamepadDirection={props.onGamepadDirection}
-            outerStyle={{ width: "100%", minWidth: 0 }}
-        >
-            <div
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    gap: `${Math.max(8, metrics.iconGap - 2)}px`,
-                    alignItems: "flex-start",
-                    padding: `${Math.max(3, Math.round(metrics.rowPaddingY * 0.42))}px 0`,
-                    minWidth: 0
-                }}
-            >
-                {showIcons && (
-                    <div
-                        style={{
-                            width: `${metrics.iconSize}px`,
-                            height: `${metrics.iconSize}px`,
-                            borderRadius: "7px",
-                            overflow: "hidden",
-                            flexShrink: 0,
-                            background: "rgba(255,255,255,0.10)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                            fontWeight: 800,
-                            position: "relative"
-                        }}
-                    >
-                        {iconDataUri ? null : fallbackLetter}
-                        <FadeImage
-                            src={iconDataUri}
-                            fadeOnLoad={cold}
-                            decoding="async"
-                            style={{
-                                position: "absolute",
-                                inset: 0,
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                display: "block"
-                            }}
-                        />
-                    </div>
-                )}
-                <div
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: `${Math.max(2, metrics.contentGap - 1)}px`,
-                        textAlign: "left"
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: `${metrics.titleFontSize}px`,
-                            lineHeight: metrics.titleLineHeight,
-                            fontWeight: 800,
-                            minWidth: 0,
-                            wordBreak: "break-word"
-                        }}
-                    >
-                        {game.title}
-                    </div>
-                    <div
-                        style={{
-                            ...smallTextStyle(),
-                            fontSize: `${metrics.bodyFontSize}px`,
-                            lineHeight: metrics.bodyLineHeight,
-                            opacity: 1,
-                            minWidth: 0,
-                            wordBreak: "break-word"
-                        }}
-                    >
-                        {game.consoleName || ""}
-                    </div>
-                    <div
-                        style={{
-                            ...smallTextStyle(),
-                            fontSize: `${metrics.pointsFontSize}px`,
-                            lineHeight: metrics.pointsLineHeight,
-                            opacity: 1,
-                            fontWeight: 800,
-                            minWidth: 0
-                        }}
-                    >
-                        {t(language, "{{count}} achievements", { count: game.maxPossible })}
-                    </div>
-                </div>
-            </div>
-        </FocusableItem>
-    );
-});
