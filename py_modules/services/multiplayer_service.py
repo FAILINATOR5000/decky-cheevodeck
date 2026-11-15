@@ -5610,7 +5610,7 @@ class MultiplayerService:
         rom = Path(local["path"])
         nick = self._user()
         save_port = 0
-        save_file = None
+        save_files = []
         wii_nand = None
         try:
             ensure_dir(self._session_dir)
@@ -5626,9 +5626,9 @@ class MultiplayerService:
                 remap_dir = self._session_dir / f"session-{sid}.remaps"
                 if (mode == "couch" or local["core"] in proto.NETPACKET_CORES) and not self._retroarch_saves_netplay():
                     save_port = _command_port()
-                    save_file = ra.save_paths(local["core"], rom)[0]
+                    save_files = ra.save_paths(local["core"], rom)
                     if mode == "couch" and role == "guest":
-                        save_file = save_file.parent / ".netplay" / save_file.name
+                        save_files = [path.parent / ".netplay" / path.name for path in save_files]
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
@@ -5711,7 +5711,7 @@ class MultiplayerService:
             "error": "",
             "watch": None,
             "savePort": save_port,
-            "saveFile": save_file,
+            "saveFiles": save_files,
             "wiiNand": wii_nand,
         }
         if local["emulator"] != "rmg":
@@ -6173,7 +6173,7 @@ class MultiplayerService:
     async def _ping_saves(self, current: dict) -> None:
         loop = asyncio.get_running_loop()
         port = current["savePort"]
-        path = current["saveFile"]
+        paths = current["saveFiles"]
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(False)
         began = loop.time()
@@ -6187,7 +6187,7 @@ class MultiplayerService:
                 if self._session is not current or current["exited"] or self._stopping:
                     return
                 delay = SAVE_PING_SECONDS
-                before = await asyncio.to_thread(_save_stamp, path)
+                before = await asyncio.to_thread(_save_stamps, paths)
                 try:
                     await loop.sock_sendto(sock, b"SAVE_FILES", ("127.0.0.1", port))
                     reply = await asyncio.wait_for(loop.sock_recv(sock, 64), SAVE_REPLY_SECONDS)
@@ -6200,7 +6200,7 @@ class MultiplayerService:
                         decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
                     answered = True
                     await asyncio.sleep(SAVE_SETTLE_SECONDS)
-                    if await asyncio.to_thread(_keep_save_mtime, path, before):
+                    if await asyncio.to_thread(_keep_save_mtimes, paths, before):
                         delay = SAVE_FOLLOW_UP_SECONDS
                     else:
                         delay = SAVE_PING_SECONDS - SAVE_SETTLE_SECONDS
@@ -7007,6 +7007,15 @@ def _save_stamp(path: Path):
     except OSError:
         return None
     return st, hashlib.sha1(data).digest()
+
+
+def _save_stamps(paths: list) -> list:
+    return [_save_stamp(path) for path in paths]
+
+
+def _keep_save_mtimes(paths: list, before: list) -> bool:
+    changed = [_keep_save_mtime(path, stamp) for path, stamp in zip(paths, before, strict=True)]
+    return any(changed)
 
 
 def _keep_save_mtime(path: Path, before) -> bool:
