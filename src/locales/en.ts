@@ -3826,7 +3826,7 @@ export const EN: LocaleTable = {
     "Save restored": "Save restored",
     "Couldn't restore this backup.": "Couldn't restore this backup.",
     "Close the game first, then restore.": "Close the game first, then restore.",
-    "This backup's save folder isn't there any more, so it can't be restored.": "This backup's save folder isn't there any more, so it can't be restored.",
+    "This backup's save folder isn't there anymore, so it can't be restored.": "This backup's save folder isn't there anymore, so it can't be restored.",
     "Before launch": "Before launch",
     "Before Couch Play": "Before Couch Play",
     "Before Link Play": "Before Link Play",

@@ -8,6 +8,8 @@ export function HeadingStop(props: {
     autoFocus?: boolean;
     style?: CSSProperties;
     outerStyle?: CSSProperties;
+    onGamepadFocus?: () => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
     children: ReactNode;
 }) {
     const [focused, setFocused] = useState(false);
@@ -17,8 +19,12 @@ export function HeadingStop(props: {
                 onActivate={() => { }}
                 noFocusRing={true}
                 autoFocus={props.autoFocus}
-                onGamepadFocus={() => setFocused(true)}
+                onGamepadFocus={() => {
+                    setFocused(true);
+                    props.onGamepadFocus?.();
+                }}
                 onGamepadBlur={() => setFocused(false)}
+                onGamepadDirection={props.onGamepadDirection}
                 style={{
                     ...props.style,
                     borderRadius: "3px",

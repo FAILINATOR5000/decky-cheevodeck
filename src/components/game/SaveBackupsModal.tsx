@@ -36,7 +36,7 @@ const REASON_LABELS: Record<SaveBackupReason, string> = {
 
 const RESTORE_ERRORS: Record<string, string> = {
     running: "Close the game first, then restore.",
-    missing_folder: "This backup's save folder isn't there any more, so it can't be restored."
+    missing_folder: "This backup's save folder isn't there anymore, so it can't be restored."
 };
 
 type Row =
@@ -116,7 +116,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
         saveBackupsSetConsole(info.systemId, next)
             .then((saved) => {
                 if (saved.ok) {
-                    setInfo({ ...info, consoleOff: saved.consoleOff });
+                    setInfo((was) => was && { ...was, consoleOff: saved.consoleOff });
                 }
             })
             .catch((e) => logError("save backups: couldn't save the console switch", e));
@@ -129,7 +129,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
         saveBackupsSetGame(gameId, nextInterval, nextOff)
             .then((saved) => {
                 if (saved.ok) {
-                    setInfo({ ...info, interval: saved.interval ?? interval, off: saved.off ?? gameOff });
+                    setInfo((was) => was && { ...was, interval: saved.interval ?? was.interval, off: saved.off ?? was.off });
                 }
             })
             .catch((e) => logError("save backups: couldn't save the game's backup settings", e));
@@ -228,13 +228,19 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                 )}
                 <div style={{ maxHeight: "45vh", overflow: "hidden", display: hasBackups ? "flex" : "none", flexDirection: "column" }}>
                     <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>
-                        <Focusable flow-children="column" style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "5px" }}>
+                        <Focusable flow-children="column" resetNavOnEntry style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "5px" }}>
                             <SlidingWindowRows list={list}>
                                 {list.mountedItems.map((row, index) => {
                                     const at = list.start + index;
                                     if (row.kind === "group") {
                                         return (
-                                            <HeadingStop key={row.key} focusKey={row.key} style={{ ...modalBodyStyle(), fontWeight: 700, opacity: 1 }}>
+                                            <HeadingStop
+                                                key={row.key}
+                                                focusKey={row.key}
+                                                onGamepadFocus={() => list.onItemFocus(at)}
+                                                onGamepadDirection={list.guardTopRow(at)}
+                                                style={{ ...modalBodyStyle(), fontWeight: 700, opacity: 1 }}
+                                            >
                                                 {row.label}
                                             </HeadingStop>
                                         );
@@ -283,6 +289,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                     disabled={!hasBackups}
                     bottomSeparator="none"
                     help={t(language, "Deletes every backup of this game's save. The save itself is left alone. Can't be undone.")}
+                    modalHelp
                 />
                 <Focusable flow-children="row" style={{ display: "flex", justifyContent: "flex-end" }}>
                     <FocusTarget focusKey="savebackups:close">

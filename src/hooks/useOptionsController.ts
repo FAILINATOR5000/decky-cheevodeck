@@ -3710,8 +3710,9 @@ export function buildOptionsController({
 
     const onClearAllSaveBackups = async () => {
         try {
-            await clearAllSaveBackups();
-            toaster.toast({ title: t(language, "Save Backups"), body: t(language, "All backups cleared") });
+            if ((await clearAllSaveBackups()).ok) {
+                toaster.toast({ title: t(language, "Save Backups"), body: t(language, "All backups cleared") });
+            }
         } catch (e) {
             logError("options: clearing every save backup", e);
         }

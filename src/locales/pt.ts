@@ -3847,7 +3847,7 @@ const PT: LocaleTable = {
     "Save restored": "Save restaurado",
     "Couldn't restore this backup.": "Não foi possível restaurar este backup.",
     "Close the game first, then restore.": "Feche o jogo primeiro e depois restaure.",
-    "This backup's save folder isn't there any more, so it can't be restored.": "A pasta de save deste backup não existe mais, então ele não pode ser restaurado.",
+    "This backup's save folder isn't there anymore, so it can't be restored.": "A pasta de save deste backup não existe mais, então ele não pode ser restaurado.",
     "Before launch": "Antes de iniciar",
     "Before Couch Play": "Antes do Jogo no sofá",
     "Before Link Play": "Antes do Jogo em link",

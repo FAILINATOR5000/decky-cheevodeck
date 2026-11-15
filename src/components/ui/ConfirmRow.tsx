@@ -15,10 +15,11 @@ export type ConfirmRowProps = {
     labelStyle?: CSSProperties;
     skipWhenDisabled?: boolean;
     help?: ReactNode;
+    modalHelp?: boolean;
 };
 
 export function ConfirmRow(props: ConfirmRowProps) {
-    const { focusKey, focusFallback, idleLabel, armedLabel, disabled, onConfirm, buttonSpacing, bottomSeparator, labelStyle, skipWhenDisabled, help } = props;
+    const { focusKey, focusFallback, idleLabel, armedLabel, disabled, onConfirm, buttonSpacing, bottomSeparator, labelStyle, skipWhenDisabled, help, modalHelp } = props;
     const [armed, setArmed] = useState(false);
 
     useEffect(() => {
@@ -55,6 +56,7 @@ export function ConfirmRow(props: ConfirmRowProps) {
             onGamepadBlur={handleBlur}
             bottomSeparator={bottomSeparator}
             help={help}
+            modalHelp={modalHelp}
         >
             <span style={{ fontWeight: 700, ...labelStyle, color: armed ? confirmAmber : undefined }}>
                 {armed ? armedLabel : idleLabel}

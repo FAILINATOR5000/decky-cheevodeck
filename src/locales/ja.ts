@@ -3672,7 +3672,7 @@ const JA: LocaleTable = {
     "Save restored": "セーブデータを復元しました",
     "Couldn't restore this backup.": "このバックアップを復元できませんでした。",
     "Close the game first, then restore.": "先にゲームを閉じてから復元してください。",
-    "This backup's save folder isn't there any more, so it can't be restored.": "このバックアップのセーブフォルダーがもうないため、復元できません。",
+    "This backup's save folder isn't there anymore, so it can't be restored.": "このバックアップのセーブフォルダーがもうないため、復元できません。",
     "Before launch": "起動前",
     "Before Couch Play": "カウチプレイ前",
     "Before Link Play": "リンクプレイ前",

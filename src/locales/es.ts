@@ -3858,7 +3858,7 @@ const ES: LocaleTable = {
     "Save restored": "Partida restaurada",
     "Couldn't restore this backup.": "No se pudo restaurar esta copia de seguridad.",
     "Close the game first, then restore.": "Primero cierra el juego y luego restaura.",
-    "This backup's save folder isn't there any more, so it can't be restored.": "La carpeta de guardado de esta copia ya no existe, así que no se puede restaurar.",
+    "This backup's save folder isn't there anymore, so it can't be restored.": "La carpeta de guardado de esta copia ya no existe, así que no se puede restaurar.",
     "Before launch": "Antes de iniciar",
     "Before Couch Play": "Antes de Juego en el sofá",
     "Before Link Play": "Antes de Juego enlazado",
