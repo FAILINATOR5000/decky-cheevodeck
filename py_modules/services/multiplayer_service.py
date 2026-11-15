@@ -1279,6 +1279,21 @@ class MultiplayerService:
             return four_seats[0]
         return compatible[0] if compatible else ""
 
+    def my_games(self) -> list | None:
+        library = self._library()
+        if library is None:
+            return None
+        return [
+            {
+                "gameId": entry["gameId"],
+                "title": entry["title"],
+                "systemId": entry["systemId"],
+                "system": entry["system"],
+                "imageIcon": entry["imageIcon"],
+            }
+            for entry in library.values()
+        ]
+
     def games(self) -> dict:
         ra = self._retroarch()
         installed = ra.installed_cores() if ra.found else []

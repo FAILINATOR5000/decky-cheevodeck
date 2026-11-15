@@ -131,6 +131,7 @@ from mixins.activity import ActivityMixin
 from mixins.milestones import MilestonesMixin
 from mixins.data_transfer import DataTransferMixin
 from mixins.multiplayer import MultiplayerMixin
+from mixins.my_games import MyGamesMixin
 from mixins.save_backups import SaveBackupsMixin
 from mixins.stream_play import StreamPlayMixin
 from mixins.offline_hotspot import OfflineHotspotMixin
@@ -198,6 +199,7 @@ class Plugin(
     MilestonesMixin,
     DataTransferMixin,
     MultiplayerMixin,
+    MyGamesMixin,
     SaveBackupsMixin,
     StreamPlayMixin,
     OfflineHotspotMixin,
