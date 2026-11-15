@@ -18,7 +18,7 @@ from utils import (
 CURRENT_SCHEMA_VERSION = 1
 FOLDER = "save_backup_settings"
 CONSOLES_FILE = "consoles.json"
-INTERVALS = (0, 15, 30, 60)
+INTERVALS = (0, 5, 10, 15, 30, 60, 120)
 DEFAULT_INTERVAL = 60
 DEFAULTS = {"interval": DEFAULT_INTERVAL, "off": False}
 

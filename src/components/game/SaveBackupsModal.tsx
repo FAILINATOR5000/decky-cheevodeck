@@ -19,7 +19,7 @@ import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { ToggleRow } from "../ui/ToggleRow";
 
-const INTERVALS = [0, 15, 30, 60];
+const INTERVALS = [0, 5, 10, 15, 30, 60, 120];
 const ROWS_INITIAL = 30;
 const ROWS_STEP = 30;
 
