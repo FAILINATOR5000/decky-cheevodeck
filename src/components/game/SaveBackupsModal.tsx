@@ -1,5 +1,5 @@
 import { toaster } from "@decky/api";
-import { DialogButton, Focusable, ModalRoot, ScrollPanelGroup } from "@decky/ui";
+import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useEffect, useMemo, useState } from "react";
 
 import { saveBackupsClear, saveBackupsInfo, saveBackupsRestore, saveBackupsSetConsole, saveBackupsSetGame } from "../../api";
@@ -23,6 +23,7 @@ import { ToggleRow } from "../ui/ToggleRow";
 const INTERVALS = [0, 5, 10, 15, 30, 60, 120];
 const ROWS_INITIAL = 30;
 const ROWS_STEP = 30;
+const NAV_ENTER_MAINTAIN_Y = 3;
 
 const REASON_LABELS: Record<SaveBackupReason, string> = {
     launch: "Before launch",
@@ -245,61 +246,62 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                         </div>
                     </>
                 )}
-                <div style={{ maxHeight: "45vh", overflow: "hidden", display: hasBackups ? "flex" : "none", flexDirection: "column" }}>
-                    <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>
-                        <Focusable flow-children="column" resetNavOnEntry style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "5px" }}>
-                            <SlidingWindowRows list={list}>
-                                {list.mountedItems.map((row, index) => {
-                                    const at = list.start + index;
-                                    if (row.kind === "group") {
-                                        return (
-                                            <HeadingStop
-                                                key={row.key}
-                                                focusKey={row.key}
-                                                onGamepadFocus={() => list.onItemFocus(at)}
-                                                onGamepadDirection={list.guardTopRow(at)}
-                                                style={{ ...modalBodyStyle(), fontWeight: 700, opacity: 1 }}
-                                            >
-                                                {row.label}
-                                            </HeadingStop>
-                                        );
-                                    }
-                                    const isArmed = armed === row.id;
-                                    return (
-                                        <FocusableItem
-                                            key={row.key}
-                                            focusKey={row.key}
-                                            outerStyle={{ width: "100%", minWidth: 0 }}
-                                            disabled={running}
-                                            onClick={() => pressBackup(row.id)}
-                                            onGamepadFocus={() => list.onItemFocus(at)}
-                                            onGamepadBlur={() => setArmed((was) => (was === row.id ? "" : was))}
-                                            onGamepadDirection={list.guardTopRow(at)}
-                                            bottomSeparator="none"
-                                        >
-                                            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
-                                                {isArmed ? (
-                                                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, color: confirmAmber }}>
-                                                        {t(language, "Press again to restore")}
-                                                    </span>
-                                                ) : (
-                                                    <>
-                                                        <span style={{ flex: 1, minWidth: 0, fontSize: `${modalSize(15)}px` }}>
-                                                            {formatDateTime(row.at, language)}
-                                                        </span>
-                                                        <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>
-                                                            {t(language, REASON_LABELS[row.reason])}
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </FocusableItem>
-                                    );
-                                })}
-                            </SlidingWindowRows>
-                        </Focusable>
-                    </ScrollPanelGroup>
-                </div>
+                <Focusable
+                    flow-children="column"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                    style={{ display: hasBackups ? "flex" : "none", flexDirection: "column", gap: "6px" }}
+                >
+                    <SlidingWindowRows list={list}>
+                        {list.mountedItems.map((row, index) => {
+                            const at = list.start + index;
+                            if (row.kind === "group") {
+                                return (
+                                    <HeadingStop
+                                        key={row.key}
+                                        focusKey={row.key}
+                                        onGamepadFocus={() => list.onItemFocus(at)}
+                                        onGamepadDirection={list.guardTopRow(at)}
+                                        style={{ ...modalBodyStyle(), fontWeight: 700, opacity: 1 }}
+                                    >
+                                        {row.label}
+                                    </HeadingStop>
+                                );
+                            }
+                            const isArmed = armed === row.id;
+                            return (
+                                <FocusableItem
+                                    key={row.key}
+                                    focusKey={row.key}
+                                    outerStyle={{ width: "100%", minWidth: 0 }}
+                                    disabled={running}
+                                    onClick={() => pressBackup(row.id)}
+                                    onGamepadFocus={() => list.onItemFocus(at)}
+                                    onGamepadBlur={() => setArmed((was) => (was === row.id ? "" : was))}
+                                    onGamepadDirection={list.guardTopRow(at)}
+                                    bottomSeparator="none"
+                                >
+                                    <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
+                                        {isArmed ? (
+                                            <span style={{ flex: 1, minWidth: 0, fontWeight: 700, color: confirmAmber }}>
+                                                {t(language, "Press again to restore")}
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <span style={{ flex: 1, minWidth: 0, fontSize: `${modalSize(15)}px` }}>
+                                                    {formatDateTime(row.at, language)}
+                                                </span>
+                                                <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>
+                                                    {t(language, REASON_LABELS[row.reason])}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                </FocusableItem>
+                            );
+                        })}
+                    </SlidingWindowRows>
+                </Focusable>
                 <ConfirmRow
                     focusKey="savebackups:clear"
                     idleLabel={t(language, "Clear Backups")}
@@ -310,9 +312,9 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                     help={t(language, "Deletes every backup of this game's save. The save itself is left alone. Can't be undone.")}
                     modalHelp
                 />
-                <Focusable flow-children="row" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <FocusTarget focusKey="savebackups:close">
-                        <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
+                <Focusable flow-children="row" style={{ display: "flex" }}>
+                    <FocusTarget focusKey="savebackups:close" style={{ display: "flex", flex: 1, minWidth: 0 }}>
+                        <DialogButton onClick={close} style={{ width: "100%" }}>{t(language, "Close")}</DialogButton>
                     </FocusTarget>
                 </Focusable>
             </div>
