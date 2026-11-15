@@ -111,7 +111,7 @@ class SaveBackups:
                 return True
             folder = self._root / str(game_id) / group
             newest = self._newest(folder)
-            if newest is not None and _same(newest["sources"], sources):
+            if reason != "restore" and newest is not None and _same(newest["sources"], sources):
                 self._debug("%s's save hasn't changed since the last backup (%s)", game_id, reason)
                 return True
             try:
