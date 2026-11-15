@@ -112,6 +112,7 @@ const DIR_UP = 9;
 
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
+const HANDHELD_LINK_CORES = ["gambatte", "gpsp", "melondsds"];
 const NO_CORES: MultiplayerCoreChoice[] = [];
 
 const STREAM_SEAT_STATES: StreamSeatState[] = ["pairing", "connecting", "streaming", "relay", "failed"];
@@ -504,7 +505,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : []),
         ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : []),
-        ...(pingsSaves ? [t(language, "retroarch_exit_heads_up")] : [])
+        ...(pingsSaves ? [t(language, "retroarch_exit_heads_up")] : []),
+        ...(mp.mode === "link" && HANDHELD_LINK_CORES.includes(roomCore) ? [t(language, "link_online_heads_up")] : [])
     ];
     const tips = [
         ...(mp.mode === "link" ? [problemText(language, "link_system")] : []),
