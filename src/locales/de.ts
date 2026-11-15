@@ -3831,6 +3831,8 @@ const DE: LocaleTable = {
     "help_play_backups": "Kopiert den Spielstand eines Spiels vor und nach jedem Start über Spielen, und während es läuft im Abstand, der im Sicherungen-Fenster des Spiels eingestellt ist.",
     "help_play_together_backups": "Kopiert deinen Spielstand vor und nach jeder Play-Together-Runde auf diesem Gerät, und während sie läuft. Das stoppt nur die Kopien: Das Speichern während der Runden bleibt an.",
     "help_clear_all_save_backups": "Löscht alle Spielstand-Sicherungen auf diesem Gerät, für jedes Spiel. Deine Spielstände selbst bleiben unberührt. Kann nicht rückgängig gemacht werden.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Um eine Sicherung wiederherzustellen, drücke zweimal {{button}} darauf. Die Wiederherstellung lässt sich jederzeit rückgängig machen.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Um eine Sicherung wiederherzustellen, drücke zweimal {{button}} darauf.",
 };
 
 export default DE;

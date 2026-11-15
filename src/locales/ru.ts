@@ -3915,6 +3915,8 @@ const RU: LocaleTable = {
     "help_play_backups": "Копирует сохранение игры до и после каждого запуска через «Играть», а пока игра запущена — с интервалом из окна резервных копий этой игры.",
     "help_play_together_backups": "Копирует твоё сохранение до и после каждого раунда Play Together на этом устройстве, а также во время него. Отключаются только копии: сохранение во время раундов продолжает работать.",
     "help_clear_all_save_backups": "Удаляет все резервные копии сохранений на этом устройстве для всех игр. Сами сохранения не трогаются. Отменить нельзя.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Чтобы восстановить резервную копию, дважды нажми на ней {{button}}. Восстановление всегда можно отменить.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Чтобы восстановить резервную копию, дважды нажми на ней {{button}}.",
 };
 
 export default RU;

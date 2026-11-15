@@ -45,6 +45,7 @@ class SaveBackupsMixin(PluginContext):
             "systemId": system_id,
             "system": system_name,
             "consoleOff": self.save_backup_settings_store.console_off(system_id),
+            "undoable": self.save_backups.restore_backs_up(game_id, system_id),
             "running": self._game_running(),
         }
 

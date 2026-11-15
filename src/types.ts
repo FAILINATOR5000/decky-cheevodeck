@@ -3382,6 +3382,7 @@ export type SaveBackupsInfo = {
     systemId?: number;
     system?: string;
     consoleOff?: boolean;
+    undoable?: boolean;
     running?: boolean;
 };
 

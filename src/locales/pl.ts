@@ -3946,6 +3946,8 @@ const PL: LocaleTable = {
     "help_play_backups": "Kopiuje zapis gry przed każdym uruchomieniem przez Graj i po nim, a w trakcie gry co tyle, ile ustawiono w oknie Kopie zapasowe tej gry.",
     "help_play_together_backups": "Kopiuje twój zapis przed każdą rundą Play Together na tym urządzeniu, po niej i w jej trakcie. To wyłącza tylko kopie: zapisywanie podczas rund dalej działa.",
     "help_clear_all_save_backups": "Usuwa wszystkie kopie zapasowe zapisów na tym urządzeniu, dla każdej gry. Same zapisy pozostają nietknięte. Nie można cofnąć.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Aby przywrócić kopię zapasową, naciśnij na niej dwa razy {{button}}. Przywrócenie zawsze można cofnąć.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Aby przywrócić kopię zapasową, naciśnij na niej dwa razy {{button}}.",
 };
 
 export default PL;

@@ -3843,4 +3843,6 @@ export const EN: LocaleTable = {
     "help_play_backups": "Copies a game's save before and after each Play launch, and while it runs at the interval set in that game's Backups window.",
     "help_play_together_backups": "Copies your save before and after each Play Together round on this device, and while it runs. This only stops the copies: saving during rounds stays on.",
     "help_clear_all_save_backups": "Deletes every save backup on this device, for every game. Your saves themselves are left alone. Can't be undone.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "If you ever want to restore a backup, press {{button}} on it twice.",
 };

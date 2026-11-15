@@ -3875,6 +3875,8 @@ const ES: LocaleTable = {
     "help_play_backups": "Copia la partida guardada de un juego antes y después de cada inicio con Jugar, y mientras está abierto, con el intervalo fijado en la ventana Copias de seguridad de ese juego.",
     "help_play_together_backups": "Copia tu partida guardada antes y después de cada ronda de Play Together en este dispositivo, y mientras dura. Esto solo detiene las copias: el guardado durante las rondas sigue activo.",
     "help_clear_all_save_backups": "Borra todas las copias de partidas de este dispositivo, de todos los juegos. Tus partidas guardadas no se tocan. No se puede deshacer.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Para restaurar una copia de seguridad, pulsa {{button}} sobre ella dos veces. Siempre puedes deshacer la restauración.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Para restaurar una copia de seguridad, pulsa {{button}} sobre ella dos veces.",
 };
 
 export default ES;

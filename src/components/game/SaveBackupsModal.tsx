@@ -11,6 +11,7 @@ import { formatDateTime } from "../../utils/fileWatcher";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { confirmAmber, modalBodyStyle, warnAmber } from "../../utils/style";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { ConfirmRow } from "../ui/ConfirmRow";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
@@ -225,6 +226,24 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                 )}
                 {info && !hasBackups && (
                     <div style={modalBodyStyle()}>{t(language, "No backups yet")}</div>
+                )}
+                {hasBackups && (
+                    <>
+                        <div style={{ fontSize: `${modalSize(16)}px`, fontWeight: 700, textAlign: "center", marginTop: "6px" }}>
+                            {t(language, "Backups")}
+                        </div>
+                        <div style={modalBodyStyle()}>
+                            <ButtonPrompt
+                                language={language}
+                                textKey={info?.undoable
+                                    ? "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well."
+                                    : "If you ever want to restore a backup, press {{button}} on it twice."}
+                                button="a"
+                                fontSize={modalSize(12)}
+                                inline
+                            />
+                        </div>
+                    </>
                 )}
                 <div style={{ maxHeight: "45vh", overflow: "hidden", display: hasBackups ? "flex" : "none", flexDirection: "column" }}>
                     <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>

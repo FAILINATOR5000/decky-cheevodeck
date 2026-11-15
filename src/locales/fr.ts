@@ -3864,6 +3864,8 @@ const FR: LocaleTable = {
     "help_play_backups": "Copie la partie d'un jeu avant et après chaque lancement avec Jouer, et pendant qu'il tourne, à l'intervalle choisi dans la fenêtre Copies de sauvegarde de ce jeu.",
     "help_play_together_backups": "Copie ta partie avant et après chaque manche Play Together sur cet appareil, et pendant qu'elle se déroule. Cela n'arrête que les copies : l'enregistrement pendant les manches reste actif.",
     "help_clear_all_save_backups": "Supprime toutes les copies de sauvegarde de cet appareil, pour tous les jeux. Tes parties elles-mêmes ne sont pas touchées. Action irréversible.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Pour restaurer une copie, appuie deux fois sur {{button}} dessus. Tu peux toujours annuler la restauration.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Pour restaurer une copie, appuie deux fois sur {{button}} dessus.",
 };
 
 export default FR;

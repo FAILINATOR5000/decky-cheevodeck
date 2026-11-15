@@ -82,6 +82,9 @@ class SaveBackups:
             return False
         return game_id == 0 or not self._game_settings.get(game_id)["off"]
 
+    def restore_backs_up(self, game_id: int, system_id: int) -> bool:
+        return self._wanted({"gameId": game_id, "systemId": system_id}, "restore")
+
     def back_up(self, target: dict, reason: str, trigger: str, spare: str = "") -> bool:
         game_id = target["gameId"]
         group = group_name(target)

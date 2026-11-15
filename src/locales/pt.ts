@@ -3864,6 +3864,8 @@ const PT: LocaleTable = {
     "help_play_backups": "Copia o save de um jogo antes e depois de cada início pelo Jogar, e enquanto ele roda, no intervalo definido na janela Backups desse jogo.",
     "help_play_together_backups": "Copia seu save antes e depois de cada rodada do Play Together neste dispositivo, e enquanto ela roda. Isso só para as cópias: o salvamento durante as rodadas continua ligado.",
     "help_clear_all_save_backups": "Apaga todos os backups de saves deste dispositivo, de todos os jogos. Seus saves em si não são alterados. Não dá para desfazer.",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Para restaurar um backup, pressione {{button}} duas vezes sobre ele. Você sempre pode desfazer a restauração.",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "Para restaurar um backup, pressione {{button}} duas vezes sobre ele.",
 };
 
 export default PT;

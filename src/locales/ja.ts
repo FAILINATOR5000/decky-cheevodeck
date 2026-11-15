@@ -3689,6 +3689,8 @@ const JA: LocaleTable = {
     "help_play_backups": "「プレイ」で起動するたびに、その前後と起動中にゲームのセーブデータをコピーします。起動中の間隔は、そのゲームのバックアップ画面で設定します。",
     "help_play_together_backups": "このデバイスで遊ぶ Play Together の各ラウンドの前後と途中に、セーブデータをコピーします。オフにして止まるのはコピーだけで、ラウンド中の保存はそのまま続きます。",
     "help_clear_all_save_backups": "このデバイスにあるすべてのゲームのセーブデータのバックアップを削除します。セーブデータ自体はそのままです。元に戻せません。",
+    "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "バックアップを復元するには、その上で {{button}} を2回押します。復元はいつでも元に戻せます。",
+    "If you ever want to restore a backup, press {{button}} on it twice.": "バックアップを復元するには、その上で {{button}} を2回押します。",
 };
 
 export default JA;
