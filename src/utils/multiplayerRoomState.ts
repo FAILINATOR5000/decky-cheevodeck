@@ -65,7 +65,7 @@ let seatedAt = 0;
 const CHAT_SETTLE_MS = 5000;
 const CHAT_TOAST_MS = 6000;
 const listeners = new Set<() => void>();
-let chatToastsInGame = false;
+let chatToastsInGame = true;
 const chatToastListeners = new Set<() => void>();
 
 function publishChatToasts(next: boolean) {

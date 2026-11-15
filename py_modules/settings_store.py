@@ -478,7 +478,7 @@ _KNOBS = (
     Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
     Knob("mpStreamSlowConnection", default=False, normalize=True, read=READ_BOOL),
-    Knob("mpChatToastsInGame", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpChatToastsInGame", default=True, normalize=True, read=READ_BOOL),
     Knob("mpStreamScreenWarningOff", default=False, normalize=True, read=READ_BOOL),
     Knob("hotspotIntroOff", default=False, normalize=True, read=READ_BOOL),
     Knob("hotspotDedicated", default=True, normalize=True, read=READ_BOOL),
@@ -2403,7 +2403,7 @@ class SettingsStore:
 
     def update_mp_chat_toasts_in_game(self, value: bool) -> bool:
         cfg = self._update_config("mpChatToastsInGame", bool(value))
-        return bool(cfg.get("mpChatToastsInGame", False))
+        return bool(cfg.get("mpChatToastsInGame", True))
 
     def update_mp_stream_screen_warning_off(self, value: bool) -> bool:
         cfg = self._update_config("mpStreamScreenWarningOff", bool(value))
