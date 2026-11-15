@@ -38,6 +38,7 @@ from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
+from services.save_backups import SaveBackups
 from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
 from services.emulator_service import EmulatorService
@@ -826,6 +827,7 @@ class Plugin(
             debug=self._stream_debug,
             debug_on=lambda: self.settings_store.get_debug_logging(self.settings_store.load_config()),
         )
+        self.save_backups = SaveBackups(runtime_dir=self.runtime_dir, settings_store=self.settings_store)
         self.multiplayer_service = MultiplayerService(
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
@@ -839,6 +841,7 @@ class Plugin(
             stream_setup=self.stream_setup,
             stream_host=self.stream_host,
             emulator_service=self.emulator_service,
+            save_backups=self.save_backups,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(

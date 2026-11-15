@@ -12,7 +12,7 @@ from utils import atomic_file, child_owner, ensure_dir, open_dir, user_file_targ
 SESSION = "WiiSession"
 SESSION_BACKUP = "WiiSession.backup"
 SYSTEM_TYPE = "00000001"
-BACKUPS_KEPT = 5
+DISC_TYPE = "00010000"
 GONE_CHECKS = 6
 GONE_CHECK_SECONDS = 0.5
 TMP_SUFFIX = ".cheevodeck-tmp"
@@ -31,7 +31,13 @@ def session_id(user_dir: Path):
     return st.st_dev, st.st_ino
 
 
-def put_back(user_dir: Path, *, since: float, backups: Path, install: str, before=None) -> str:
+def title_data(user_dir: Path, game_code: str):
+    if len(game_code) != 4 or not game_code.isascii() or not game_code.isalnum():
+        return None
+    return Path(user_dir) / "Wii" / "title" / DISC_TYPE / game_code.encode("ascii").hex() / "data"
+
+
+def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
     session = user_dir / SESSION
     if session.is_symlink() or not session.is_dir():
         return "no session left, Dolphin put it back itself or there was nothing to"
@@ -58,7 +64,7 @@ def put_back(user_dir: Path, *, since: float, backups: Path, install: str, befor
     refused = False
     for kind, title in _game_titles(session):
         try:
-            count = _put_title_back(user_dir, session, kind, title, backups, f"wii-{install}-{kind}{title}-")
+            count = _put_title_back(user_dir, session, kind, title, back_up)
         except (OSError, Refused) as e:
             decky.logger.warning("multiplayer: couldn't put the Wii save for %s/%s back (%s: %s)", kind, title,
                                  type(e).__name__, e)
@@ -66,8 +72,8 @@ def put_back(user_dir: Path, *, since: float, backups: Path, install: str, befor
             continue
         if count:
             copied.append(title)
-            decky.logger.info("multiplayer: Dolphin didn't put the Wii save back, CheevoDeck did (%s/%s, %s files, "
-                              "backup kept)", kind, title, count)
+            decky.logger.info("multiplayer: Dolphin didn't put the Wii save back, CheevoDeck did (%s/%s, %s files)",
+                              kind, title, count)
     if refused:
         return "refused a title, session left in place"
     _retire(user_dir)
@@ -115,25 +121,32 @@ def _game_titles(session: Path) -> list:
     return found
 
 
-def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backups: Path, prefix: str) -> int:
-    source = session / "title" / kind / title / "data"
-    wanted = _contents(source)
+def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, back_up) -> int:
     linked = user_dir / "Wii" / "title" / kind / title / "data"
     if not os.path.lexists(linked):
         ensure_dir(linked, trusted=user_dir / "Wii" / "title" / kind)
+
+    def before():
+        if not back_up(kind, title, linked):
+            raise Refused("couldn't back up the save first")
+
+    return match_folder(session / "title" / kind / title / "data", linked, before)
+
+
+def match_folder(source: Path, linked: Path, before=None) -> int:
+    wanted = contents(source)
     real = user_file_target(linked, child_owner())
     if not real.is_dir():
         raise Refused("the real data folder isn't a folder")
-    have = _contents(real)
+    have = contents(real)
     changed = sorted(relative for relative, digest in wanted.items() if have.get(relative) != digest)
     if not changed:
         return 0
     for relative in changed:
         _no_clash(real, relative)
 
-    if have:
-        _back_up(real, have, backups / f"{prefix}{time.strftime('%Y%m%d%H%M%S')}")
-        _prune(backups, prefix)
+    if have and before is not None:
+        before()
 
     touched = {real}
     for relative in changed:
@@ -141,7 +154,7 @@ def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, backup
         if target.parent != real:
             ensure_dir(target.parent, trusted=real)
             touched.add(target.parent)
-        data = _read(source / relative)
+        data = read_plain(source / relative)
         keep = None
         try:
             st = os.lstat(target)
@@ -186,7 +199,7 @@ def _no_clash(real: Path, relative: str) -> None:
         raise Refused(f"{relative} isn't a plain file in the real save")
 
 
-def _read(path: Path) -> bytes:
+def read_plain(path: Path) -> bytes:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
     with os.fdopen(fd, "rb") as handle:
         if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
@@ -194,7 +207,7 @@ def _read(path: Path) -> bytes:
         return handle.read()
 
 
-def _contents(folder: Path) -> dict:
+def contents(folder: Path) -> dict:
     found = {}
     for top, dirs, files in os.walk(folder, onerror=_raise):
         for name in dirs:
@@ -205,7 +218,7 @@ def _contents(folder: Path) -> dict:
             st = os.lstat(path)
             if not stat.S_ISREG(st.st_mode):
                 raise Refused(f"{name} isn't a plain file")
-            digest = hashlib.sha1(_read(Path(path))).hexdigest()
+            digest = hashlib.sha1(read_plain(Path(path))).hexdigest()
             found[os.path.relpath(path, folder)] = digest
     return found
 
@@ -215,34 +228,6 @@ def _no_links(folder: Path) -> None:
         for name in dirs + files:
             if os.path.islink(os.path.join(top, name)):
                 raise Refused(f"{name} is a link")
-
-
-def _back_up(real: Path, have: dict, folder: Path) -> None:
-    ensure_dir(folder)
-    for relative in sorted(have):
-        target = folder / relative
-        if target.parent != folder:
-            ensure_dir(target.parent)
-        data = _read(real / relative)
-        with atomic_file(target, tmp_name=f".{target.name}{TMP_SUFFIX}") as out:
-            out.write(data)
-            out.flush()
-            os.fsync(out.fileno())
-
-
-def _prune(backups: Path, prefix: str) -> None:
-    try:
-        names = sorted(entry for entry in os.listdir(backups) if entry.startswith(prefix))
-    except OSError:
-        return
-    for name in names[:-BACKUPS_KEPT]:
-        path = backups / name
-        if path.is_symlink() or not path.is_dir():
-            continue
-        try:
-            shutil.rmtree(path)
-        except OSError as e:
-            decky.logger.warning("multiplayer: couldn't remove an old Wii save backup (%s)", type(e).__name__)
 
 
 def _retire(user_dir: Path) -> None:

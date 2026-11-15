@@ -123,8 +123,6 @@ EMUDECK_SETTINGS = ".config/EmuDeck/settings.sh"
 OPEN_TOOL_ENTRY = "cheevodeck-open-tool.desktop"
 OPEN_TOOL_SCRIPT = "open-tool.sh"
 OPEN_TOOL_WINDOW_SECONDS = 900
-SAVE_BACKUPS = "save-backups"
-SAVE_BACKUPS_KEPT = 5
 SAVE_PING_SECONDS = 3
 SAVE_FOLLOW_UP_SECONDS = 1
 SAVE_REPLY_SECONDS = 1
@@ -235,6 +233,8 @@ GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
 PS2_SYSTEM = 21
 DSI_SYSTEM = 78
+NO_SAVE_BACKUP_SYSTEMS = frozenset({9, 39, 40, 27, 81, 14, 29, 43, 24, PS2_SYSTEM, PSP_SYSTEM,
+                                    25, 51, 13, 45, 46, 23, 57, 63})
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
 INPUT_DEVICES = Path("/proc/bus/input/devices")
@@ -386,10 +386,11 @@ class MultiplayerService:
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
-        stream_setup=None, stream_host=None, emulator_service=None,
+        stream_setup=None, stream_host=None, emulator_service=None, save_backups=None,
     ):
         self._settings_store = settings_store
         self._emulators = emulator_service
+        self._backups = save_backups
         self._stream_setup = stream_setup
         self._stream_host = stream_host
         self._voice_canceller = voice_canceller
@@ -1874,14 +1875,8 @@ class MultiplayerService:
         route, gate, detail = self._play_route(game_id, self._fallback_on(), session_pick=True)
         if route is None:
             return None, gate, detail
-        if route["fallback"]:
-            emulator, core = route["kind"], route.get("core", "")
-            rom = route["rom"]
-        else:
-            detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
-            emulator = detected["emulator"] if detected else ""
-            core = route.get("core") or (detected["core"] if detected and emulator == "retroarch" else "")
-            rom = route["rom"]
+        emulator, core = _route_emulator(route)
+        rom = route["rom"]
         core_name = STREAM_EMULATOR_NAMES.get(emulator, "")
         if core:
             ra = self._retroarch()
@@ -1997,15 +1992,60 @@ class MultiplayerService:
 
     def play_info(self, game_id: int, choice=None) -> dict:
         route, gate, detail = self._play_route(game_id, choice=choice)
+        backups = self._backups is not None and (
+            self._backups.has_backups(game_id) or (route is not None and self._route_target(game_id, route) is not None))
         if route is None:
             fix = self._fix(gate, detail, "play", game_id, None)
             plan = self._plan_ahead("play", game_id, "", None, (gate, detail, fix), choice=choice)
             state = "setup" if plan["steps"] else _gate_state(gate, fix, self._emulators is not None and gate in PLANNED_GATES)
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
-                    "tools": self.desktop_tools(), "state": state, "plan": plan}
+                    "tools": self.desktop_tools(), "state": state, "plan": plan, "backups": backups}
         return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": bool(_route_args(route)),
                 "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route), "state": "ready",
-                "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}}
+                "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}, "backups": backups}
+
+    def play_backup_target(self, game_id: int, choice=None):
+        route, _gate, _detail = self._play_route(game_id, choice=choice)
+        return self._route_target(game_id, route) if route is not None else None
+
+    def _route_target(self, game_id: int, route: dict):
+        game = (self._library() or {}).get(game_id)
+        if game is None:
+            return None
+        emulator, core = _route_emulator(route)
+        return self._backup_target({"gameId": game_id, "systemId": game["systemId"], "emulator": emulator,
+                                    "core": core, "path": route["rom"], "route": route})
+
+    def _backup_target(self, local: dict):
+        system_id, emulator = local["systemId"], local["emulator"]
+        if emulator == "retroarch" and local.get("core") and local.get("path") \
+                and system_id not in NO_SAVE_BACKUP_SYSTEMS:
+            ra = self._retroarch()
+            if not ra.found:
+                return None
+            core = local["core"]
+            return {"gameId": local["gameId"], "emulator": "retroarch", "core": core, "coreName": ra.core_name(core),
+                    "paths": ra.save_paths(core, Path(local["path"]))}
+        if emulator != "dolphin" or system_id != session.WII_SYSTEM:
+            return None
+        install = local.get("install")
+        if install is None:
+            install = self._route_install(local.get("route"))
+        code = local.get("gameCode") or rom_headers.disc_game_id(local.get("real") or local.get("path") or "")[:4]
+        user_dir = session.dolphin_user_dir(self._user_home, install)
+        data = wii_saves.title_data(user_dir, code) if user_dir is not None else None
+        if data is None:
+            return None
+        return {"gameId": local["gameId"], "emulator": "dolphin", "install": install,
+                "title": wii_saves.DISC_TYPE + data.parent.name, "paths": [data]}
+
+    def _route_install(self, route) -> str:
+        if route is None:
+            return ""
+        shortcut = self._emulator_by_appid(route["appid"]) if route["fallback"] else route["shortcut"]
+        if shortcut is None:
+            return ""
+        return session.dolphin_install(shortcut["exe"], shortcut["launchOptions"], self._user_home)
 
     def _desktop_tool_command(self, tool: str):
         home = self._user_home
@@ -5651,9 +5691,6 @@ class MultiplayerService:
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"],
                                               rom=rom if local.get("duckstation") or local["fallback"] else None)
-                guest_round = mode == "couch" and role == "guest"
-                if (core_path is not None or guest_round or save_port) and not local.get("duckstation"):
-                    self._back_up_save(ra, local)
             elif local["emulator"] == "dolphin":
                 marker = self._session_dir / f"session-{sid}.dolphin"
                 self._write(marker, "")
@@ -5663,7 +5700,8 @@ class MultiplayerService:
                     config = session.dolphin_config(self._user_home, local["install"])
                     if user_dir is not None and config is not None:
                         wii_nand = {"user": user_dir, "config": config, "install": local["install"],
-                                    "before": wii_saves.session_id(user_dir)}
+                                    "before": wii_saves.session_id(user_dir), "gameId": local["gameId"],
+                                    "code": local["gameCode"]}
                 if mode == "couch":
                     args = session.dolphin_netplay_args(
                         host_ip=own_ip if role == "host" else host_ip, nick=nick, hardcore=hardcore, marker=marker,
@@ -5694,6 +5732,11 @@ class MultiplayerService:
                                            rom=rom if local["fallback"] else None)
             if not self._readable_by_owner(files):
                 raise OSError("session files are not the home owner's")
+            backup = None
+            if self._backups is not None and not (mode == "couch" and role == "guest"):
+                backup = self._backup_target(local)
+            if backup is not None:
+                self._backups.back_up(backup, mode, "together")
             rename = _status_title(local["title"], name) if local["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
@@ -5718,6 +5761,7 @@ class MultiplayerService:
             "savePort": save_port,
             "saveFiles": save_files,
             "wiiNand": wii_nand,
+            "backup": backup,
         }
         if local["emulator"] != "rmg":
             options = session.compose_launch_options(original, args)
@@ -5827,6 +5871,9 @@ class MultiplayerService:
                     parts.insert(0, f"--appendconfig {session.quote(str(cfg_path))}")
                     decky.logger.info("stream: %s gets its multiplayer adapter for %s seats%s", local["core"],
                                       room["max"], f" ({TAP_NAMES[adapter]})" if adapter else "")
+            backup = self._backup_target(local) if self._backups is not None else None
+            if backup is not None:
+                self._backups.back_up(backup, "stream", "together")
             rename = _status_title(local["title"], name) if route["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
@@ -5839,6 +5886,7 @@ class MultiplayerService:
             "role": role,
             "mode": "stream",
             "emulator": local["emulator"],
+            "backup": backup,
             "files": [],
             "started": 0.0,
             "seen": False,
@@ -6001,34 +6049,6 @@ class MultiplayerService:
                 os.symlink(entry, target)
                 chown_to_data_owner(target)
 
-    def _back_up_save(self, ra, local: dict) -> None:
-        folder = self._session_dir / SAVE_BACKUPS
-        prefix = f"{local['gameId']}-"
-        stamp = time.strftime("%Y%m%d%H%M%S")
-        copied = False
-        for source in ra.save_paths(local["shortcutCore"] or local["core"], Path(local["path"])):
-            if not source.is_file():
-                continue
-            try:
-                ensure_dir(folder)
-                target = folder / f"{prefix}{stamp}-{source.name}"
-                shutil.copy2(source, target)
-                chown_to_data_owner(target)
-                copied = True
-            except OSError as e:
-                decky.logger.warning("multiplayer: couldn't back up %s (%s)", source.name, type(e).__name__)
-        if not copied:
-            return
-        decky.logger.info("multiplayer: backed up the save for %s", local["gameId"])
-        backups = [entry for entry in folder.iterdir() if entry.name.startswith(prefix)]
-        stamps = sorted({entry.name.split("-", 2)[1] for entry in backups})
-        for entry in backups:
-            if entry.name.split("-", 2)[1] in stamps[:-SAVE_BACKUPS_KEPT]:
-                try:
-                    entry.unlink()
-                except OSError:
-                    pass
-
     def _write_restore(self, appid: int, original: str, sid: str, play_game: int = 0, name: str = "",
                        renamed: str = "") -> None:
         record = {"schemaVersion": RESTORE_SCHEMA, "appid": appid, "original": original, "session": sid,
@@ -6144,6 +6164,7 @@ class MultiplayerService:
                 await asyncio.to_thread(self._repair_empty_saves, current)
             if current.get("wiiNand"):
                 await asyncio.to_thread(self._put_wii_saves_back, current)
+            await self._end_backup(current)
             self._finish(current)
 
     async def _follow_steam_game(self, current: dict) -> None:
@@ -6239,14 +6260,27 @@ class MultiplayerService:
             decky.logger.info("multiplayer: RetroArch was closed in the middle of saving %s, CheevoDeck put back "
                               "the last complete copy", path.name)
 
+    async def _end_backup(self, current: dict) -> None:
+        backup = current.pop("backup", None)
+        if backup is not None:
+            await asyncio.to_thread(self._backups.back_up, backup, "end", "together")
+
     def _put_wii_saves_back(self, current: dict) -> None:
         nand = current["wiiNand"]
+        own = wii_saves.title_data(nand["user"], nand["code"])
+
+        def back_up(kind: str, title: str, data: Path) -> bool:
+            if self._backups is None:
+                return True
+            game_id = nand["gameId"] if own is not None and data == own else 0
+            return self._backups.back_up({"gameId": game_id, "emulator": "dolphin", "install": nand["install"],
+                                          "title": kind + title, "paths": [data]}, "wii-copy-back", "together")
+
         try:
             if _ini_section(nand["config"], "NetPlay").get("WriteSaveData", "True").lower() == "false":
                 self._debug("Wii saves: the host's Write Save Data is off")
                 return
-            outcome = wii_saves.put_back(nand["user"], since=current["startedAt"],
-                                         backups=self._session_dir / SAVE_BACKUPS, install=nand["install"],
+            outcome = wii_saves.put_back(nand["user"], since=current["startedAt"], back_up=back_up,
                                          before=nand["before"])
             self._debug("Wii saves: %s", outcome)
         except Exception as e:
@@ -6274,6 +6308,8 @@ class MultiplayerService:
     def _finish(self, current: dict) -> None:
         current["exited"] = True
         decky.logger.info("multiplayer: session %s ended", current["id"])
+        if current.get("backup") is not None and not self._stopping:
+            self._spawn(self._end_backup(current))
         self._remove_files(current)
         self._emit({"state": "ended", "session": current["id"]})
         self._session_over(current)
@@ -6855,6 +6891,14 @@ def _route_kind(route: dict) -> str:
         return route["kind"]
     detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
     return detected["emulator"] if detected else ""
+
+
+def _route_emulator(route: dict):
+    if route["fallback"]:
+        return route["kind"], route.get("core", "")
+    detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
+    emulator = detected["emulator"] if detected else ""
+    return emulator, route.get("core") or (detected["core"] if detected and emulator == "retroarch" else "")
 
 
 def _known(version: str) -> bool:
