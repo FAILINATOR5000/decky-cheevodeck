@@ -127,7 +127,6 @@ SAVE_BACKUPS = "save-backups"
 SAVE_BACKUPS_KEPT = 5
 SAVE_PING_SECONDS = 3
 SAVE_FOLLOW_UP_SECONDS = 1
-SAVE_SETTLE_SECONDS = 1
 SAVE_REPLY_SECONDS = 1
 SAVE_SILENT_WARN_SECONDS = 30
 RETROARCH_NETPLAY_AUTOSAVE_SINCE = None
@@ -6200,11 +6199,8 @@ class MultiplayerService:
                     if not answered:
                         decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
                     answered = True
-                    await asyncio.sleep(SAVE_SETTLE_SECONDS)
                     if await asyncio.to_thread(_keep_save_mtimes, paths, before):
                         delay = SAVE_FOLLOW_UP_SECONDS
-                    else:
-                        delay = SAVE_PING_SECONDS - SAVE_SETTLE_SECONDS
                 elif not heard and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
                     decky.logger.warning("multiplayer: RetroArch's command port never answered, in-game saves "
                                          "won't be kept")
