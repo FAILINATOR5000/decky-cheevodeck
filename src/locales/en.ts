@@ -3170,7 +3170,7 @@ export const EN: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
     "Your RetroArch or core version differs from the host's.": "Your RetroArch or core version differs from the host's.",
     "Your copy is a different version of the game from the host's.": "Your copy is a different version of the game from the host's.",
-    "Your game differs from the host's, so it may not link.": "Your game differs from the host's, so it may not link.",
+    "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.": "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.",
     "Room": "Room",
     "Audio": "Audio",
     "Host": "Host",

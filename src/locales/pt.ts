@@ -3194,7 +3194,7 @@ const PT: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Seus saves do RetroArch são separados por núcleo, então o {{core}} não verá seu save de sempre.",
     "Your RetroArch or core version differs from the host's.": "Sua versão do RetroArch ou do núcleo é diferente da do anfitrião.",
     "Your copy is a different version of the game from the host's.": "Sua cópia é uma versão do jogo diferente da do anfitrião.",
-    "Your game differs from the host's, so it may not link.": "Seu jogo é diferente do do anfitrião, então o link pode não funcionar.",
+    "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.": "Seu jogo é diferente do do anfitrião. Jogos diferentes só se conectam se foram feitos para isso, como as versões de Pokémon.",
     "Room": "Sala",
     "Audio": "Áudio",
     "Host": "Anfitrião",

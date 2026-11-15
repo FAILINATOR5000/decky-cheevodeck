@@ -110,7 +110,7 @@ const WARNING_TEXT: Record<string, string> = {
     crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
     version_mismatch: "Your RetroArch or core version differs from the host's.",
     revision_differs: "Your copy is a different version of the game from the host's.",
-    game_differs: "Your game differs from the host's, so it may not link.",
+    game_differs: "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.",
     duckstation_switch: "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.",
     stream_player_two: "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.",
     core_build_differs: "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores)."

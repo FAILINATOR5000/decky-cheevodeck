@@ -3161,7 +3161,7 @@ const DE: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Deine RetroArch-Spielstände sind nach Core sortiert, daher sieht {{core}} deinen üblichen Spielstand nicht.",
     "Your RetroArch or core version differs from the host's.": "Deine RetroArch- oder Core-Version unterscheidet sich von der des Hosts.",
     "Your copy is a different version of the game from the host's.": "Deine Kopie ist eine andere Version des Spiels als die des Hosts.",
-    "Your game differs from the host's, so it may not link.": "Dein Spiel unterscheidet sich von dem des Hosts, daher klappt die Verbindung vielleicht nicht.",
+    "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.": "Dein Spiel ist ein anderes als das des Hosts. Verschiedene Spiele verbinden sich nur, wenn sie dafür gemacht sind, wie die Pokémon-Editionen.",
     "Room": "Raum",
     "Audio": "Audio",
     "Host": "Host",

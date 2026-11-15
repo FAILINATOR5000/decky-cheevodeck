@@ -3242,7 +3242,7 @@ const RU: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Сохранения RetroArch разложены по ядрам, поэтому {{core}} не увидит твоё обычное сохранение.",
     "Your RetroArch or core version differs from the host's.": "Твоя версия RetroArch или ядра отличается от версии хоста.",
     "Your copy is a different version of the game from the host's.": "Твоя копия — другая версия игры, не как у хоста.",
-    "Your game differs from the host's, so it may not link.": "Твоя игра отличается от игры хоста, поэтому связь может не заработать.",
+    "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.": "Твоя игра отличается от игры хоста. Разные игры соединяются, только если созданы для этого, как версии Pokémon.",
     "Room": "Комната",
     "Audio": "Звук",
     "Host": "Хост",

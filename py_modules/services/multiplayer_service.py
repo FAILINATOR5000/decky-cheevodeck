@@ -2330,7 +2330,9 @@ class MultiplayerService:
                 if room["gameId"] == local["gameId"] and room["hash"] \
                         and self._hash_of_path(local, system_id) not in ("", room["hash"]):
                     warnings.append({"code": "revision_differs", "detail": {}})
-            if mode == "link" and room["gameId"] != local["gameId"]:
+            gen3_pair = room["gameCode"][:3] in session.GEN3_POKEMON_CODES \
+                and local["gameCode"][:3] in session.GEN3_POKEMON_CODES
+            if mode == "link" and room["gameId"] != local["gameId"] and not gen3_pair:
                 warnings.append({"code": "game_differs", "detail": {}})
             versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] not in ("dolphin", "rmg") \
                 and _known(room["emuVersion"]) and _known(local["emuVersion"]) \

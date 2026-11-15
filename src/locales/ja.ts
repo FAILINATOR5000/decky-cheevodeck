@@ -3028,7 +3028,7 @@ const JA: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "RetroArchのセーブがコアごとに分かれているため、{{core}}からはいつものセーブが見えません。",
     "Your RetroArch or core version differs from the host's.": "RetroArchまたはコアのバージョンがホストと異なります。",
     "Your copy is a different version of the game from the host's.": "あなたのゲームはホストとは別のバージョンです。",
-    "Your game differs from the host's, so it may not link.": "ホストとは別のゲームのため、リンクできない可能性があります。",
+    "Your game is different from the host's. Different games only link if they were made to, like Pokémon versions.": "ホストとは別のゲームです。別々のゲームがリンクできるのは、ポケモンの各バージョンのようにそのために作られた場合だけです。",
     "Room": "ルーム",
     "Audio": "オーディオ",
     "Host": "ホスト",
