@@ -37,6 +37,21 @@ def title_data(user_dir: Path, game_code: str):
     return Path(user_dir) / "Wii" / "title" / DISC_TYPE / game_code.encode("ascii").hex() / "data"
 
 
+def session_data(user_dir: Path, game_code: str, since: float):
+    data = title_data(user_dir, game_code)
+    session = Path(user_dir) / SESSION
+    if data is None or session.is_symlink():
+        return None
+    try:
+        fst = os.lstat(session / "fst.bin")
+    except OSError:
+        return None
+    if fst.st_mtime < since:
+        return None
+    found = session / data.relative_to(Path(user_dir) / "Wii")
+    return found if found.is_dir() and not found.is_symlink() else None
+
+
 def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
     session = user_dir / SESSION
     if session.is_symlink() or not session.is_dir():

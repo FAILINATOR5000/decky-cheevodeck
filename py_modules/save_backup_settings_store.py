@@ -17,8 +17,9 @@ from utils import (
 
 CURRENT_SCHEMA_VERSION = 1
 FOLDER = "save_backup_settings"
+CONSOLES_FILE = "consoles.json"
 INTERVALS = (0, 15, 30, 60)
-DEFAULT_INTERVAL = 30
+DEFAULT_INTERVAL = 60
 DEFAULTS = {"interval": DEFAULT_INTERVAL, "off": False}
 
 
@@ -87,6 +88,56 @@ class SaveBackupSettingsStore:
                 decky.logger.warning("save backups: couldn't save the game's backup settings (%s)", type(e).__name__)
                 return None
             return {**DEFAULTS, **row}
+
+    def _consoles_path(self):
+        ulid = self._account()
+        return self._root / ulid / CONSOLES_FILE if ulid else None
+
+    def _consoles(self, path: Path) -> list:
+        raw = load_json_file(path, {})
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+            return []
+        off = raw.get("off") if isinstance(raw, dict) else None
+        if not isinstance(off, list):
+            return []
+        return sorted({system for system in off if type(system) is int and 0 < system < 1000})
+
+    def console_off(self, system_id: int) -> bool:
+        path = self._consoles_path()
+        if path is None or not system_id:
+            return False
+        with self._lock:
+            return system_id in self._consoles(path)
+
+    def set_console(self, system_id: int, off: bool):
+        path = self._consoles_path()
+        if path is None or type(system_id) is not int or not 0 < system_id < 1000:
+            return None
+        with self._lock:
+            consoles = set(self._consoles(path))
+            if off:
+                consoles.add(system_id)
+            else:
+                consoles.discard(system_id)
+            try:
+                refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+                if consoles:
+                    ensure_dir(path.parent)
+                    save_json_file(path, {"schemaVersion": CURRENT_SCHEMA_VERSION, "off": sorted(consoles)},
+                                   compact=True)
+                else:
+                    try:
+                        os.unlink(path)
+                    except FileNotFoundError:
+                        pass
+            except NewerSchemaFile:
+                return None
+            except OSError as e:
+                decky.logger.warning("save backups: couldn't save the console's backup setting (%s)",
+                                     type(e).__name__)
+                return None
+            return bool(off)
 
     def remove_account(self, ulid) -> None:
         if not is_ulid(ulid):

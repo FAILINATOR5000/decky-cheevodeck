@@ -115,6 +115,7 @@ import type {
     RecentTagsResponse,
     ResumeState,
     ResumeStateResponse,
+    SaveBackupsInfo,
     SaveDefaultNoteColorResponse,
     SaveTrackedNoteResponse,
     SaveTrackedCollapsedTagsResponse,
@@ -1166,6 +1167,13 @@ export const saveBackupsPlayStarted = callable<[number, PlayPick | Record<string
     "save_backups_play_started"
 );
 export const saveBackupsPlayEnded = callable<[], { ok: boolean }>("save_backups_play_ended");
+export const saveBackupsInfo = callable<[number], SaveBackupsInfo>("save_backups_info");
+export const saveBackupsRestore = callable<[number, string], { ok: boolean; error?: string }>("save_backups_restore");
+export const saveBackupsClear = callable<[number], { ok: boolean }>("save_backups_clear");
+export const saveBackupsSetGame = callable<[number, number | null, boolean | null], { ok: boolean; interval?: number; off?: boolean }>(
+    "save_backups_set_game"
+);
+export const saveBackupsSetConsole = callable<[number, boolean], { ok: boolean; consoleOff: boolean }>("save_backups_set_console");
 export const multiplayerCouchChoices = callable<[number], CouchChoices>("multiplayer_couch_choices");
 export const multiplayerSavePlayPick = callable<[number, "play" | "couch", PlayPick | null], { ok: boolean }>("multiplayer_save_play_pick");
 export const multiplayerSetStreamPick = callable<[number, PlayPick | null, boolean], { ok: boolean }>("multiplayer_set_stream_pick");

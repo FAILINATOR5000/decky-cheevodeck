@@ -2004,6 +2004,13 @@ class MultiplayerService:
                 "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route), "state": "ready",
                 "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}, "backups": backups}
 
+    def game_system(self, game_id: int) -> tuple:
+        game = (self._library() or {}).get(game_id)
+        if game is None:
+            return 0, ""
+        system = by_console_id(game["systemId"])
+        return game["systemId"], system.name if system is not None else ""
+
     def play_backup_target(self, game_id: int, choice=None):
         route, _gate, _detail = self._play_route(game_id, choice=choice)
         return self._route_target(game_id, route) if route is not None else None
@@ -2024,8 +2031,8 @@ class MultiplayerService:
             if not ra.found:
                 return None
             core = local["core"]
-            return {"gameId": local["gameId"], "emulator": "retroarch", "core": core, "coreName": ra.core_name(core),
-                    "paths": ra.save_paths(core, Path(local["path"]))}
+            return {"gameId": local["gameId"], "systemId": system_id, "emulator": "retroarch", "core": core,
+                    "coreName": ra.core_name(core), "paths": ra.save_paths(core, Path(local["path"]))}
         if emulator != "dolphin" or system_id != session.WII_SYSTEM:
             return None
         install = local.get("install")
@@ -2036,7 +2043,7 @@ class MultiplayerService:
         data = wii_saves.title_data(user_dir, code) if user_dir is not None else None
         if data is None:
             return None
-        return {"gameId": local["gameId"], "emulator": "dolphin", "install": install,
+        return {"gameId": local["gameId"], "systemId": system_id, "emulator": "dolphin", "install": install,
                 "title": wii_saves.DISC_TYPE + data.parent.name, "paths": [data]}
 
     def _route_install(self, route) -> str:
@@ -6265,8 +6272,14 @@ class MultiplayerService:
                               "the last complete copy", path.name)
 
     def _follow_backups(self, current: dict) -> None:
-        if current.get("backup") is not None:
-            self._backups.follow(current["id"], current["backup"], "together")
+        backup = current.get("backup")
+        if backup is None:
+            return
+        nand = current.get("wiiNand")
+        if nand is not None:
+            since = current["startedAt"]
+            backup = {**backup, "live": lambda: wii_saves.session_data(nand["user"], nand["code"], since)}
+        self._backups.follow(current["id"], backup, "together")
 
     async def _end_backup(self, current: dict) -> None:
         if current.pop("backup", None) is not None:
@@ -6280,8 +6293,9 @@ class MultiplayerService:
             if self._backups is None:
                 return True
             game_id = nand["gameId"] if own is not None and data == own else 0
-            return self._backups.back_up({"gameId": game_id, "emulator": "dolphin", "install": nand["install"],
-                                          "title": kind + title, "paths": [data]}, "wii-copy-back", "together")
+            return self._backups.back_up({"gameId": game_id, "systemId": session.WII_SYSTEM, "emulator": "dolphin",
+                                          "install": nand["install"], "title": kind + title, "paths": [data]},
+                                         "wii-copy-back", "together")
 
         try:
             if _ini_section(nand["config"], "NetPlay").get("WriteSaveData", "True").lower() == "false":

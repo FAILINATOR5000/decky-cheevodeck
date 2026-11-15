@@ -62,22 +62,32 @@ class SaveBackups:
         except OSError:
             return False
 
-    def _wanted(self, game_id: int, trigger: str) -> bool:
+    def _wanted(self, target: dict, trigger: str) -> bool:
+        game_id = target["gameId"]
         if trigger not in TRIGGERS or game_id < 0:
+            return False
+        if self._game_settings.console_off(target.get("systemId", 0)):
             return False
         return game_id == 0 or not self._game_settings.get(game_id)["off"]
 
     def back_up(self, target: dict, reason: str, trigger: str, spare: str = "") -> bool:
         game_id = target["gameId"]
         group = group_name(target)
-        if reason not in REASONS or group is None or not self._wanted(game_id, trigger):
+        if reason not in REASONS or group is None or not self._wanted(target, trigger):
             return True
         with self._lock:
+            reads = target["paths"]
+            if reason == "mid" and "live" in target:
+                live = target["live"]()
+                if live is None:
+                    self._debug("%s has no session save to copy yet", game_id)
+                    return True
+                reads = [live]
             try:
-                if reason == "mid" and not _steady(target["paths"]):
+                if reason == "mid" and not _steady(reads):
                     self._debug("%s's save is still being written, no mid-session copy this time", game_id)
                     return True
-                sources = _snapshot(target["paths"])
+                sources = _snapshot(target["paths"], reads)
             except (OSError, wii_saves.Refused) as e:
                 decky.logger.warning("save backups: couldn't read the save for %s (%s)", game_id, type(e).__name__)
                 return False
@@ -124,6 +134,7 @@ class SaveBackups:
             save_json_file(building / META, {
                 "schemaVersion": SCHEMA_VERSION,
                 "raGameId": target["gameId"],
+                "systemId": target.get("systemId", 0),
                 "emulator": target["emulator"],
                 "install": target.get("install", ""),
                 "core": target.get("core", ""),
@@ -182,7 +193,8 @@ class SaveBackups:
             return None
         texts = {key: raw.get(key) if isinstance(raw.get(key), str) else "" for key in
                  ("emulator", "install", "core", "coreName", "title")}
-        return {"raGameId": game_id, "reason": reason, "at": at, "sources": cleaned, **texts}
+        system_id = raw.get("systemId") if type(raw.get("systemId")) is int else 0
+        return {"raGameId": game_id, "systemId": system_id, "reason": reason, "at": at, "sources": cleaned, **texts}
 
     def follow(self, key: str, target: dict, trigger: str) -> None:
         self.forget(key)
@@ -232,6 +244,18 @@ class SaveBackups:
                 listed.append({"group": group, "label": label, "backups": rows})
         return listed
 
+    def system_of(self, game_id: int) -> int:
+        base = self._root / str(game_id)
+        try:
+            groups = sorted(name for name in os.listdir(base) if _GROUP.fullmatch(name))
+        except OSError:
+            return 0
+        for group in groups:
+            meta = self._newest(base / group)
+            if meta is not None and meta["systemId"]:
+                return meta["systemId"]
+        return 0
+
     def restore(self, game_id: int, backup_id: str) -> dict:
         group, _sep, name = str(backup_id).partition("/")
         if game_id <= 0 or not _GROUP.fullmatch(group) or not _STAMP.fullmatch(name):
@@ -245,7 +269,8 @@ class SaveBackups:
                 return {"ok": False, "error": "gone"}
             if any(not os.path.isdir(os.path.dirname(source["path"])) for source in meta["sources"]):
                 return {"ok": False, "error": "missing_folder"}
-            target = {"gameId": game_id, "emulator": meta["emulator"], "install": meta["install"],
+            target = {"gameId": game_id, "systemId": meta["systemId"], "emulator": meta["emulator"],
+                      "install": meta["install"],
                       "core": meta["core"], "coreName": meta["coreName"], "title": meta["title"],
                       "paths": [Path(source["path"]) for source in meta["sources"]]}
             if group_name(target) != group:
@@ -329,28 +354,28 @@ def _plain_name(name: str) -> bool:
     return bool(name) and "/" not in name and "\0" not in name and not name.startswith(".") and len(name) <= 255
 
 
-def _snapshot(paths) -> list:
+def _snapshot(paths, reads) -> list:
     sources = []
-    for path in paths:
-        path = Path(path)
+    for path, read in zip(paths, reads, strict=True):
+        path, read = Path(path), Path(read)
         if not _plain_name(path.name):
             continue
         try:
-            st = os.stat(path)
+            st = os.stat(read)
         except FileNotFoundError:
             continue
         if stat.S_ISDIR(st.st_mode):
-            digests = wii_saves.contents(path)
+            digests = wii_saves.contents(read)
             if not digests:
                 continue
-            files = {relative: wii_saves.read_plain(path / relative) for relative in sorted(digests)}
+            files = {relative: wii_saves.read_plain(read / relative) for relative in sorted(digests)}
             summary = "".join(f"{relative}\0{hashlib.sha1(data).hexdigest()}\n" for relative, data in files.items())
             sources.append({"path": str(path), "file": path.name, "kind": "folder", "files": files,
                             "sha256": hashlib.sha256(summary.encode("utf-8")).hexdigest()})
             continue
         if not stat.S_ISREG(st.st_mode) or st.st_size == 0:
             continue
-        data = _read_save(path)
+        data = _read_save(read)
         if not data:
             continue
         sources.append({"path": str(path), "file": path.name, "kind": "file", "data": data,

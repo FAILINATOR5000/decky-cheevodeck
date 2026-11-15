@@ -3367,6 +3367,20 @@ export type PlayInfo = {
     kind?: string;
     state?: MultiplayerModeState["state"];
     plan?: FixPlan;
+    backups?: boolean;
+};
+
+export type SaveBackupReason = "launch" | "couch" | "link" | "stream" | "end" | "mid" | "wii-copy-back" | "restore";
+
+export type SaveBackupsInfo = {
+    ok: boolean;
+    groups?: { group: string; label: string; backups: { id: string; at: number; reason: SaveBackupReason }[] }[];
+    interval?: number;
+    off?: boolean;
+    systemId?: number;
+    system?: string;
+    consoleOff?: boolean;
+    running?: boolean;
 };
 
 export type MultiplayerGuestGame = { gameId: number; title: string; systemId: number; system: string; imageIcon: string };

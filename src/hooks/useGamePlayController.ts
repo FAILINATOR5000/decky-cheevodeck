@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { multiplayerCheck, multiplayerPlayChoices, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
 import { showPlayWith } from "../components/game/PlayWithModal";
+import { showSaveBackups } from "../components/game/SaveBackupsModal";
 import { openFixIt } from "../components/multiplayer/FixItModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
@@ -21,9 +22,9 @@ import {
     subscribeRunningApp
 } from "../utils/multiplayerSession";
 
-export type PlayMode = "play" | "host" | "with";
+export type PlayMode = "play" | "host" | "with" | "backups";
 
-const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "play" };
+const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "backups", backups: "play" };
 
 type HostCheck = { gameId: number; gate: string | null };
 
@@ -156,7 +157,14 @@ export function useGamePlayController(props: {
     let label: string;
     let press: (() => void) | null = null;
     let explain: (() => void) | null = null;
-    if (mode === "host") {
+    if (mode === "backups") {
+        label = t(language, "Backups");
+        if (gameId != null) {
+            const about = { language, gameId, title: props.title };
+            press = () => showSaveBackups(about);
+        }
+    }
+    else if (mode === "host") {
         label = t(language, "Host");
         if (roomRole !== null) {
             explain = () => showMultiplayerProblem(language, "Can't Host", t(language, "Cannot host now since you are already in a room."));
@@ -214,7 +222,8 @@ export function useGamePlayController(props: {
     }
 
     function onToggleMode() {
-        setChosen({ gameId, mode: NEXT_MODE[mode] });
+        const next = NEXT_MODE[mode];
+        setChosen({ gameId, mode: next === "backups" && !info?.backups ? NEXT_MODE[next] : next });
     }
 
     function onPress() {
