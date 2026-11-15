@@ -16,6 +16,7 @@ from utils import (
     ensure_dir,
     is_newer_schema,
     load_json_file,
+    open_dir,
     save_json_file,
     to_int,
     user_file_target,
@@ -38,6 +39,7 @@ _STAMP = re.compile(r"(\d{14})-(" + "|".join(re.escape(reason) for reason in REA
 _SHA = re.compile(r"[0-9a-f]{64}")
 _CORE = re.compile(r"[a-z0-9_]{1,64}")
 _TITLE = re.compile(r"[0-9a-f]{16}")
+_MATCH = re.compile(r"[0-9A-Z]{2}-[0-9A-Z]{4}-")
 
 
 class SaveBackups:
@@ -98,7 +100,7 @@ class SaveBackups:
                 return True
         with self._lock:
             try:
-                sources = _snapshot(target["paths"], reads)
+                sources = _snapshot(target["paths"], reads, target.get("match", ""))
             except (OSError, wii_saves.Refused) as e:
                 decky.logger.warning("save backups: couldn't read the save for %s (%s)", game_id, type(e).__name__)
                 return False
@@ -227,9 +229,12 @@ class SaveBackups:
                 return None
             path, file, kind, sha = source.get("path"), source.get("file"), source.get("kind"), source.get("sha256")
             if not (isinstance(path, str) and path.startswith("/") and isinstance(file, str) and _plain_name(file)
-                    and kind in ("file", "folder") and isinstance(sha, str) and _SHA.fullmatch(sha)):
+                    and kind in ("file", "folder", "files") and isinstance(sha, str) and _SHA.fullmatch(sha)):
                 return None
-            cleaned.append({"path": path, "file": file, "kind": kind, "sha256": sha})
+            match = source.get("match")
+            if kind == "files" and not (isinstance(match, str) and _MATCH.fullmatch(match)):
+                return None
+            cleaned.append({"path": path, "file": file, "kind": kind, "sha256": sha, "match": match or ""})
         if not cleaned:
             return None
         texts = {key: raw.get(key) if isinstance(raw.get(key), str) else "" for key in
@@ -313,11 +318,16 @@ class SaveBackups:
             meta = self._meta(folder) if self._inside(folder) else None
             if meta is None or meta["raGameId"] != game_id:
                 return {"ok": False, "error": "gone"}
-            if any(not os.path.isdir(os.path.dirname(source["path"])) for source in meta["sources"]):
-                return {"ok": False, "error": "missing_folder"}
+            for source in meta["sources"]:
+                where = source["path"] if source["kind"] == "files" else os.path.dirname(source["path"])
+                if not os.path.isdir(where):
+                    return {"ok": False, "error": "missing_folder"}
             target = {"gameId": game_id, "systemId": meta["systemId"], "emulator": meta["emulator"],
                       "install": meta["install"], "core": meta["core"], "coreName": meta["coreName"],
                       "title": meta["title"], "paths": [Path(source["path"]) for source in meta["sources"]]}
+            match = next((source["match"] for source in meta["sources"] if source["match"]), "")
+            if match:
+                target["match"] = match
             if group_name(target) != group:
                 return {"ok": False, "error": "gone"}
             owner = child_owner()
@@ -327,6 +337,9 @@ class SaveBackups:
                     held = folder / source["file"]
                     if source["kind"] == "file":
                         stored[source["file"]] = wii_saves.read_plain(held)
+                    elif source["kind"] == "files":
+                        stored[source["file"]] = {entry: wii_saves.read_plain(held / entry)
+                                                  for entry in _gci_names(held, source["match"])}
                     else:
                         wii_saves.contents(held)
                 for source in meta["sources"]:
@@ -345,6 +358,8 @@ class SaveBackups:
                     path = Path(source["path"])
                     if source["kind"] == "file":
                         _put_file(path, stored[source["file"]])
+                    elif source["kind"] == "files":
+                        _put_files(path, source["match"], stored[source["file"]])
                     else:
                         if not os.path.lexists(path):
                             ensure_dir(path, trusted=path.parent)
@@ -413,7 +428,7 @@ def _plain_name(name: str) -> bool:
     return bool(name) and "/" not in name and "\0" not in name and not name.startswith(".") and len(name) <= 255
 
 
-def _snapshot(paths, reads) -> list:
+def _snapshot(paths, reads, match: str = "") -> list:
     owner = child_owner()
     sources = []
     for path, read in zip(paths, reads, strict=True):
@@ -426,13 +441,20 @@ def _snapshot(paths, reads) -> list:
         except FileNotFoundError:
             continue
         if stat.S_ISDIR(st.st_mode):
-            files = {relative: wii_saves.read_plain(real / relative) for relative in sorted(wii_saves.contents(real))
-                     if wii_saves.CONFLICT_MARK not in relative}
+            if match:
+                files = {entry: wii_saves.read_plain(real / entry) for entry in _gci_names(real, match)}
+                files = {entry: data for entry, data in files.items() if data}
+            else:
+                files = {relative: wii_saves.read_plain(real / relative) for relative in sorted(wii_saves.contents(real))
+                         if wii_saves.CONFLICT_MARK not in relative}
             if not files:
                 continue
             summary = "".join(f"{relative}\0{hashlib.sha1(data).hexdigest()}\n" for relative, data in files.items())
-            sources.append({"path": str(path), "file": path.name, "kind": "folder", "files": files,
-                            "sha256": hashlib.sha256(summary.encode("utf-8")).hexdigest()})
+            source = {"path": str(path), "file": path.name, "kind": "files" if match else "folder", "files": files,
+                      "sha256": hashlib.sha256(summary.encode("utf-8")).hexdigest()}
+            if match:
+                source["match"] = match
+            sources.append(source)
             continue
         if not stat.S_ISREG(st.st_mode) or st.st_size == 0:
             continue
@@ -445,7 +467,21 @@ def _snapshot(paths, reads) -> list:
 
 
 def _recorded(source: dict) -> dict:
-    return {"path": source["path"], "file": source["file"], "kind": source["kind"], "sha256": source["sha256"]}
+    kept = {"path": source["path"], "file": source["file"], "kind": source["kind"], "sha256": source["sha256"]}
+    if source.get("match"):
+        kept["match"] = source["match"]
+    return kept
+
+
+def _gci_names(folder: Path, match: str) -> list:
+    names = []
+    for entry in sorted(os.listdir(folder)):
+        if not (entry.startswith(match) and entry.endswith(".gci") and wii_saves.CONFLICT_MARK not in entry
+                and _plain_name(entry)):
+            continue
+        if stat.S_ISREG(os.lstat(folder / entry).st_mode):
+            names.append(entry)
+    return names
 
 
 def _same(kept: list, sources: list) -> bool:
@@ -491,6 +527,24 @@ def _put_file(path: Path, data: bytes) -> None:
     target = user_file_target(path, child_owner())
     _write_into(target.parent, target.name, data)
     _sync_dir(target.parent)
+
+
+def _put_files(folder: Path, match: str, files: dict) -> None:
+    real = user_file_target(folder, child_owner())
+    if not real.is_dir():
+        raise wii_saves.Refused("the GCI folder isn't a folder")
+    have = _gci_names(real, match)
+    for entry, data in files.items():
+        _write_into(real, entry, data)
+    for entry in sorted(set(have) - set(files)):
+        fd = open_dir(real, real)
+        try:
+            os.unlink(entry, dir_fd=fd)
+        except FileNotFoundError:
+            pass
+        finally:
+            os.close(fd)
+    _sync_dir(real)
 
 
 def _write_into(folder: Path, name: str, data: bytes) -> None:

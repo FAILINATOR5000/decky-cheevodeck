@@ -233,6 +233,9 @@ GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
 PS2_SYSTEM = 21
 DSI_SYSTEM = 78
+GCI_REGIONS = {"E": ("USA", "USA"), "J": ("JAP", "JPN"),
+               **{letter: ("EUR", "EUR") for letter in "PDFSIHUXYZ"}}
+GCI_FOLDER_DEVICE = "8"
 NO_SAVE_BACKUP_SYSTEMS = frozenset({9, 39, 40, 27, 81, 14, 29, 43, 24, PS2_SYSTEM, PSP_SYSTEM,
                                     25, 51, 13, 45, 46, 23, 57, 63})
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
@@ -2033,18 +2036,43 @@ class MultiplayerService:
             core = local["core"]
             return {"gameId": local["gameId"], "systemId": system_id, "emulator": "retroarch", "core": core,
                     "coreName": ra.core_name(core), "paths": ra.save_paths(core, Path(local["path"]))}
-        if emulator != "dolphin" or system_id != session.WII_SYSTEM:
+        if emulator != "dolphin" or system_id not in session.DOLPHIN_SYSTEMS:
             return None
         install = local.get("install")
         if install is None:
             install = self._route_install(local.get("route"))
-        code = local.get("gameCode") or rom_headers.disc_game_id(local.get("real") or local.get("path") or "")[:4]
+        disc = rom_headers.disc_game_id(local.get("real") or local.get("path") or "")
+        if system_id == session.GAMECUBE_SYSTEM:
+            folder = self._gci_folder(install, disc)
+            if folder is None:
+                return None
+            return {"gameId": local["gameId"], "systemId": system_id, "emulator": "dolphin", "install": install,
+                    "title": disc, "paths": [folder], "match": f"{disc[4:]}-{disc[:4]}-"}
+        code = local.get("gameCode") or disc[:4]
         user_dir = session.dolphin_user_dir(self._user_home, install)
         data = wii_saves.title_data(user_dir, code) if user_dir is not None else None
         if data is None:
             return None
         return {"gameId": local["gameId"], "systemId": system_id, "emulator": "dolphin", "install": install,
                 "title": wii_saves.DISC_TYPE + data.parent.name, "paths": [data]}
+
+    def _gci_folder(self, install: str, disc: str):
+        config = session.dolphin_config(self._user_home, install)
+        user_dir = session.dolphin_user_dir(self._user_home, install)
+        if config is None or user_dir is None or len(disc) != 6 or disc[3] not in GCI_REGIONS:
+            return None
+        core = _ini_section(config, "Core")
+        if core.get("SlotA", GCI_FOLDER_DEVICE) != GCI_FOLDER_DEVICE or core.get("GCIFolderAPathOverride"):
+            return None
+        default_region, chosen_region = GCI_REGIONS[disc[3]]
+        chosen = core.get("GCIFolderAPath", "").rstrip("/")
+        if not chosen:
+            return user_dir / "GC" / default_region / "Card A"
+        for region in ("USA", "JPN", "EUR", "DEV"):
+            if chosen.endswith("/" + region):
+                chosen = chosen[:-len(region) - 1]
+                break
+        return Path(chosen) / chosen_region if chosen.startswith("/") else None
 
     def _route_install(self, route) -> str:
         if route is None:
