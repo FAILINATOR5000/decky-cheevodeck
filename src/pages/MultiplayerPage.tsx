@@ -113,6 +113,7 @@ const DIR_UP = 9;
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const HANDHELD_LINK_CORES = ["gambatte", "gpsp", "melondsds"];
+const UNLOAD_SAVE_SYSTEMS = [9, 81, 14, 43, 27, 60, 24, 29];
 const NO_CORES: MultiplayerCoreChoice[] = [];
 
 const STREAM_SEAT_STATES: StreamSeatState[] = ["pairing", "connecting", "streaming", "relay", "failed"];
@@ -413,6 +414,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const runsRmg = mp.mode === "couch" && roomCore === "rmg-standalone";
     const pingsSaves = (hosted?.emulator ?? joined?.room.emulator ?? local?.emulator) === "retroarch"
         && (mp.mode === "couch" || roomCore === "gpsp" || roomCore === "melondsds");
+    const savesOnClose = mp.mode === "couch"
+        && UNLOAD_SAVE_SYSTEMS.includes(hosted?.systemId ?? joined?.room.systemId ?? local?.systemId ?? 0);
     const roomTitle = hosted?.title ?? joined?.room.title ?? local?.title ?? "";
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const shownCheck = gateCheck ?? mp.check;
@@ -505,7 +508,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : []),
         ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : []),
-        ...(pingsSaves ? [t(language, "retroarch_exit_heads_up")] : []),
+        ...(pingsSaves ? [t(language, savesOnClose ? "unload_saves_heads_up" : "retroarch_exit_heads_up")] : []),
         ...(mp.mode === "link" && HANDHELD_LINK_CORES.includes(roomCore) ? [t(language, "link_online_heads_up")] : [])
     ];
     const tips = [
