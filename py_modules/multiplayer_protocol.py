@@ -317,6 +317,7 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "share": room["share"],
         "watch": room.get("watch", False),
         "voice": room.get("voice", False),
+        "steadyWifi": room.get("steadyWifi", True),
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
                   for index, seat in enumerate(room["seats"])],
         "max": room["max"],
@@ -420,6 +421,7 @@ def _room_fields(message):
         "share": message["share"],
         "watch": message.get("watch") is True,
         "voice": message.get("voice") is True,
+        "steadyWifi": message.get("steadyWifi") is not False,
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
         "max": count,
         "state": message["state"],

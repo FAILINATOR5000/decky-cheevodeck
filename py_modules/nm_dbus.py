@@ -417,6 +417,10 @@ class Bus:
     def get(self, destination: str, path: str, interface: str, name: str, *, timeout: float = 10.0):
         return self.call(destination, path, PROPERTIES, "Get", "ss", (interface, name), timeout=timeout)[0]
 
+    def set(self, destination: str, path: str, interface: str, name: str, value: Variant, *,
+            timeout: float = 10.0) -> None:
+        self.call(destination, path, PROPERTIES, "Set", "ssv", (interface, name, value), timeout=timeout)
+
     def get_all(self, destination: str, path: str, interface: str, *, timeout: float = 10.0) -> dict:
         return self.call(destination, path, PROPERTIES, "GetAll", "s", (interface,), timeout=timeout)[0]
 

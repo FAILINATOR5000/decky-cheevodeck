@@ -46,6 +46,7 @@ from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
 from services.emulator_service import EmulatorService
 from services.stream_host import StreamHost
+from services.steady_wifi import SteadyWifi
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from services.ez_friends_heal_service import EzFriendsHealService
@@ -601,6 +602,11 @@ class Plugin(
             emit=self._emit_from_thread,
             keep_backups=lambda: bool(self.settings_store.load_config().get("emulatorKeepBackups", True)),
         )
+        self.steady_wifi = SteadyWifi(
+            runtime_dir=self.runtime_dir,
+            user_home=self.user_home,
+            debug_on=lambda: getattr(self, "_debug_logging", False),
+        )
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
@@ -614,6 +620,7 @@ class Plugin(
             voice_canceller=self.voice_canceller,
             stream_setup=self.stream_setup,
             emulator_service=self.emulator_service,
+            steady_wifi=self.steady_wifi,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -864,6 +871,7 @@ class Plugin(
             emulator_service=self.emulator_service,
             save_backups=self.save_backups,
             dolphin_mappings=self.dolphin_launch_mappings,
+            steady_wifi=self.steady_wifi,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(
@@ -1248,6 +1256,7 @@ class Plugin(
         self.back_button_service.shutdown()
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
+        self.steady_wifi.end()
         self.multiplayer_service.stop()
         self.multiplayer_service.settle(1.0)
         self.save_backups.stop()

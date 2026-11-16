@@ -393,8 +393,10 @@ class MultiplayerService:
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
         stream_setup=None, stream_host=None, emulator_service=None, save_backups=None, dolphin_mappings=None,
+        steady_wifi=None,
     ):
         self._settings_store = settings_store
+        self._steady = steady_wifi
         self._mappings = dolphin_mappings
         self._emulators = emulator_service
         self._backups = save_backups
@@ -2970,7 +2972,8 @@ class MultiplayerService:
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
                    where: str = "local", watch: bool = False, friends: bool = False, voice: bool = False,
-                   screen: str = "", check_frames: int = session.DEFAULT_CHECK_FRAMES) -> dict:
+                   screen: str = "", check_frames: int = session.DEFAULT_CHECK_FRAMES,
+                   steady_wifi: bool = True) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -3027,6 +3030,7 @@ class MultiplayerService:
                 "checkFrames": check_frames if mode == "couch" and check_frames in session.CHECK_FRAMES
                 else session.DEFAULT_CHECK_FRAMES,
                 "voice": bool(voice),
+                "steadyWifi": bool(steady_wifi),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
                            "vstamp": 1}] + [None] * (seats - 1),
@@ -3752,6 +3756,7 @@ class MultiplayerService:
                     self._tidy(room)
                 except Exception as e:
                     decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
+                self._steady_sweep()
                 streams = room.get("streams")
                 if streams is not None and self._stream_host is not None and not streams.streaming():
                     try:
@@ -3860,6 +3865,7 @@ class MultiplayerService:
         game_id = current.get("gameId", 0)
         if room is not None:
             decky.logger.info("multiplayer: host launched with %s guests", len(room["roster"]))
+            self._steady_start(room["steadyWifi"])
             pads = _virtual_pads(self._user_home)
             if pads and pads[0] == SUNSHINE_PAD and not _sunshine_pads():
                 decky.logger.warning("multiplayer: Steam's controller list starts with a Stream Play guest who "
@@ -3870,6 +3876,7 @@ class MultiplayerService:
         if joined is not None and not joined["launched"]:
             joined["launched"] = True
             status = joined["status"]
+            self._steady_start((status["room"] if status is not None else joined["row"]).get("steadyWifi", True))
             if status is not None:
                 joined["launchedRound"] = status["round"]
             if status is not None and joined["countedRound"] != status["round"]:
@@ -5236,6 +5243,7 @@ class MultiplayerService:
             except Exception as e:
                 decky.logger.warning("multiplayer: a status poll failed (%s)", type(e).__name__)
                 answered = False
+            self._steady_sweep()
             if not answered:
                 await asyncio.sleep(POLL_BACKOFF_SECONDS)
             elif time.monotonic() < joined["fastUntil"] or _in_lounge_match(joined["status"], joined["seat"]):
@@ -5601,6 +5609,8 @@ class MultiplayerService:
             return
         self._joined = None
         self._tell_voice_room()
+        if self._session is None:
+            self._steady_end()
         self._closed_reason = reason
         self._close_guest_tunnels()
         if joined.get("gpipe") is not None:
@@ -6473,12 +6483,26 @@ class MultiplayerService:
             return False
         return self._mappings.apply(local["gameId"], local["systemId"], local["install"], slot)
 
+    def _steady_start(self, on: bool) -> None:
+        if self._steady is not None:
+            self._steady.start_round(on)
+
+    def _steady_end(self) -> None:
+        if self._steady is not None:
+            self._steady.end_round()
+
+    def _steady_sweep(self) -> None:
+        if self._steady is not None and self._steady.active and self._session is None:
+            self._debug("no round is running, putting Wi-Fi back")
+            self._steady.end_round()
+
     def _put_mapping_back(self, current: dict) -> None:
         if current.pop("mapping", False):
             threading.Thread(target=self._mappings.put_back, name="dolphin-mapping-put-back", daemon=True).start()
 
     def _session_over(self, current: dict) -> None:
         self._put_mapping_back(current)
+        self._steady_end()
         if self._session is current:
             self._session = None
         self._close_guest_tunnels()
