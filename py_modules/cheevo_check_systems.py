@@ -508,7 +508,7 @@ UNSUPPORTED_FOLDERS = frozenset(_fold(name) for name in (
     "cdimono1", "cdi", "philipscdi", "dos", "msdos", "fmtowns", "n3ds", "3ds",
     "ngage", "oric", "pc98", "pc9800", "pc6000", "segapico", "ti83", "tic80",
     "x1", "x68000", "xbox", "xbox360", "zeebo", "zx81", "zxspectrum", "wiiu",
-    "ps3", "playstation3",
+    "ps3", "playstation3", "psvita", "vita", "playstationvita",
 ))
 
 _BY_FOLDER = {}
