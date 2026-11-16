@@ -2,7 +2,7 @@ import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { Router } from "@decky/ui";
 import { useSyncExternalStore } from "react";
 
-import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame } from "../api";
+import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerLounge, MultiplayerRoomStatus, MultiplayerVote } from "../types";
 import { logError } from "./errors";
@@ -67,6 +67,7 @@ const CHAT_TOAST_MS = 6000;
 const listeners = new Set<() => void>();
 let chatToastsInGame = true;
 const chatToastListeners = new Set<() => void>();
+let steadyWifi = true;
 
 function publishChatToasts(next: boolean) {
     if (next === chatToastsInGame) {
@@ -101,6 +102,26 @@ export async function changeChatToastsInGame(next: boolean) {
     catch (e) {
         logError("room chat: saving In-Game Chat Toasts", e);
         publishChatToasts(was);
+    }
+}
+
+export function setSteadyWifiSettings(next: { mpSteadyWifi?: boolean }) {
+    steadyWifi = next.mpSteadyWifi ?? steadyWifi;
+}
+
+export function steadyWifiChoice(): boolean {
+    return steadyWifi;
+}
+
+export async function changeSteadyWifi(next: boolean) {
+    const was = steadyWifi;
+    steadyWifi = next;
+    try {
+        steadyWifi = (await saveMpSteadyWifi(next)).mpSteadyWifi;
+    }
+    catch (e) {
+        logError("room: saving Steady Wi-Fi", e);
+        steadyWifi = was;
     }
 }
 

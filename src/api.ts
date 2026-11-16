@@ -859,11 +859,11 @@ export const multiplayerPickGameFile = callable<[gameId: number, path: string], 
 export const multiplayerForgetPickedGame = callable<[gameId: number], { ok: boolean }>("multiplayer_forget_picked_game");
 export const multiplayerPickStartFolder = callable<[], { ok: boolean; folder: string }>("multiplayer_pick_start_folder");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string, number],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string, number, boolean],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?],
+    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?, (boolean | null)?],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerGameOptions = callable<[number], { ok: boolean; options: MultiplayerGameOptions }>("multiplayer_game_options");
@@ -975,6 +975,7 @@ export const streamUpdate = callable<[], StreamStatus>("stream_update");
 export const saveMpChatToastsInGame = callable<[boolean], { ok: boolean; mpChatToastsInGame: boolean }>(
     "save_mp_chat_toasts_in_game"
 );
+export const saveMpSteadyWifi = callable<[boolean], { ok: boolean; mpSteadyWifi: boolean }>("save_mp_steady_wifi");
 export const saveMpStreamSlowConnection = callable<[boolean], { ok: boolean; mpStreamSlowConnection: boolean }>(
     "save_mp_stream_slow_connection"
 );

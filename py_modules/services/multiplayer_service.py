@@ -3188,7 +3188,7 @@ class MultiplayerService:
         return status.get("adapter", "") if status else ""
 
     async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None,
-                           check_frames=None) -> dict:
+                           check_frames=None, steady_wifi=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -3196,12 +3196,15 @@ class MultiplayerService:
             return {"ok": True}
         if room is None:
             return {"ok": False, "error": ERROR_NO_ROOM}
-        if voice is not None:
-            if bool(voice) != room["voice"]:
-                self._set_room_voice(room, bool(voice))
-            if hardcore is None and core is None and share is None and watch is None and adapter is None \
-                    and check_frames is None:
-                return {"ok": True, "room": self._host_view(room)}
+        if voice is not None and bool(voice) != room["voice"]:
+            self._set_room_voice(room, bool(voice))
+        if steady_wifi is not None and bool(steady_wifi) != room["steadyWifi"]:
+            room["steadyWifi"] = bool(steady_wifi)
+            decky.logger.info("multiplayer: Steady Wi-Fi turned %s for the room", "on" if steady_wifi else "off")
+            self._announce()
+        if (voice is not None or steady_wifi is not None) and hardcore is None and core is None and share is None \
+                and watch is None and adapter is None and check_frames is None:
+            return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
         if core is not None and core != room["core"]:
@@ -3698,6 +3701,7 @@ class MultiplayerService:
             "adapterShown": bool(room["tapAuto"]) and room["max"] > 2
                 and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],
+            "steadyWifi": room["steadyWifi"],
             "hostState": room["hostState"],
             "hostGate": room["hostGate"],
             "hostDetail": dict(room["hostDetail"]),

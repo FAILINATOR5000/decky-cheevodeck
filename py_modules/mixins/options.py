@@ -713,6 +713,14 @@ class OptionsMixin(PluginContext):
             "mpChatToastsInGame": value,
         }
 
+    async def save_mp_steady_wifi(self, mp_steady_wifi: bool):
+        value = self.settings_store.update_mp_steady_wifi(mp_steady_wifi)
+
+        return {
+            "ok": True,
+            "mpSteadyWifi": value,
+        }
+
     async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
         value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
 

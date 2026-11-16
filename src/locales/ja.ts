@@ -3084,6 +3084,8 @@ const JA: LocaleTable = {
     Chat: "チャット",
     "In-Game Chat Toasts": "ゲーム中のチャット通知",
     "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "有効にすると、ルームで誰かがチャットを送信したとき、ゲームのプレイ中でも通知として表示されます。",
+    "Steady Wi-Fi": "Wi-Fiを安定させる",
+    "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.": "ルームでWi-Fiを使っている全員に適用：ラウンド中はネットワークの検索と省電力をオフにして、ゲームがカクつかないようにします。有線の人には何も変更せず、終わったらすべて元に戻します。",
     "Send": "送信",
     "No messages yet": "まだメッセージはありません",
     "Couldn't send that message": "メッセージを送信できませんでした",

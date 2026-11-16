@@ -68,16 +68,17 @@ class MultiplayerMixin(PluginContext):
         self, mode: str = "", game_id: int = 0, hardcore: bool = False, core: str = "", share: bool = False,
         name: str = "", size: int = 4, password: str = "", status: str = "", where: str = "local",
         watch: bool = False, friends: bool = False, voice: bool = False, screen: str = "", check_frames: int = 600,
+        steady_wifi: bool = True,
     ):
         return await self.multiplayer_service.host(
             str(mode or ""), to_int(game_id, 0), bool(hardcore), str(core or ""), bool(share), str(name or ""),
             min(max(to_int(size, 4), 2), 10), str(password or ""), str(status or ""),
             "online" if where == "online" else "local", bool(watch), bool(friends), voice is True, str(screen or ""),
-            to_int(check_frames, 600),
+            to_int(check_frames, 600), steady_wifi is not False,
         )
 
     async def multiplayer_room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None,
-                                       adapter=None, check_frames=None):
+                                       adapter=None, check_frames=None, steady_wifi=None):
         return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
             None if core is None else str(core),
@@ -86,6 +87,7 @@ class MultiplayerMixin(PluginContext):
             None if voice is None else bool(voice),
             None if adapter is None else str(adapter),
             None if check_frames is None else to_int(check_frames, 600),
+            None if steady_wifi is None else bool(steady_wifi),
         )
 
     async def multiplayer_game_options(self, game_id: int = 0):

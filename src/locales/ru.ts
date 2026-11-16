@@ -3298,6 +3298,8 @@ const RU: LocaleTable = {
     Chat: "Чат",
     "In-Game Chat Toasts": "Уведомления чата в игре",
     "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "Если включено, каждое сообщение в чате комнаты будет показываться уведомлением, пока вы играете.",
+    "Steady Wi-Fi": "Стабильный Wi-Fi",
+    "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.": "Для всех в комнате, кто подключён по Wi-Fi: на время раунда отключает поиск сетей и энергосбережение, чтобы игра не подтормаживала. Игроков с проводным подключением это не касается, а после раунда всё возвращается как было.",
     "Send": "Отправить",
     "No messages yet": "Сообщений пока нет",
     "Couldn't send that message": "Не удалось отправить сообщение",

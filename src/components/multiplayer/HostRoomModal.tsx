@@ -7,6 +7,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerAccess, MultiplayerMode, MultiplayerWhere } from "../../types";
 import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks, rememberMultiplayerVoice } from "../../utils/multiplayerChoices";
+import { changeSteadyWifi, steadyWifiChoice } from "../../utils/multiplayerRoomState";
 import { screenSize } from "../../utils/multiplayerSession";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { startReadingLine } from "../../utils/readingLine";
@@ -67,6 +68,7 @@ function HostRoomModal(props: HostRoomModalProps) {
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
     const [voice, setVoice] = useState(picks.voice);
+    const [steadyWifi, setSteadyWifi] = useState(steadyWifiChoice);
     const [hosting, setHosting] = useState(false);
     const stopReading = useRef<() => void>(() => { });
     useEffect(() => () => stopReading.current(), []);
@@ -99,7 +101,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
-                access === "friends", voice, screenSize(), request.checkFrames);
+                access === "friends", voice, screenSize(), request.checkFrames, steadyWifi);
             stopReading.current();
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
@@ -261,6 +263,19 @@ function HostRoomModal(props: HostRoomModalProps) {
                         modalHelp
                         help={t(language, "Everyone starts with their mic muted.")}
                         focusKey="multiplayer:hostroom:voice"
+                    />
+                    <ToggleRow
+                        label={t(language, "Steady Wi-Fi")}
+                        value={steadyWifi}
+                        onChange={(next) => {
+                            setSteadyWifi(next);
+                            void changeSteadyWifi(next);
+                        }}
+                        disabled={hosting}
+                        bottomSeparator="none"
+                        modalHelp
+                        help={t(language, "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.")}
+                        focusKey="multiplayer:hostroom:steadywifi"
                     />
                 </div>
                 <Focusable

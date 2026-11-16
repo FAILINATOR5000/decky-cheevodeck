@@ -3217,6 +3217,8 @@ const DE: LocaleTable = {
     Chat: "Chat",
     "In-Game Chat Toasts": "Chat-Benachrichtigungen im Spiel",
     "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "Wenn aktiviert, wird jede Chatnachricht im Raum als Benachrichtigung angezeigt, während du dein Spiel spielst.",
+    "Steady Wi-Fi": "Stabiles WLAN",
+    "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.": "Für alle im Raum, die über WLAN spielen: Während einer Runde werden die Netzwerksuche und der Energiesparmodus ausgeschaltet, damit das Spiel nicht ruckelt. Wer per Kabel verbunden ist, bleibt unberührt, und danach wird alles zurückgesetzt.",
     "Send": "Senden",
     "No messages yet": "Noch keine Nachrichten",
     "Couldn't send that message": "Die Nachricht konnte nicht gesendet werden",

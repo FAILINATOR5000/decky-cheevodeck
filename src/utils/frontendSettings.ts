@@ -36,7 +36,7 @@ import { setStormbreakerEnabled, setStormbreakerGameMode } from "./stormbreaker"
 import { setPhantomMouseGuardGameMode } from "./phantomMouseGuard";
 import { setVoiceSettings } from "./voiceChat";
 import { setStreamSettings } from "./streamPlay";
-import { setChatToastSettings } from "./multiplayerRoomState";
+import { setChatToastSettings, setSteadyWifiSettings } from "./multiplayerRoomState";
 import { setHotspotSettings } from "./hotspotState";
 import { setCardCollageAccount } from "./playTogetherCollage";
 
@@ -83,6 +83,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     setVoiceSettings(settings);
     setStreamSettings(settings);
     setChatToastSettings(settings);
+    setSteadyWifiSettings(settings);
     setHotspotSettings(settings);
     setCardCollageAccount(settings.activeUlid);
     applyGameArtCacheCap(settings.gameArtCacheCap);

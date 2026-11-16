@@ -3226,6 +3226,8 @@ export const EN: LocaleTable = {
     Chat: "Chat",
     "In-Game Chat Toasts": "In-Game Chat Toasts",
     "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.",
+    "Steady Wi-Fi": "Steady Wi-Fi",
+    "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.": "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.",
     "Send": "Send",
     "No messages yet": "No messages yet",
     "Couldn't send that message": "Couldn't send that message",

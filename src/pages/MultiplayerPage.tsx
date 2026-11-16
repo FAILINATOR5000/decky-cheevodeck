@@ -1150,6 +1150,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             onChange={actions.setVoice}
         />
     );
+    const steadyWifiRow = hosted && (
+        <ToggleRow
+            bottomSeparator="none"
+            controlled
+            label={t(language, "Steady Wi-Fi")}
+            value={hosted.steadyWifi}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:steadywifi"
+            focusFallback={["multiplayer:toggle:voice", "multiplayer:toggle:hardcore", "multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:host"]}
+            onChange={actions.setSteadyWifi}
+            help={t(language, "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.")}
+        />
+    );
 
     const roomButton = joined ? (
         <PanelSectionRow>
@@ -1783,7 +1796,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             value={chatToastsInGame}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:chattoasts"
-            focusFallback={["multiplayer:toggle:voice", "multiplayer:toggle:hardcore", "multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", exitKey]}
+            focusFallback={["multiplayer:toggle:steadywifi", "multiplayer:toggle:voice", "multiplayer:toggle:hardcore", "multiplayer:adapter", "multiplayer:synccheck", "multiplayer:toggle:synccheck", "multiplayer:toggle:watch", "multiplayer:toggle:share", exitKey]}
             onChange={(next) => void changeChatToastsInGame(next)}
             help={t(language, "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.")}
         />
@@ -1809,6 +1822,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {!joined && (showHardcore || voiceRow || chatToastRow) && <SectionTitle label={t(language, "Options")} />}
             {showHardcore && hardcoreRow}
             {voiceRow}
+            {steadyWifiRow}
             {chatToastRow}
         </>
     );

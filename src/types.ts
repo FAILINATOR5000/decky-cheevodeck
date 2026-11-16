@@ -885,6 +885,7 @@ export type SettingsResponse = {
     mpVoicePushToTalk: boolean;
     mpStreamSlowConnection: boolean;
     mpChatToastsInGame: boolean;
+    mpSteadyWifi: boolean;
     mpStreamScreenWarningOff: boolean;
     hotspotIntroOff: boolean;
     hotspotDedicated: boolean;
@@ -3146,6 +3147,7 @@ export type MultiplayerHostedRoom = {
     share: boolean;
     watch: boolean;
     voice: boolean;
+    steadyWifi: boolean;
     hostState: MultiplayerSeatState;
     hostGate: string;
     hostDetail: Record<string, string>;

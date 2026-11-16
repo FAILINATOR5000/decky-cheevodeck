@@ -52,7 +52,7 @@ import {
     startMultiplayerRound,
     subscribeMultiplayerSession
 } from "../utils/multiplayerSession";
-import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
+import { changeSteadyWifi, pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 import { useStreamSetup } from "../utils/streamPlay";
 import { useFixPlan, type FixAnswer } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
@@ -705,6 +705,13 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function setSteadyWifi(next: boolean) {
+        void changeSteadyWifi(next);
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, null, null, next));
+        }
+    }
+
     async function closeRoom() {
         await run("Couldn't Leave the Room", () => multiplayerCloseRoom());
         forgetMultiplayerRoomChoices();
@@ -807,6 +814,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setSyncCheck,
             setAdapter,
             setVoice,
+            setSteadyWifi,
             closeRoom,
             leave,
             play,
