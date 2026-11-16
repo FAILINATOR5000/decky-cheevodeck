@@ -1402,7 +1402,11 @@ class MultiplayerService:
             tokens = shlex.split(f'{shortcut["exe"]} {shortcut["launchOptions"]}', posix=True)
         except ValueError:
             return None
-        if any(token.endswith(".sh") for token in tokens[:2]):
+        script = next((token for token in tokens[:2] if token.endswith(".sh")), None)
+        if script is not None:
+            path = self._user_home / script[1:].lstrip("/") if script.startswith("~") else Path(script)
+            if path.is_absolute() and not path.exists():
+                return {"emulator": FALLBACK_NAMES[kind], "kind": kind, "via": "", "path": str(path)}
             return None
         via, image = catalog.shortcut_install(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
         detail = {"emulator": FALLBACK_NAMES[kind], "kind": kind, "via": via, "path": image}
