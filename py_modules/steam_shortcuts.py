@@ -385,7 +385,7 @@ def emulator_shortcuts(home=None, held=None):
         if held is not None and shortcut["appid"] == held[0]:
             options = held[1]
             roms = rom_candidates(exe, options or None)
-        if not exe or roms or _passes_path(exe, options):
+        if not exe or roms or resolve_rom_path(exe, options or None) is not None or _passes_path(exe, options):
             continue
         found.append({"appid": shortcut["appid"], "name": shortcut["name"], "exe": exe, "launchOptions": options})
     _emulators_cache = ((stamp, held), found)
