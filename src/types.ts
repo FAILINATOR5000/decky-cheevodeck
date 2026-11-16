@@ -3267,6 +3267,7 @@ type MultiplayerLocal = {
     fallback?: boolean;
     picked?: boolean;
     vehicles?: number;
+    dolphinMappings?: boolean;
 };
 
 type MultiplayerWarning = { code: string; detail: Record<string, string> };
@@ -3402,6 +3403,18 @@ export type PlayInfo = {
     state?: MultiplayerModeState["state"];
     plan?: FixPlan;
     backups?: boolean;
+    dolphinMappings?: boolean;
+};
+
+export type DolphinGameMappingSlot = "play" | "stream";
+
+export type DolphinGameMappings = {
+    ok: boolean;
+    system?: DolphinSystem | "";
+    play?: string;
+    stream?: string;
+    automap?: boolean;
+    mappings?: DolphinMapping[];
 };
 
 export type SaveBackupReason = "launch" | "couch" | "link" | "stream" | "end" | "mid" | "wii-copy-back" | "restore";

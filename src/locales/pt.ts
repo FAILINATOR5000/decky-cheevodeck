@@ -3878,6 +3878,14 @@ const PT: LocaleTable = {
     "help_clear_all_save_backups": "Apaga todos os backups de saves deste dispositivo, de todos os jogos. Seus saves em si não são alterados. Não dá para desfazer.",
     "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Para restaurar um backup, pressione {{button}} duas vezes sobre ele. Você sempre pode desfazer a restauração.",
     "If you ever want to restore a backup, press {{button}} on it twice.": "Para restaurar um backup, pressione {{button}} duas vezes sobre ele.",
+    "Dolphin Mappings": "Mapeamentos do Dolphin",
+    "Play Mapping": "Mapeamento para jogar",
+    "Stream Play Mapping": "Mapeamento de jogo por streaming",
+    "Used for Play, Couch Play and Link Play.": "Usado em Jogar, Jogo no sofá e Jogo em link.",
+    "Used when you host Stream Play.": "Usado quando você hospeda um jogo por streaming.",
+    "No mappings for this console yet. Make one in the Dolphin Mapper.": "Ainda não há mapeamentos para este console. Crie um no Dolphin Mapper.",
+    "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "O AutoMap do EmuDeck define os controles deste jogo ao iniciar, então estes mapeamentos não são usados. Desative o AutoMap do Dolphin no EmuDeck para usá-los.",
+    "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Abre o Dolphin Mapper. Se este jogo tiver um mapeamento do Dolphin próprio, ele é usado ao iniciar.",
 };
 
 export default PT;

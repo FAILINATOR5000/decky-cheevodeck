@@ -3,6 +3,8 @@ import { Router } from "@decky/ui";
 
 import {
     checkCurrentGame,
+    dolphinMappingPlayEnded,
+    dolphinMappingPlayStarted,
     multiplayerClearRestore,
     multiplayerLaunchEnded,
     multiplayerLaunchStarted,
@@ -343,6 +345,7 @@ export async function playGame(gameId: number, appid: number, fallback: boolean,
     launching = true;
     try {
         await saveBackupsPlayStarted(gameId, choice).catch((e) => logError("play: the save backup before launch", e));
+        await dolphinMappingPlayStarted(gameId, choice).catch((e) => logError("play: the game's Dolphin mapping", e));
         const result = fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
         if (result.ok) {
             stopPlayFollow();
@@ -352,14 +355,14 @@ export async function playGame(gameId: number, appid: number, fallback: boolean,
                 if (playFollow === follow && !follow.started) {
                     playFollow = null;
                     if (playBackupAppid === appid) {
-                        endPlayBackups();
+                        endPlayed();
                     }
                 }
             }, PLAY_START_WAIT_MS);
             playFollow = follow;
         }
         else {
-            endPlayBackups();
+            endPlayed();
         }
         return result;
     }
@@ -500,9 +503,10 @@ function followCurrentGame() {
     }, FOLLOW_AFTER_MS);
 }
 
-function endPlayBackups() {
+function endPlayed() {
     playBackupAppid = 0;
     saveBackupsPlayEnded().catch((e) => logError("play: the save backup after the game", e));
+    dolphinMappingPlayEnded().catch((e) => logError("play: putting the Dolphin controls back", e));
 }
 
 function stopPlayFollow() {
@@ -557,7 +561,7 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
     }
     const follow = playFollow;
     if (playBackupAppid && event?.unAppID === playBackupAppid && !event.bRunning) {
-        endPlayBackups();
+        endPlayed();
     }
     if (follow && event?.unAppID === follow.appid) {
         if (!event.bRunning) {

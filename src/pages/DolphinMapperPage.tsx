@@ -34,7 +34,6 @@ import {
     dolphinMapperModeLabel,
     dolphinSystemFilterLabel,
     groupMappingsByTag,
-    mappingSummary,
     nextDolphinMapperMode,
     nextDolphinSystemFilter
 } from "../utils/dolphin";
@@ -46,10 +45,10 @@ import {
 import { playOkSound, toastAfterPress } from "../utils/navSound";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { achievementGreen } from "../utils/style";
-import { textSize } from "../utils/scale";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useDolphinMapper } from "../components/mapping/DolphinMapperContext";
 import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
+import { MappingCardBody } from "../components/mapping/MappingCardBody";
 import { showManagedModal } from "../utils/modalRegistry";
 import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
@@ -68,26 +67,6 @@ const GROUP_FALLBACK = ["dolphinMapper:filter"];
 const APPLY_ERROR_SETTLE_MS = 250;
 
 const BT_PASSTHROUGH_GUIDE_URL = "https://retrodeck.readthedocs.io/en/latest/wiki_emulator_guides/dolphin/dolphin-wii-remote/";
-
-const MAX_CONTROLLER_SLOTS = 4;
-
-// Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
-function GamepadIcon() {
-    return (
-        <svg
-            viewBox="0 0 640 512"
-            width="20"
-            height="16"
-            xmlns="http://www.w3.org/2000/svg"
-            focusable="false"
-        >
-            <path
-                fill="currentColor"
-                d="M192 64C86 64 0 150 0 256S86 448 192 448l256 0c106 0 192-86 192-192s-86-192-192-192L192 64zM496 168a40 40 0 1 1 0 80 40 40 0 1 1 0-80zM392 304a40 40 0 1 1 80 0 40 40 0 1 1 -80 0zM168 200c0-13.3 10.7-24 24-24s24 10.7 24 24l0 32 32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0 0 32c0 13.3-10.7 24-24 24s-24-10.7-24-24l0-32-32 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l32 0 0-32z"
-            />
-        </svg>
-    );
-}
 
 type DolphinMapperPageProps = {
     view: ViewKey;
@@ -761,9 +740,6 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
     const { mapping, groupKey, isReorderTarget, isPendingDelete, applyBlocked, list } = props;
     const { language, belowDisabled } = list;
 
-    const parsed = parseNoteTag(mapping.name);
-    const title = parsed.body.trim() || t(language, "Untitled mapping");
-
     const outerStyle: CSSProperties = {
         ...list.buttonOuterStyle,
         ...(isReorderTarget ? { outline: `2px solid ${achievementGreen}`, borderRadius: "6px" } : {})
@@ -815,31 +791,14 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
             onGamepadBlur={handleBlur}
             onButtonDown={handleButtonDown}
         >
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
-                <div style={{ fontWeight: 600, wordBreak: "break-word", fontSize: `${textSize(15)}px` }}>{title}</div>
-                <div style={{ ...bodyTextStyle(), opacity: 0.75 }}>{mappingSummary(mapping, language)}</div>
-                {mapping.body.trim() && (
-                    <div style={{ ...bodyTextStyle(), whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {mapping.body.trim()}
-                    </div>
-                )}
+            <MappingCardBody mapping={mapping} language={language}>
                 {isPendingDelete && (
                     <div style={{ ...bodyTextStyle(), opacity: 1, color: "#ff6a6a" }}>{t(language, "Press again to delete")}</div>
                 )}
                 {applyBlocked && (
                     <div style={{ ...bodyTextStyle(), opacity: 1, color: "#ff6a6a" }}>{t(language, "Close Dolphin to apply this mapping.")}</div>
                 )}
-                <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", gap: "4px", marginTop: "4px" }}>
-                    {Array.from({ length: MAX_CONTROLLER_SLOTS }, (_, slot) => (
-                        <span
-                            key={slot}
-                            style={{ display: "inline-flex", opacity: slot < mapping.players.length ? 1 : 0.25 }}
-                        >
-                            <GamepadIcon />
-                        </span>
-                    ))}
-                </div>
-            </div>
+            </MappingCardBody>
         </FocusableItem>
     );
 });

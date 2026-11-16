@@ -39,6 +39,8 @@ from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.save_backups import SaveBackups
+from services.dolphin_game_mappings import DolphinGameMappings
+from dolphin_game_mappings_store import DolphinGameMappingsStore
 from save_backup_settings_store import SaveBackupSettingsStore
 from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
@@ -836,6 +838,17 @@ class Plugin(
                                                                   settings_store=self.settings_store)
         self.save_backups = SaveBackups(runtime_dir=self.runtime_dir, settings_store=self.settings_store,
                                         game_settings=self.save_backup_settings_store)
+        self.dolphin_game_mappings_store = DolphinGameMappingsStore(base_dir=self.runtime_dir,
+                                                                    settings_store=self.settings_store)
+        self.dolphin_launch_mappings = DolphinGameMappings(
+            store=self.dolphin_game_mappings_store,
+            mappings_store=self.dolphin_mappings_store,
+            settings_store=self.settings_store,
+            apply=self._apply_dolphin_mapping_sync,
+            dolphin_running=self.emulator_login_sync_service.is_dolphin_running,
+            runtime_dir=self.runtime_dir,
+            user_home=self.user_home,
+        )
         self.multiplayer_service = MultiplayerService(
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
@@ -850,6 +863,7 @@ class Plugin(
             stream_host=self.stream_host,
             emulator_service=self.emulator_service,
             save_backups=self.save_backups,
+            dolphin_mappings=self.dolphin_launch_mappings,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(
@@ -1048,6 +1062,11 @@ class Plugin(
                 "repair: startup repairs dispatch failed: %s",
                 type(e).__name__,
             )
+
+        try:
+            await asyncio.to_thread(self.dolphin_launch_mappings.put_back, False)
+        except Exception as e:
+            decky.logger.warning("dolphin mappings: startup put-back failed (%s)", type(e).__name__)
 
         self.current_game_service.set_event_loop(self._asyncio_loop)
 
@@ -1769,6 +1788,7 @@ class Plugin(
         self.multiplayer_volumes_store.clear()
         self.save_backup_settings_store.remove_account(cfg.get("activeUlid"))
         self.multiplayer_service.forget_game_options(cfg.get("activeUlid"))
+        self.dolphin_game_mappings_store.remove_account(cfg.get("activeUlid"))
 
         return {
             "ok": True,

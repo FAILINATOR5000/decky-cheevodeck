@@ -5405,7 +5405,8 @@ function AchievementsRoot() {
                                     actions={{
                                         onBack: backToMultiplayerSource,
                                         onHome: goToAchievements,
-                                        onSetUpVoiceShortcuts: () => goToOptions(voiceShortcutFocusKey(shortcutBindings))
+                                        onSetUpVoiceShortcuts: () => goToOptions(voiceShortcutFocusKey(shortcutBindings)),
+                                        onOpenDolphinMapper: () => goToDolphinMapper()
                                     }}
                                 />
 

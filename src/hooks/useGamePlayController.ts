@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { multiplayerCheck, multiplayerPlayChoices, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
 import { showPlayWith } from "../components/game/PlayWithModal";
+import { showDolphinMappings } from "../components/game/DolphinMappingsModal";
 import { showSaveBackups } from "../components/game/SaveBackupsModal";
 import { openFixIt } from "../components/multiplayer/FixItModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
@@ -22,9 +23,9 @@ import {
     subscribeRunningApp
 } from "../utils/multiplayerSession";
 
-export type PlayMode = "play" | "host" | "with" | "backups";
+export type PlayMode = "play" | "host" | "with" | "backups" | "mappings";
 
-const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "backups", backups: "play" };
+const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "backups", backups: "mappings", mappings: "play" };
 
 type HostCheck = { gameId: number; gate: string | null };
 
@@ -157,7 +158,14 @@ export function useGamePlayController(props: {
     let label: string;
     let press: (() => void) | null = null;
     let explain: (() => void) | null = null;
-    if (mode === "backups") {
+    if (mode === "mappings") {
+        label = t(language, "Dolphin Mappings");
+        if (gameId != null) {
+            const about = { language, gameId, title: props.title };
+            press = () => showDolphinMappings(about);
+        }
+    }
+    else if (mode === "backups") {
         label = t(language, "Backups");
         if (gameId != null) {
             const about = { language, gameId, title: props.title };
@@ -221,9 +229,16 @@ export function useGamePlayController(props: {
         }
     }
 
+    function offered(next: PlayMode) {
+        return (next !== "backups" || Boolean(info?.backups)) && (next !== "mappings" || Boolean(info?.dolphinMappings));
+    }
+
     function onToggleMode() {
-        const next = NEXT_MODE[mode];
-        setChosen({ gameId, mode: next === "backups" && !info?.backups ? NEXT_MODE[next] : next });
+        let next = NEXT_MODE[mode];
+        while (!offered(next)) {
+            next = NEXT_MODE[next];
+        }
+        setChosen({ gameId, mode: next });
     }
 
     function onPress() {

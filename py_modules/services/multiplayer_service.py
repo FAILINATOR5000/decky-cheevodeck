@@ -22,7 +22,7 @@ import decky
 import emulator_catalog as catalog
 import multiplayer_lounge as lounge
 import multiplayer_protocol as proto
-from services import game_pipes, stream_room, wii_saves
+from services import dolphin_game_mappings, game_pipes, stream_room, wii_saves
 import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
@@ -391,9 +391,10 @@ class MultiplayerService:
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
-        stream_setup=None, stream_host=None, emulator_service=None, save_backups=None,
+        stream_setup=None, stream_host=None, emulator_service=None, save_backups=None, dolphin_mappings=None,
     ):
         self._settings_store = settings_store
+        self._mappings = dolphin_mappings
         self._emulators = emulator_service
         self._backups = save_backups
         self._stream_setup = stream_setup
@@ -1593,7 +1594,7 @@ class MultiplayerService:
         if disc and session.dolphin_sets_adapter(session.dolphin_game_settings(self._user_home, install), disc):
             return None, "dolphin_game_setting", {}
         local.update(core=session.DOLPHIN_STANDALONE, coreName="Dolphin", shortcutCoreName="Dolphin",
-                     install=install, gameCode=disc[:4],
+                     install=install, gameCode=disc[:4], automap=self._automap(pick["shortcut"]),
                      emuVersion=self._flatpak_version(session.DOLPHIN_FLATPAK) if install == "flatpak" else "")
         return local, None, {}
 
@@ -1618,7 +1619,7 @@ class MultiplayerService:
         disc = rom_headers.disc_game_id(pick["real"])
         local.update(core=session.DOLPHIN_STANDALONE, coreName="Dolphin", shortcutCoreName="Dolphin",
                      install=install, gameCode=disc[:4], gameAppid=local["appid"], appid=emulator["appid"],
-                     emuVersion=self._dolphin_version(install, emulator))
+                     automap=self._automap(emulator), emuVersion=self._dolphin_version(install, emulator))
         return local, None, {}
 
     def _rmg_couch_local(self, local: dict, vehicle=None):
@@ -1938,6 +1939,8 @@ class MultiplayerService:
             "emuVersion": "",
             "route": route,
             "picked": bool(route.get("picked")),
+            "install": self._route_install(route) if emulator == "dolphin" else "",
+            "automap": emulator == "dolphin" and self._automap(self._route_shortcut(route)),
         }
         return local, None, {}
 
@@ -2035,10 +2038,27 @@ class MultiplayerService:
             plan = self._plan_ahead("play", game_id, "", None, (gate, detail, fix), choice=choice)
             state = "setup" if plan["steps"] else _gate_state(gate, fix, self._emulators is not None and gate in PLANNED_GATES)
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
-                    "tools": self.desktop_tools(), "state": state, "plan": plan, "backups": backups}
+                    "tools": self.desktop_tools(), "state": state, "plan": plan, "backups": backups,
+                    "dolphinMappings": False}
         return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": bool(_route_args(route)),
                 "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route), "state": "ready",
-                "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}, "backups": backups}
+                "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}, "backups": backups,
+                "dolphinMappings": self._mapping_target(game_id, route) is not None}
+
+    def play_mapping_target(self, game_id: int, choice=None):
+        route, _gate, _detail = self._play_route(game_id, choice=choice)
+        return self._mapping_target(game_id, route) if route is not None else None
+
+    def _mapping_target(self, game_id: int, route: dict):
+        game = (self._library() or {}).get(game_id)
+        if self._mappings is None or game is None:
+            return None
+        emulator, _core = _route_emulator(route)
+        install = self._route_install(route) if emulator == "dolphin" else ""
+        if not dolphin_game_mappings.takes_mappings(game["systemId"], emulator, install):
+            return None
+        return {"systemId": game["systemId"], "install": install,
+                "automap": self._automap(self._route_shortcut(route))}
 
     def game_system(self, game_id: int) -> tuple:
         game = (self._library() or {}).get(game_id)
@@ -2107,13 +2127,20 @@ class MultiplayerService:
                 break
         return Path(chosen) / chosen_region if chosen.startswith("/") else None
 
-    def _route_install(self, route) -> str:
+    def _route_shortcut(self, route):
         if route is None:
-            return ""
-        shortcut = self._emulator_by_appid(route["appid"]) if route["fallback"] else route["shortcut"]
+            return None
+        return self._emulator_by_appid(route["appid"]) if route["fallback"] else route["shortcut"]
+
+    def _route_install(self, route) -> str:
+        shortcut = self._route_shortcut(route)
         if shortcut is None:
             return ""
         return session.dolphin_install(shortcut["exe"], shortcut["launchOptions"], self._user_home)
+
+    def _automap(self, shortcut) -> bool:
+        return shortcut is not None and session.emudeck_automap(
+            shortcut["exe"], shortcut["launchOptions"], self._user_home)
 
     def _desktop_tool_command(self, tool: str):
         home = self._user_home
@@ -5666,6 +5693,7 @@ class MultiplayerService:
         if held is not None and not (unlaunched and held["session"] == stale["id"]):
             return {"ok": False, "error": ERROR_BUSY}
         if unlaunched:
+            self._put_mapping_back(stale)
             self._session = None
             self._remove_session_files(stale["id"])
             self._close_guest_tunnels_soon()
@@ -5852,6 +5880,7 @@ class MultiplayerService:
             "role": role,
             "mode": mode,
             "emulator": local["emulator"],
+            "mapping": self._apply_mapping(local, "play"),
             "files": files,
             "started": 0.0,
             "seen": False,
@@ -5986,6 +6015,7 @@ class MultiplayerService:
             "role": role,
             "mode": "stream",
             "emulator": local["emulator"],
+            "mapping": self._apply_mapping(local, "stream"),
             "backup": backup,
             "files": [],
             "started": 0.0,
@@ -6193,6 +6223,7 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_WRITE_FAILED}
         current = self._session
         if current is not None and current["id"] == sid and not current["started"]:
+            self._put_mapping_back(current)
             self._session = None
             self._remove_session_files(sid)
             self._close_guest_tunnels_soon()
@@ -6430,7 +6461,22 @@ class MultiplayerService:
         self._emit({"state": "ended", "session": current["id"]})
         self._session_over(current)
 
+    def _apply_mapping(self, local: dict, slot: str) -> bool:
+        if self._mappings is None or not dolphin_game_mappings.takes_mappings(
+                local["systemId"], local["emulator"], local.get("install", "")):
+            return False
+        if local.get("automap"):
+            decky.logger.info("dolphin mappings: EmuDeck's AutoMap sets the controls for this launch, game %s's "
+                              "%s mapping is not applied", local["gameId"], slot)
+            return False
+        return self._mappings.apply(local["gameId"], local["systemId"], local["install"], slot)
+
+    def _put_mapping_back(self, current: dict) -> None:
+        if current.pop("mapping", False):
+            threading.Thread(target=self._mappings.put_back, name="dolphin-mapping-put-back", daemon=True).start()
+
     def _session_over(self, current: dict) -> None:
+        self._put_mapping_back(current)
         if self._session is current:
             self._session = None
         self._close_guest_tunnels()
@@ -7110,6 +7156,8 @@ def _local_view(local: dict) -> dict:
         "fallback": local["fallback"],
         "picked": bool(local.get("picked")),
         "vehicles": local.get("vehicles", 0),
+        "dolphinMappings": dolphin_game_mappings.takes_mappings(local["systemId"], local["emulator"],
+                                                                local.get("install", "")),
     }
 
 

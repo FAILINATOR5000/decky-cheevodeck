@@ -1,4 +1,5 @@
 import { DialogButton, Focusable, PanelSectionRow, SliderField } from "@decky/ui";
+import { FaGamepad } from "react-icons/fa";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { PanelSection } from "../components/ui/PanelSection";
@@ -205,6 +206,7 @@ type MultiplayerPageActions = {
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
     onSetUpVoiceShortcuts: () => void;
+    onOpenDolphinMapper: () => void;
 };
 
 type MultiplayerPageProps = {
@@ -286,6 +288,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const landingWindows = useRef<LandingWindows | null>(null);
     const streamModeNav = useRef<any>(null);
     const [playFocused, setPlayFocused] = useState(false);
+    const [mapperFocused, setMapperFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
     const voice = useVoiceChat(visible);
     const [seatAction, setSeatAction] = useState<{ label: string | null; own: boolean }>({ label: null, own: false });
@@ -627,6 +630,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const openOwnFix = () => openModeReason(mp.mode);
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
     const slotButtonStyle = { width: "100%", minWidth: 0 };
+    const showMapper = inSession && Boolean(local?.dolphinMappings);
 
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
 
@@ -943,29 +947,46 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         <>
             <PanelSectionRow>
                 {inSession ? (
-                    <FocusTarget
-                        key="multiplayer:play"
-                        focusKey="multiplayer:play"
-                        focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                        style={slotStyle}
-                    >
-                        <DialogButton
-                            focusable={canPlay || playFixable || Boolean(whyNot)}
-                            disabled={!canPlay && !playFixable && !whyNot}
-                            onClick={canPlay ? pressPlay : playFixable ? () => openModeReason(mp.mode) : explainStart}
-                            onGamepadFocus={() => setPlayFocused(true)}
-                            onGamepadBlur={() => setPlayFocused(false)}
-                            style={{
-                                ...slotButtonStyle,
-                                fontWeight: 800,
-                                background: playBackground,
-                                color: playColor,
-                                opacity: canPlay || playGreen ? 1 : 0.45
-                            }}
+                    <Focusable key="multiplayer:play" flow-children="row" style={{ ...slotStyle, gap: "2px" }}>
+                        <FocusTarget
+                            focusKey="multiplayer:play"
+                            focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
+                            style={{ display: "flex", flex: 1, minWidth: 0 }}
                         >
-                            {t(language, playLabel)}
-                        </DialogButton>
-                    </FocusTarget>
+                            <DialogButton
+                                focusable={canPlay || playFixable || Boolean(whyNot)}
+                                disabled={!canPlay && !playFixable && !whyNot}
+                                onClick={canPlay ? pressPlay : playFixable ? () => openModeReason(mp.mode) : explainStart}
+                                onGamepadFocus={() => setPlayFocused(true)}
+                                onGamepadBlur={() => setPlayFocused(false)}
+                                style={{
+                                    ...slotButtonStyle,
+                                    fontWeight: 800,
+                                    background: playBackground,
+                                    color: playColor,
+                                    opacity: canPlay || playGreen ? 1 : 0.45
+                                }}
+                            >
+                                {t(language, playLabel)}
+                            </DialogButton>
+                        </FocusTarget>
+                        {showMapper && (
+                            <FocusTarget
+                                focusKey="multiplayer:dolphinmapper:open"
+                                focusFallback={["multiplayer:play", "multiplayer:pickgame", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
+                                style={{ display: "flex", flex: "0 0 40px" }}
+                            >
+                                <DialogButton
+                                    onClick={page.onOpenDolphinMapper}
+                                    onGamepadFocus={() => setMapperFocused(true)}
+                                    onGamepadBlur={() => setMapperFocused(false)}
+                                    style={{ width: "100%", minWidth: 0, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+                                >
+                                    <FaGamepad />
+                                </DialogButton>
+                            </FocusTarget>
+                        )}
+                    </Focusable>
                 ) : (
                     <FocusTarget
                         key="multiplayer:pickgame"
@@ -983,6 +1004,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     </FocusTarget>
                 )}
             </PanelSectionRow>
+            {showMapper && mapperFocused && (
+                <PanelSectionRow>
+                    <div style={bodyTextStyle()}>
+                        {t(language, "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.")}
+                    </div>
+                </PanelSectionRow>
+            )}
         </>
     );
 

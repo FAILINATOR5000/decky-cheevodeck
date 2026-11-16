@@ -50,6 +50,8 @@ import type {
     CouchChoices,
     PlayChoices,
     PlayPick,
+    DolphinGameMappings,
+    DolphinGameMappingSlot,
     MultiplayerFriendsState,
     MultiplayerGame,
     MultiplayerGuestGame,
@@ -554,6 +556,10 @@ export const resetDolphinMappings = callable<[], OkResult>("reset_dolphin_mappin
 export const clearDolphinMappings = callable<[], OkResult>("clear_dolphin_mappings");
 export const reorderDolphinMappings = callable<[string[]], ReorderDolphinMappingsResponse>("reorder_dolphin_mappings");
 export const applyDolphinMapping = callable<[string], ApplyDolphinMappingResponse>("apply_dolphin_mapping");
+export const dolphinGameMappings = callable<[number], DolphinGameMappings>("dolphin_game_mappings");
+export const setDolphinGameMapping = callable<[number, DolphinGameMappingSlot, string], { ok: boolean; play?: string; stream?: string }>(
+    "set_dolphin_game_mapping"
+);
 
 // SMB shares
 export const listSmbShares = callable<[boolean, boolean], { shares: SmbShare[] }>("list_smb_shares");
@@ -1178,6 +1184,10 @@ export const saveBackupsPlayStarted = callable<[number, PlayPick | Record<string
     "save_backups_play_started"
 );
 export const saveBackupsPlayEnded = callable<[], { ok: boolean }>("save_backups_play_ended");
+export const dolphinMappingPlayStarted = callable<[number, PlayPick | Record<string, never> | null], { ok: boolean; applied?: boolean }>(
+    "dolphin_mapping_play_started"
+);
+export const dolphinMappingPlayEnded = callable<[], { ok: boolean }>("dolphin_mapping_play_ended");
 export const saveBackupsInfo = callable<[number], SaveBackupsInfo>("save_backups_info");
 export const saveBackupsRestore = callable<[number, string], { ok: boolean; error?: string }>("save_backups_restore");
 export const saveBackupsClear = callable<[number], { ok: boolean }>("save_backups_clear");

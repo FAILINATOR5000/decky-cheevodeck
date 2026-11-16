@@ -3929,6 +3929,14 @@ const RU: LocaleTable = {
     "help_clear_all_save_backups": "Удаляет все резервные копии сохранений на этом устройстве для всех игр. Сами сохранения не трогаются. Отменить нельзя.",
     "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "Чтобы восстановить резервную копию, дважды нажми на ней {{button}}. Восстановление всегда можно отменить.",
     "If you ever want to restore a backup, press {{button}} on it twice.": "Чтобы восстановить резервную копию, дважды нажми на ней {{button}}.",
+    "Dolphin Mappings": "Раскладки Dolphin",
+    "Play Mapping": "Раскладка для игры",
+    "Stream Play Mapping": "Раскладка для игры по трансляции",
+    "Used for Play, Couch Play and Link Play.": "Используется для «Играть», игры на диване и связанной игры.",
+    "Used when you host Stream Play.": "Используется, когда вы проводите игру по трансляции.",
+    "No mappings for this console yet. Make one in the Dolphin Mapper.": "Для этой консоли пока нет раскладок. Создайте её в Dolphin Mapper.",
+    "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "AutoMap в EmuDeck задаёт управление этой игры при запуске, поэтому эти раскладки не используются. Чтобы использовать их, отключите AutoMap для Dolphin в EmuDeck.",
+    "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Открывает Dolphin Mapper. Если у этой игры есть своя раскладка Dolphin, при запуске используется она.",
 };
 
 export default RU;

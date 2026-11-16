@@ -18,6 +18,8 @@ PPSSPP_CONFIGS = (
     ".config/ppsspp/PSP/SYSTEM/ppsspp.ini",
 )
 EMUDECK_SETTINGS = (".config/EmuDeck/settings.sh", "emudeck/settings.sh")
+PRODUCT_NAME = "/sys/devices/virtual/dmi/id/product_name"
+STEAM_DECK_PRODUCTS = ("Jupiter", "Galileo")
 
 RETROARCH_FLATPAK = "org.libretro.RetroArch"
 DEFAULT_CHECK_FRAMES = 600
@@ -881,6 +883,45 @@ def rom_crc(path) -> str:
     except OSError:
         return ""
     return f"{crc & 0xFFFFFFFF:08x}"
+
+
+def emudeck_automap(exe, launch_options, home) -> bool:
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    script = next((token for token in tokens[:2] if token.endswith(".sh")), None)
+    if script is None:
+        return False
+    try:
+        text = Path(_expand(script, Path(home), Path(home))).read_text(encoding="utf-8", errors="replace")
+    except (OSError, TypeError):
+        return False
+    if not re.search(r"^\s*emulatorInit\s+[\"']?dolphin\b", text, re.M | re.I):
+        return False
+    value = None
+    for relative in EMUDECK_SETTINGS:
+        try:
+            lines = (Path(home) / relative).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            found = re.match(r"^\s*autoMapDolphin\s*=\s*[\"']?([^\"'\s]*)", line)
+            if found:
+                value = found.group(1)
+        break
+    if value == "false":
+        return False
+    if value:
+        return True
+    try:
+        product = Path(PRODUCT_NAME).read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        product = ""
+    return product not in STEAM_DECK_PRODUCTS
 
 
 def emudeck_netplay_on(home) -> bool:

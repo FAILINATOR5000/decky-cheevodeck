@@ -3703,6 +3703,14 @@ const JA: LocaleTable = {
     "help_clear_all_save_backups": "このデバイスにあるすべてのゲームのセーブデータのバックアップを削除します。セーブデータ自体はそのままです。元に戻せません。",
     "If you ever want to restore a backup, press {{button}} on it twice. You can always reverse the restore as well.": "バックアップを復元するには、その上で {{button}} を2回押します。復元はいつでも元に戻せます。",
     "If you ever want to restore a backup, press {{button}} on it twice.": "バックアップを復元するには、その上で {{button}} を2回押します。",
+    "Dolphin Mappings": "Dolphin マッピング",
+    "Play Mapping": "プレイ用マッピング",
+    "Stream Play Mapping": "ストリームプレイ用マッピング",
+    "Used for Play, Couch Play and Link Play.": "プレイ、カウチプレイ、リンクプレイで使用します。",
+    "Used when you host Stream Play.": "ストリームプレイをホストするときに使用します。",
+    "No mappings for this console yet. Make one in the Dolphin Mapper.": "このゲーム機のマッピングはまだありません。Dolphin Mapper で作成してください。",
+    "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "EmuDeck の AutoMap が起動時にこのゲームの操作を設定するため、これらのマッピングは使われません。使うには EmuDeck で Dolphin の AutoMap をオフにしてください。",
+    "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Dolphin Mapper を開きます。このゲーム専用の Dolphin マッピングがあれば、起動時はそちらが使われます。",
 };
 
 export default JA;

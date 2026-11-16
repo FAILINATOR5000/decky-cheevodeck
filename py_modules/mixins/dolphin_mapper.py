@@ -10,7 +10,8 @@ import dolphin_seed
 
 from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
 from mixins._context import PluginContext
-from utils import open_dir, user_file_target
+from services.dolphin_game_mappings import mapping_system
+from utils import open_dir, to_int, user_file_target
 
 
 STEAMDECK_CONTROLLER_VID = "28de"
@@ -100,9 +101,12 @@ class DolphinMapperMixin(PluginContext):
         return self.dolphin_mappings_store.reorder(ordered_ids)
 
     async def apply_dolphin_mapping(self, mapping_id):
-        return await asyncio.to_thread(self._apply_dolphin_mapping_sync, mapping_id)
+        result = await asyncio.to_thread(self._apply_dolphin_mapping_sync, mapping_id)
+        if result.get("ok"):
+            await asyncio.to_thread(self.dolphin_launch_mappings.forget_put_back)
+        return result
 
-    def _apply_dolphin_mapping_sync(self, mapping_id):
+    def _apply_dolphin_mapping_sync(self, mapping_id, config_dirs=None):
         with _dolphin_ini_lock:
             data = self.dolphin_mappings_store.load_all()
             mapping = next((m for m in data["mappings"] if m["id"] == mapping_id), None)
@@ -131,7 +135,10 @@ class DolphinMapperMixin(PluginContext):
 
             writes = []
             written = []
-            for target in self._detected_dolphin_targets():
+            targets = self._detected_dolphin_targets() if config_dirs is None else [
+                {"name": "launch", "config_dir": config_dir} for config_dir in config_dirs
+            ]
+            for target in targets:
                 config_dir = target["config_dir"]
                 writes.append((config_dir / filename, content))
                 writes.append((config_dir / other_filename, other_content))
@@ -152,6 +159,49 @@ class DolphinMapperMixin(PluginContext):
             if not self._write_ini_files(writes):
                 return {"ok": False, "error": "write_failed"}
             return {"ok": True, "file": filename, "cleared": other_filename, "targets": written}
+
+    def _dolphin_game_mappings_sync(self, game_id):
+        system_id, _name = self.multiplayer_service.game_system(game_id)
+        system = mapping_system(system_id)
+        slots = self.dolphin_launch_mappings.slots(game_id)
+        target = self.multiplayer_service.play_mapping_target(game_id) if system else None
+        return {"ok": True, "system": system, **slots, "automap": bool(target and target["automap"]),
+                "mappings": self.dolphin_launch_mappings.mappings_for(system) if system else []}
+
+    async def dolphin_game_mappings(self, game_id: int = 0):
+        game_id = to_int(game_id, 0)
+        if game_id <= 0:
+            return {"ok": False}
+        return await asyncio.to_thread(self._dolphin_game_mappings_sync, game_id)
+
+    async def set_dolphin_game_mapping(self, game_id: int = 0, slot: str = "", mapping_id: str = ""):
+        game_id = to_int(game_id, 0)
+        if game_id <= 0 or not isinstance(slot, str) or not isinstance(mapping_id, str):
+            return {"ok": False}
+        saved = await asyncio.to_thread(self.dolphin_launch_mappings.set_slot, game_id, slot, mapping_id)
+        if saved is None:
+            return {"ok": False}
+        return {"ok": True, **saved}
+
+    async def dolphin_mapping_play_started(self, game_id: int = 0, choice=None):
+        game_id = to_int(game_id, 0)
+        await asyncio.to_thread(self.dolphin_launch_mappings.put_back, False)
+        if game_id <= 0:
+            return {"ok": False}
+        target = await asyncio.to_thread(self.multiplayer_service.play_mapping_target, game_id,
+                                         choice if isinstance(choice, dict) else None)
+        if target is None:
+            return {"ok": True, "applied": False}
+        if target["automap"]:
+            decky.logger.info("dolphin mappings: EmuDeck's AutoMap sets the controls for this launch, game %s's "
+                              "play mapping is not applied", game_id)
+            return {"ok": True, "applied": False}
+        applied = await asyncio.to_thread(self.dolphin_launch_mappings.apply, game_id, target["systemId"],
+                                          target["install"], "play")
+        return {"ok": True, "applied": applied}
+
+    async def dolphin_mapping_play_ended(self):
+        return {"ok": await asyncio.to_thread(self.dolphin_launch_mappings.put_back)}
 
     def _read_sysfs(self, path):
         try:
