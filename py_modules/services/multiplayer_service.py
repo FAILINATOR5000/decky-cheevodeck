@@ -107,6 +107,7 @@ BAD_TAGS_PER_ROOM = 10
 
 SESSION_DIR = "multiplayer"
 RESTORE_RECORD = "multiplayer_restore.json"
+INSTALL_NAMES = {"flatpak": "Flatpak", "appimage": "AppImage"}
 GAME_VOLUME_RECORD = "game_volume.json"
 GAME_VOLUME_APP_MAX = 128
 GAME_AUDIO_KEYS = ("application.id", "application.name")
@@ -1799,7 +1800,10 @@ class MultiplayerService:
         if core:
             detail = f"RetroArch · {ra.core_name(core) if ra.found else core}"
         else:
-            detail = STREAM_EMULATOR_NAMES.get(kind, "") or shortcut["name"]
+            name = STREAM_EMULATOR_NAMES.get(kind, "")
+            install = session.install_type(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home) \
+                if name else ""
+            detail = f"{name} {INSTALL_NAMES[install]}" if install in INSTALL_NAMES else name or shortcut["name"]
         return {"appid": shortcut["appid"], "name": shortcut["name"], "kind": kind, "core": "", "detail": detail}
 
     def _standalone_entries(self, kinds) -> list:
@@ -1810,7 +1814,7 @@ class MultiplayerService:
                 continue
             install = session.install_type(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
             name = STREAM_EMULATOR_NAMES.get(kind, kind)
-            label = f"{name} ({'Flatpak' if install == 'flatpak' else 'AppImage'})" if install \
+            label = f"{name} ({INSTALL_NAMES[install]})" if install in INSTALL_NAMES \
                 else shortcut["name"] or name
             entries.append({"appid": shortcut["appid"], "kind": kind, "core": "", "label": label,
                             "noAchievements": kind in ("rmg", "melonds")})
