@@ -272,8 +272,6 @@ class SteadyWifi:
                 self._save_record(state)
         finally:
             bus.close()
-        if state["powerSaveChanged"] and self._read_power() == POWER_ON and self._write_power(POWER_OFF):
-            decky.logger.info("steady wifi: power saving came back on, off again")
 
     def end(self) -> None:
         self._stop_watcher()
