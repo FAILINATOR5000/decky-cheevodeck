@@ -536,6 +536,10 @@ def _script_install(path, emulator: str, flatpak_id: str, wrapper_arm: bool) -> 
         return "flatpak"
     if re.search(rf"[^\s\"']*{emulator}[^\s\"']*\.appimage", text, re.I):
         return "appimage"
+    named = re.search(r"^\s*emuName=[\"']?([^\"'\s]+)", text, re.M)
+    if named and emulator in named.group(1).lower() \
+            and re.search(r"-iname\s+[\"']?\$\{?emuName\}?\*\.appimage", text, re.I):
+        return "appimage"
     return ""
 
 

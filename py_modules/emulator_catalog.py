@@ -192,6 +192,20 @@ def script_images(path, home, kind: str = "") -> list:
             image_kind = section_kind if section_kind in STANDALONES else kind_by_name(PurePosixPath(image).name)
             if image_kind:
                 found.append((image_kind, image))
+    named = re.search(r"^\s*emuName=[\"']?([^\"'\s]+)", text, re.M)
+    if not found and named and re.search(r"-iname\s+[\"']?\$\{?emuName\}?\*\.appimage", text, re.I):
+        folder = Path(values.get("emusFolder") or home / "Applications")
+        prefix = named.group(1).lower()
+        try:
+            matches = sorted(entry.name for entry in os.scandir(folder)
+                             if entry.name.lower().startswith(prefix) and entry.name.lower().endswith(".appimage"))
+        except OSError:
+            matches = []
+        if matches:
+            image = str(folder / matches[-1])
+            image_kind = kind if kind in STANDALONES else kind_by_name(matches[-1])
+            if image_kind:
+                found.append((image_kind, image))
     return found
 
 
