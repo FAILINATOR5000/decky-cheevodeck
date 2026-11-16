@@ -185,6 +185,8 @@ def _walk(field: str):
     for token in _tokens(field):
         if not token or token.startswith("-") or token == "%command%":
             continue
+        if len(token) > 1 and token[0] == token[-1] == "'":
+            token = token[1:-1]
         suffix = PurePosixPath(token).suffix.lower()
         if suffix in _SCANNED_EXTENSIONS or suffix in _PLAYLIST_EXTENSIONS:
             roms.append(token)
