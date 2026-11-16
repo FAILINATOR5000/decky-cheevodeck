@@ -214,7 +214,7 @@ _STANDALONE_NAMES = (
     ("duckstation", ("duckstation", "duckstation.sh", "org.duckstation.duckstation")),
     ("pcsx2", ("pcsx2", "pcsx2-qt", "pcsx2-qt.sh", "net.pcsx2.pcsx2")),
     ("melonds", ("melonds", "melonds.sh", "net.kuribo64.melonds")),
-    ("rmg", ("rmg", "rmg.sh", "com.github.rosalie241.rmg")),
+    ("rmg", ("rmg", "rmg.sh", "rosaliesmupengui", "rosaliesmupengui.sh", "com.github.rosalie241.rmg")),
 )
 _CPU_FLAGS = {0: "-i", 1: "-j", 2: "-r", 3: "-J"}
 _CFG_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
