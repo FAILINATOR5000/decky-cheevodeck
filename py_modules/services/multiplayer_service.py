@@ -5634,10 +5634,9 @@ class MultiplayerService:
             "ready": joined["ready"],
             "consented": status is not None and joined["consentRound"] == status["round"] and status["start"],
             "streamBusy": joined.get("stream") is not None and joined["stream"].busy,
-            "rejoin": status is not None and status["state"] == "playing" and not joined["launched"]
-                      and self._may_launch(joined, status)
-                      and (joined["launchedRound"] == status["round"]
-                           or (joined["retryRound"] == status["round"] and status["start"])),
+            "rejoin": status is not None and status["state"] == "playing" and status["start"]
+                      and not joined["launched"] and self._may_launch(joined, status)
+                      and (joined["launchedRound"] == status["round"] or joined["retryRound"] == status["round"]),
             "notice": joined["notice"],
             "hardcore": joined["hardcore"],
             "local": _local_view(joined["local"]) if joined["local"] is not None else None,
