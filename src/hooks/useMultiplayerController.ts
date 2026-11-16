@@ -59,7 +59,6 @@ import { useGameFilePick } from "../utils/gameFilePick";
 
 const TICK_MS = 2000;
 const DEFAULT_CHECK_FRAMES = 600;
-const DEFAULT_SEATS = 4;
 const RENEW_EVERY = 5;
 const SAME_DIALOG_MS = 8000;
 const JOIN_WAIT_MS = 8000;
@@ -776,7 +775,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             watchOnly: hosted ? hosted.watch : watchOnly,
             checkFrames: hosted ? hosted.checkFrames
                 : gameOptions?.gameId === gameId ? gameOptions.options.checkFrames : DEFAULT_CHECK_FRAMES,
-            seats: gameOptions?.gameId === gameId ? gameOptions.options.seats : DEFAULT_SEATS,
             visibleError,
             hosted,
             joined,

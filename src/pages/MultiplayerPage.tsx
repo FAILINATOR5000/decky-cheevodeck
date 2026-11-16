@@ -873,7 +873,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             core: "",
             share: mp.shareControls,
             watch: mp.watchOnly,
-            seats: mp.seats,
             checkFrames: mp.checkFrames
         };
         const place = {

@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 
 import decky
-from multiplayer_protocol import DEFAULT_SEATS, MAX_SEATS, is_ulid
+from multiplayer_protocol import is_ulid
 from multiplayer_session import CHECK_FRAMES, DEFAULT_CHECK_FRAMES
 from play_picks_store import clean_pick
 from utils import (
@@ -24,7 +24,6 @@ DEFAULTS = {
     "pick": None,
     "checkFrames": DEFAULT_CHECK_FRAMES,
     "share": False,
-    "seats": DEFAULT_SEATS,
     "adapter": "auto",
     "watch": False,
 }
@@ -35,8 +34,6 @@ def clean_option(key: str, value):
         return clean_pick(value)
     if key == "checkFrames":
         return value if type(value) is int and value in CHECK_FRAMES else None
-    if key == "seats":
-        return value if type(value) is int and 2 <= value <= MAX_SEATS else None
     if key == "adapter":
         return value if value in ADAPTERS else None
     if key in ("share", "watch"):

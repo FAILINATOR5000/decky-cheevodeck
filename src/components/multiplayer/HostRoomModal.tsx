@@ -32,7 +32,6 @@ type HostRequest = {
     core: string;
     share: boolean;
     watch: boolean;
-    seats: number;
     checkFrames: number;
 };
 
@@ -63,7 +62,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         () => (place.online && !localOnly ? picks.where : "local")
     );
     const [name, setName] = useState(() => t(language, "Room"));
-    const [seats, setSeats] = useState(request.seats);
+    const [seats, setSeats] = useState(picks.seats);
     const [access, setAccess] = useState<MultiplayerAccess>(picks.access);
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
@@ -91,7 +90,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         }
         setHosting(true);
         setLine({ tone: "busy", text: t(language, "Hosting...") });
-        rememberMultiplayerHostPicks(status, place.online && !localOnly ? where : picks.where, access);
+        rememberMultiplayerHostPicks(status, place.online && !localOnly ? where : picks.where, access, seats);
         rememberMultiplayerVoice(voice);
         stopReading.current = request.mode === "couch"
             ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))

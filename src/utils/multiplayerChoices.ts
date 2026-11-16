@@ -20,6 +20,7 @@ type Choices = {
     status: string;
     where: MultiplayerWhere;
     access: MultiplayerAccess;
+    seats: number;
     filter: MultiplayerRoomFilter;
     page: MultiplayerTab;
     roomTab: { room: string; tab: MultiplayerRoomTab };
@@ -44,6 +45,7 @@ const choices: Choices = {
     status: "",
     where: "local",
     access: "public",
+    seats: 4,
     filter: NO_ROOM_FILTER,
     page: "play",
     roomTab: { room: "", tab: "room" },
@@ -82,10 +84,11 @@ export function rememberMultiplayerVoice(value: boolean) {
     choices.voice = value;
 }
 
-export function rememberMultiplayerHostPicks(status: string, where: MultiplayerWhere, access: MultiplayerAccess) {
+export function rememberMultiplayerHostPicks(status: string, where: MultiplayerWhere, access: MultiplayerAccess, seats: number) {
     choices.status = status;
     choices.where = where;
     choices.access = access;
+    choices.seats = seats;
 }
 
 export function rememberMultiplayerRoomFilter(filter: MultiplayerRoomFilter) {

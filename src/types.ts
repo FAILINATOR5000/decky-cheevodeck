@@ -2988,7 +2988,6 @@ export type MultiplayerAdapter = "auto" | "team" | "4way" | "port1" | "port2";
 export type MultiplayerGameOptions = {
     checkFrames: number;
     share: boolean;
-    seats: number;
     watch: boolean;
 };
 

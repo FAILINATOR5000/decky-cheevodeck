@@ -98,7 +98,7 @@ PAGE_CHOICES = {
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
            "mine": False, "after": None}
 NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
-ROOM_OPTION_KEYS = ("checkFrames", "share", "seats", "watch")
+ROOM_OPTION_KEYS = ("checkFrames", "share", "watch")
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
 BAD_TAGS_PER_ADDRESS = 3
@@ -3118,7 +3118,7 @@ class MultiplayerService:
             return {"ok": True, "room": self._host_view(room)}
 
     def _hosted_options(self, room: dict) -> dict:
-        options = {"seats": room["max"]}
+        options = {}
         if room["mode"] in ("couch", "stream"):
             options["watch"] = room["watch"]
         if room["mode"] == "couch":
@@ -3325,11 +3325,6 @@ class MultiplayerService:
         room["share"] = saved["share"] and mode == "couch"
         room["watch"] = saved["watch"] and mode in ("couch", "stream")
         room["checkFrames"] = saved["checkFrames"] if mode == "couch" else session.DEFAULT_CHECK_FRAMES
-        seated = 1 + max(index for index, seat in enumerate(room["seats"]) if seat is not None)
-        size = max(saved["seats"], seated)
-        if size != room["max"]:
-            room["seats"] = room["seats"][:size] + [None] * (size - len(room["seats"]))
-            room["max"] = size
 
     async def refresh_room_pick(self, game_id: int) -> None:
         async with self._lock:
