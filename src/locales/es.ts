@@ -3584,7 +3584,7 @@ const ES: LocaleTable = {
     "Remember for this game": "Recordar para este juego",
     "Forget": "Olvidar",
     "Your saved pick is missing, so the usual choice runs.": "Tu elección guardada ya no está, así que se usa la habitual.",
-    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.": "Las partidas guardadas no pasan de un emulador a otro, y RetroArch puede guardar por separado para cada núcleo.",
+    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.": "Las partidas guardadas no pasan de un emulador a otro, y RetroArch puede guardar por separado para cada núcleo, aunque la mayoría de los núcleos de RetroArch funcionan perfectamente con la misma partida guardada.",
     "Default ({{core}})": "Predeterminado ({{core}})",
     "Core: {{core}} (your pick)": "Núcleo: {{core}} (tu elección)",
     "Runs with: {{core}} (your pick)": "Se ejecuta con: {{core}} (tu elección)",

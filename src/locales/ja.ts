@@ -3407,7 +3407,7 @@ const JA: LocaleTable = {
     "Remember for this game": "このゲームで記憶する",
     "Forget": "忘れる",
     "Your saved pick is missing, so the usual choice runs.": "保存した選択が見つからないため、通常の選択で起動します。",
-    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.": "セーブデータはエミュレーター間で引き継がれません。RetroArch はコアごとに別のセーブを持つことがあります。",
+    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.": "セーブデータはエミュレーター間で引き継がれません。RetroArch はコアごとに別のセーブを持つことがありますが、ほとんどの RetroArch コアは同じセーブで問題なく動きます。",
     "Default ({{core}})": "既定（{{core}}）",
     "Core: {{core}} (your pick)": "コア：{{core}}（あなたの選択）",
     "Runs with: {{core}} (your pick)": "起動に使うもの: {{core}}（あなたの選択）",

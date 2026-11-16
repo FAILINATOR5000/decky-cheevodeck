@@ -3621,7 +3621,7 @@ const RU: LocaleTable = {
     "Remember for this game": "Запомнить для этой игры",
     "Forget": "Забыть",
     "Your saved pick is missing, so the usual choice runs.": "Сохранённый выбор не найден, поэтому используется обычный.",
-    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.": "Сохранения не переносятся между эмуляторами, а RetroArch может хранить отдельное сохранение для каждого ядра.",
+    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.": "Сохранения не переносятся между эмуляторами, а RetroArch может хранить отдельное сохранение для каждого ядра, хотя большинство ядер RetroArch прекрасно работают с одним и тем же сохранением.",
     "Default ({{core}})": "По умолчанию ({{core}})",
     "Core: {{core}} (your pick)": "Ядро: {{core}} (ваш выбор)",
     "Runs with: {{core}} (your pick)": "Запуск через: {{core}} (ваш выбор)",

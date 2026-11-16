@@ -3549,7 +3549,7 @@ export const EN: LocaleTable = {
     "Remember for this game": "Remember for this game",
     "Forget": "Forget",
     "Your saved pick is missing, so the usual choice runs.": "Your saved pick is missing, so the usual choice runs.",
-    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.": "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.",
+    "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.": "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.",
     "Default ({{core}})": "Default ({{core}})",
     "Core: {{core}} (your pick)": "Core: {{core}} (your pick)",
     "Runs with: {{core}} (your pick)": "Runs with: {{core}} (your pick)",

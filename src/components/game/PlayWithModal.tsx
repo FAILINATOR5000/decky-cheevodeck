@@ -139,7 +139,7 @@ function PlayWithModal(props: PlayWithProps) {
                 ))}
             </div>
             <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
-                {t(language, "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core.")}
+                {t(language, "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.")}
             </div>
             <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }} flow-children="row">
                 <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
