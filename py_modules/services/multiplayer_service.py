@@ -6431,6 +6431,7 @@ class MultiplayerService:
         answered = False
         heard = False
         warned = False
+        quiet = True
         delay = SAVE_PING_SECONDS
         try:
             while True:
@@ -6454,10 +6455,12 @@ class MultiplayerService:
                         decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
                     answered = True
                     if current.get("roundSaves"):
-                        if await asyncio.to_thread(self._round_saves.tick, current["id"]):
-                            delay = SAVE_FOLLOW_UP_SECONDS
-                    elif await asyncio.to_thread(_keep_save_mtimes, paths, before):
+                        changed = await asyncio.to_thread(self._round_saves.tick, current["id"])
+                    else:
+                        changed = await asyncio.to_thread(_keep_save_mtimes, paths, before)
+                    if changed and quiet:
                         delay = SAVE_FOLLOW_UP_SECONDS
+                    quiet = not changed
                 elif not heard and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
                     decky.logger.warning("multiplayer: RetroArch's command port never answered, in-game saves "
                                          "won't be kept")
