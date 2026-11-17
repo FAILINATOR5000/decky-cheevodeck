@@ -101,7 +101,16 @@ const PROBLEM_TEXT: Record<string, string> = {
     sunshine_failed: "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.",
     host_too_slow: "The host's internet connection is too slow to handle another connection.",
     stream_busy: "The streaming server is busy right now. Try again in a few minutes.",
-    stream_unreachable: "Couldn't connect to the host's stream. Try Join & Play again."
+    stream_unreachable: "Couldn't connect to the host's stream. Try Join & Play again.",
+    busy: "A game or another room is still going. Finish it first, then try again.",
+    not_ready: "The room isn't ready for that yet. Try again in a moment.",
+    no_game: "This game isn't in your Cheevo Check results",
+    not_visible: "Leave this page and come back to look again",
+    needs_code: "This room has a password",
+    tunnel_failed: "Couldn't connect to the host through the online lobby. Try again.",
+    write_failed: "CheevoDeck couldn't write the files this game needs. Try again. If it keeps happening, restart your device.",
+    gate: "This game can't be played this way on this device",
+    failed: "Something went wrong. Try again."
 };
 
 const WARNING_TEXT: Record<string, string> = {
@@ -124,7 +133,7 @@ export function problemText(language: LanguageCode, code: string, detail?: Recor
         const size = detail?.size && detail.size !== "?" ? detail.size : knownStreamSize();
         return size ? t(language, PROBLEM_TEXT.stream_not_set_up, { size }) : t(language, UNSIZED_SETUP);
     }
-    const text = t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
+    const text = t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.failed, detail);
     if (text.includes("{{")) {
         logError(`multiplayer: ${code} left a placeholder unfilled`, new Error(text));
     }

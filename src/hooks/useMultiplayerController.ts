@@ -168,7 +168,7 @@ function showProblem(titleKey: string, problem: MultiplayerProblem) {
 }
 
 function failureOf(result: ActionResult): MultiplayerProblem {
-    return result.gate ? { code: result.gate, detail: result.detail } : { code: result.error ?? "unavailable" };
+    return result.gate ? { code: result.gate, detail: result.detail } : { code: result.error ?? "failed" };
 }
 
 export function useMultiplayerController({ isActive }: { isActive: boolean }) {
@@ -571,7 +571,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
         catch (e) {
             logError("multiplayer action", e);
-            showProblem(titleKey, { code: "unavailable" });
+            showProblem(titleKey, { code: "failed" });
             return false;
         }
         finally {
