@@ -445,9 +445,9 @@ class StreamSetup:
             return {"ok": False, "error": refused}
         try:
             self._say(STAGE_SUNSHINE)
-            release = self._latest()
             tree = self.sunshine_dir()
             if tree is None:
+                release = self._latest()
                 tree = self._install_sunshine(release)
                 if not self._store.update(sunshineVersion=release["version"], sunshinePath=str(tree)):
                     raise SetupFailed("couldn't save the install record")
@@ -457,7 +457,7 @@ class StreamSetup:
             if ours and not self._store.update(moonlightOurs=True):
                 raise SetupFailed("couldn't save the install record")
             self._say(STAGE_FINISHING)
-            decky.logger.info("stream: set up Sunshine %s and Moonlight", release["version"])
+            decky.logger.info("stream: set up Sunshine %s and Moonlight", tree.name)
             return {"ok": True, **self.status()}
         except SetupFailed as e:
             decky.logger.warning("stream: setup failed: %s", e)
