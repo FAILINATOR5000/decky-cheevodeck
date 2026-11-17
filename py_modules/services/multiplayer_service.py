@@ -132,6 +132,7 @@ SAVE_REPLY_SECONDS = 1
 SAVE_SILENT_WARN_SECONDS = 30
 RETROARCH_NETPLAY_AUTOSAVE_SINCE = None
 RETROARCH_COMMAND_PORT = 55355
+ROUND_FOLDER_PROBE_SECONDS = 10
 
 SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
@@ -393,10 +394,11 @@ class MultiplayerService:
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
         stream_setup=None, stream_host=None, emulator_service=None, save_backups=None, dolphin_mappings=None,
-        steady_wifi=None,
+        steady_wifi=None, round_saves=None,
     ):
         self._settings_store = settings_store
         self._steady = steady_wifi
+        self._round_saves = round_saves
         self._mappings = dolphin_mappings
         self._emulators = emulator_service
         self._backups = save_backups
@@ -408,6 +410,8 @@ class MultiplayerService:
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
+        if round_saves is not None:
+            round_saves.set_running(lambda: _running_sessions(str(self._session_dir)))
         self._picks = PlayPicksStore(base_dir=Path(runtime_dir))
         self._game_options = MultiplayerGameOptionsStore(base_dir=Path(runtime_dir), settings_store=settings_store)
         self._sunshine_parked = False
@@ -672,6 +676,8 @@ class MultiplayerService:
         self._stopping = True
         for task in list(self._tasks):
             task.cancel()
+        if self._round_saves is not None:
+            self._round_saves.flush()
         self._stop_rmg_server()
         if self._voice_canceller is not None:
             self._voice_canceller.shutdown()
@@ -3761,6 +3767,7 @@ class MultiplayerService:
                 except Exception as e:
                     decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
                 self._steady_sweep()
+                self._round_saves_sweep()
                 streams = room.get("streams")
                 if streams is not None and self._stream_host is not None and not streams.streaming():
                     try:
@@ -3812,6 +3819,7 @@ class MultiplayerService:
             if current is not None:
                 self._session = None
                 self._remove_session_files(current["id"])
+                self._abandon_round_saves(current["id"])
             self._back_to_lobby(room, ERROR_LAUNCH_FAILED)
         self._want_turn(room)
         if room["state"] != "lobby" and self._public_state(room) == "playing":
@@ -3862,6 +3870,7 @@ class MultiplayerService:
         if room is not None and room["state"] == "lobby":
             self._session = None
             self._remove_session_files(current["id"])
+            self._abandon_round_saves(current["id"])
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
         current["startedAt"] = time.time()
@@ -4787,6 +4796,7 @@ class MultiplayerService:
         if current is not None:
             self._session = None
             self._remove_session_files(current["id"])
+            self._abandon_round_saves(current["id"])
         self._back_to_lobby(room, error if error and proto.is_reason(error) else ERROR_LAUNCH_FAILED)
         return {"ok": True}
 
@@ -5248,6 +5258,7 @@ class MultiplayerService:
                 decky.logger.warning("multiplayer: a status poll failed (%s)", type(e).__name__)
                 answered = False
             self._steady_sweep()
+            self._round_saves_sweep()
             if not answered:
                 await asyncio.sleep(POLL_BACKOFF_SECONDS)
             elif time.monotonic() < joined["fastUntil"] or _in_lounge_match(joined["status"], joined["seat"]):
@@ -5712,6 +5723,7 @@ class MultiplayerService:
             self._put_mapping_back(stale)
             self._session = None
             self._remove_session_files(stale["id"])
+            self._abandon_round_saves(stale["id"])
             self._close_guest_tunnels_soon()
         room = self._room
         joined = self._joined
@@ -5799,6 +5811,7 @@ class MultiplayerService:
         nick = self._user()
         save_port = 0
         save_files = []
+        save_dir = None
         wii_nand = None
         try:
             ensure_dir(self._session_dir)
@@ -5816,11 +5829,14 @@ class MultiplayerService:
                         and not self._retroarch_saves_netplay():
                     save_port = _command_port()
                     save_files = ra.save_paths(local["core"], rom)
+                    save_dir = self._round_folder(sid, local, ra, rom, original)
+                    if save_dir is not None:
+                        save_files = []
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                     system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
-                    adapter=adapter, command_port=save_port, check_frames=check_frames,
+                    adapter=adapter, command_port=save_port, check_frames=check_frames, save_dir=save_dir,
                 )
                 if adapter and mode == "couch" and players > 2 and not watch:
                     decky.logger.info("multiplayer: %s plugs in %s for %s players", local["core"],
@@ -5884,6 +5900,8 @@ class MultiplayerService:
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("multiplayer: couldn't write the session files (%s)", type(e).__name__)
+            if save_dir is not None:
+                self._abandon_round_saves(sid)
             if relayed:
                 self._close_guest_tunnels_soon()
             return {"ok": False, "error": ERROR_WRITE_FAILED}
@@ -5904,6 +5922,7 @@ class MultiplayerService:
             "watch": None,
             "savePort": save_port,
             "saveFiles": save_files,
+            "roundSaves": save_dir is not None,
             "wiiNand": wii_nand,
             "backup": backup,
         }
@@ -6173,6 +6192,47 @@ class MultiplayerService:
             (session.RMG_CONTROLLER_1_SECTION, "DeviceName"): "Automatic",
         }))
 
+    def _round_folder(self, sid: str, local: dict, ra, rom: Path, original: str):
+        if self._round_saves is None or not self._round_saves.takes(local["core"], local["systemId"]):
+            return None
+        found = ra.save_settings(local["core"], rom)
+        reason = ""
+        if found["inContentDir"]:
+            reason = "Save Files in Content Directory is on"
+        elif found["overrideFolder"]:
+            reason = "an override sets the save folder"
+        elif not local["fallback"] and str(rom) not in original:
+            reason = "the shortcut opens the game by another path"
+        if reason:
+            decky.logger.info("saves: %s's round saves go straight to the save (%s)", local["title"], reason)
+            return None
+        root = self._round_saves.root(sid)
+        pairs = list(zip(ra.save_paths(local["core"], rom), ra.save_paths(local["core"], rom, root=root), strict=True))
+        flatpak = ra.cfg_path is not None and session.RETROARCH_FLATPAK in ra.cfg_path.parts
+        probe = self._probe_round_folder if flatpak else None
+        return root if self._round_saves.begin(sid, local["gameId"], local["title"], pairs, probe) else None
+
+    def _probe_round_folder(self, root: Path) -> bool:
+        marker, answer = root / ".probe", root / ".probe-ok"
+        began = time.monotonic()
+        try:
+            with atomic_file(marker) as out:
+                out.write(b"")
+            code, _out, _err = subprocess_util.run_command(
+                ["flatpak", "run", "--command=sh", session.RETROARCH_FLATPAK, "-c", 'test -r "$1" && : > "$2"', "sh",
+                 str(marker), str(answer)],
+                timeout=ROUND_FOLDER_PROBE_SECONDS, env=self._flatpak_env(), as_data_owner=True,
+            )
+            seen = code == 0 and answer.is_file()
+        except Exception as e:
+            self._debug("the round folder probe failed (%s)", type(e).__name__)
+            seen = False
+        finally:
+            marker.unlink(missing_ok=True)
+            answer.unlink(missing_ok=True)
+        self._debug("the round folder probe took %.2f s", time.monotonic() - began)
+        return seen
+
     def _build_system_folder(self, ra, rom: Path, folder: Path) -> None:
         copies = session.melonds_firmware_names(dict(ra.effective_options(session.MELONDS_DS, rom)))
         ensure_dir(folder)
@@ -6241,6 +6301,7 @@ class MultiplayerService:
             self._put_mapping_back(current)
             self._session = None
             self._remove_session_files(sid)
+            self._abandon_round_saves(sid)
             self._close_guest_tunnels_soon()
         elif current is not None and current["id"] == sid and current["exited"]:
             self._remove_files(current)
@@ -6310,6 +6371,8 @@ class MultiplayerService:
         if current.get("backup") is not None:
             self._backups.stop_timer(current["id"])
         if not self._stopping:
+            if current.get("roundSaves"):
+                await asyncio.to_thread(self._round_saves.end, current["id"])
             if current.get("saveCopies"):
                 await asyncio.to_thread(self._repair_empty_saves, current)
             if current.get("wiiNand"):
@@ -6382,7 +6445,10 @@ class MultiplayerService:
                     if not answered:
                         decky.logger.info("multiplayer: RetroArch is saving every %s s", SAVE_PING_SECONDS)
                     answered = True
-                    if await asyncio.to_thread(_keep_save_mtimes, paths, before):
+                    if current.get("roundSaves"):
+                        if await asyncio.to_thread(self._round_saves.tick, current["id"]):
+                            delay = SAVE_FOLLOW_UP_SECONDS
+                    elif await asyncio.to_thread(_keep_save_mtimes, paths, before):
                         delay = SAVE_FOLLOW_UP_SECONDS
                 elif not heard and not warned and loop.time() - began > SAVE_SILENT_WARN_SECONDS:
                     decky.logger.warning("multiplayer: RetroArch's command port never answered, in-game saves "
@@ -6499,6 +6565,15 @@ class MultiplayerService:
             self._debug("no round is running, putting Wi-Fi back")
             self._steady.end_round()
 
+    def _round_saves_sweep(self) -> None:
+        if self._round_saves is not None and self._round_saves.pending:
+            live = self._session["id"] if self._session is not None else ""
+            self._spawn(asyncio.to_thread(self._round_saves.sweep, live))
+
+    def _abandon_round_saves(self, sid: str) -> None:
+        if self._round_saves is not None:
+            self._round_saves.abandon(sid)
+
     def _put_mapping_back(self, current: dict) -> None:
         if current.pop("mapping", False):
             threading.Thread(target=self._mappings.put_back, name="dolphin-mapping-put-back", daemon=True).start()
@@ -6506,6 +6581,9 @@ class MultiplayerService:
     def _session_over(self, current: dict) -> None:
         self._put_mapping_back(current)
         self._steady_end()
+        if current.get("roundSaves"):
+            threading.Thread(target=self._round_saves.end, args=(current["id"],), name="round-saves-end",
+                             daemon=True).start()
         if self._session is current:
             self._session = None
         self._close_guest_tunnels()
@@ -6907,6 +6985,9 @@ class MultiplayerService:
             "error": "",
             "watch": None,
         }
+        if self._round_saves is not None and self._round_saves.adopt(sid):
+            cfg = session.read_cfg(self._session_dir / f"session-{sid}.cfg")
+            current.update({"roundSaves": True, "saveFiles": [], "savePort": to_int(cfg.get("network_cmd_port"), 0)})
         self._session = current
         current["watch"] = self._spawn(self._watch(current))
         decky.logger.info("multiplayer: re-adopted session %s after a restart", sid)

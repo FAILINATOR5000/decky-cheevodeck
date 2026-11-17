@@ -47,6 +47,7 @@ from services.stream_setup import StreamSetup
 from services.emulator_service import EmulatorService
 from services.stream_host import StreamHost
 from services.steady_wifi import SteadyWifi
+from services.round_saves import RoundSaves
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from services.ez_friends_heal_service import EzFriendsHealService
@@ -607,6 +608,10 @@ class Plugin(
             user_home=self.user_home,
             debug_on=lambda: getattr(self, "_debug_logging", False),
         )
+        self.round_saves = RoundSaves(
+            runtime_dir=self.runtime_dir,
+            debug_on=lambda: getattr(self, "_debug_logging", False),
+        )
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
@@ -621,6 +626,7 @@ class Plugin(
             stream_setup=self.stream_setup,
             emulator_service=self.emulator_service,
             steady_wifi=self.steady_wifi,
+            round_saves=self.round_saves,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -872,6 +878,7 @@ class Plugin(
             save_backups=self.save_backups,
             dolphin_mappings=self.dolphin_launch_mappings,
             steady_wifi=self.steady_wifi,
+            round_saves=self.round_saves,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(
@@ -2102,6 +2109,7 @@ class Plugin(
         removed = await asyncio.to_thread(self.stream_setup.remove)
         if not removed.get("ok"):
             decky.logger.warning("factory reset: streaming not removed (%s)", removed.get("error", ""))
+        await asyncio.to_thread(self.round_saves.flush, True)
         await asyncio.to_thread(self._run_factory_reset_locked)
         await asyncio.to_thread(self.multiplayer_service.keep_game_volume_records, left)
         return {"ok": True, "streamShortcut": removed.get("appid", 0) if removed.get("ok") else 0}

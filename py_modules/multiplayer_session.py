@@ -347,16 +347,18 @@ class RetroArch:
         return self.save_settings(core, rom)["byCore"]
 
     def save_settings(self, core: str, rom: Path) -> dict:
-        found = {"folder": self.base / "saves", "inContentDir": False, "byCore": True, "byContent": False}
+        found = {"folder": self.base / "saves", "inContentDir": False, "byCore": True, "byContent": False,
+                 "overrideFolder": False}
         if self.cfg_path is None:
             return found
         main = _first_values(read_cfg_lines(self.cfg_path))
         files = [main]
         if main.get("auto_overrides_enable") not in ("false", "0"):
             files += [_first_values(read_cfg_lines(path)) for path in self.override_files(core, rom)]
-        for values in files:
+        for index, values in enumerate(files):
             for key, value in values.items():
                 if key == "savefile_directory":
+                    found["overrideFolder"] = found["overrideFolder"] or index > 0
                     if value == "default":
                         found["folder"] = self.base / "saves"
                     else:
@@ -397,9 +399,11 @@ class RetroArch:
             return read_cfg_lines(self.cfg_path.parent / "retroarch-core-options.cfg")
         return []
 
-    def save_paths(self, core: str, rom: Path) -> list:
+    def save_paths(self, core: str, rom: Path, root=None) -> list:
         found = self.save_settings(core, rom)
-        if found["inContentDir"]:
+        if root is not None:
+            folder = root
+        elif found["inContentDir"]:
             folder = rom.parent
         else:
             folder = found["folder"]
@@ -992,7 +996,7 @@ def ppsspp_cpu_flag(home) -> str:
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
                       share_controls: bool = False, watch_only: bool = False, remap_dir=None, adapter: str = "",
-                      command_port: int = 0, check_frames: int = DEFAULT_CHECK_FRAMES):
+                      command_port: int = 0, check_frames: int = DEFAULT_CHECK_FRAMES, save_dir=None):
     watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
@@ -1012,6 +1016,8 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         cfg.append(("system_directory", str(system_dir)))
     if command_port:
         cfg += [("network_cmd_enable", "true"), ("network_cmd_port", str(command_port))]
+    if save_dir is not None:
+        cfg.append(("savefile_directory", str(save_dir)))
     if mode == "couch" and role == "host" and check_frames != DEFAULT_CHECK_FRAMES:
         cfg.append(("netplay_check_frames", str(check_frames)))
     if mode == "couch":

@@ -36,7 +36,7 @@ class RepairService:
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
                  multiplayer_friends_store, multiplayer_messages_store, settings_store, dolphin_mappings_store,
-                 user_home, voice_canceller, stream_setup, emulator_service, steady_wifi):
+                 user_home, voice_canceller, stream_setup, emulator_service, steady_wifi, round_saves):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
@@ -50,6 +50,7 @@ class RepairService:
         self._stream_setup = stream_setup
         self._emulator_service = emulator_service
         self._steady_wifi = steady_wifi
+        self._round_saves = round_saves
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -191,6 +192,15 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: putting Wi-Fi back failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            if self._round_saves.put_back_leftover():
+                fixed.append("round_saves")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: finishing a round's saves failed: %s",
                 type(e).__name__,
             )
 
