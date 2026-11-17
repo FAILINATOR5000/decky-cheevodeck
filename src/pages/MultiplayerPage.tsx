@@ -1170,7 +1170,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:leave"
-                focusFallback={["multiplayer:back"]}
+                focusFallback={["multiplayer:host", "multiplayer:back"]}
                 onClick={actions.leave}
             >
                 {t(language, "Leave Room")}
