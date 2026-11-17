@@ -858,8 +858,6 @@ class Plugin(
             mappings_store=self.dolphin_mappings_store,
             settings_store=self.settings_store,
             apply=self._apply_dolphin_mapping_sync,
-            dolphin_running=self.emulator_login_sync_service.is_dolphin_running,
-            runtime_dir=self.runtime_dir,
             user_home=self.user_home,
         )
         self.multiplayer_service = MultiplayerService(
@@ -1077,11 +1075,6 @@ class Plugin(
                 "repair: startup repairs dispatch failed: %s",
                 type(e).__name__,
             )
-
-        try:
-            await asyncio.to_thread(self.dolphin_launch_mappings.put_back, False)
-        except Exception as e:
-            decky.logger.warning("dolphin mappings: startup put-back failed (%s)", type(e).__name__)
 
         self.current_game_service.set_event_loop(self._asyncio_loop)
 

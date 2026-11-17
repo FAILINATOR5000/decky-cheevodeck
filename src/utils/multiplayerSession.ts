@@ -3,7 +3,6 @@ import { Router } from "@decky/ui";
 
 import {
     checkCurrentGame,
-    dolphinMappingPlayEnded,
     dolphinMappingPlayStarted,
     multiplayerClearRestore,
     multiplayerLaunchEnded,
@@ -506,7 +505,6 @@ function followCurrentGame() {
 function endPlayed() {
     playBackupAppid = 0;
     saveBackupsPlayEnded().catch((e) => logError("play: the save backup after the game", e));
-    dolphinMappingPlayEnded().catch((e) => logError("play: putting the Dolphin controls back", e));
 }
 
 function stopPlayFollow() {

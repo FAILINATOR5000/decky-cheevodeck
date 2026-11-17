@@ -1188,7 +1188,6 @@ export const saveBackupsPlayEnded = callable<[], { ok: boolean }>("save_backups_
 export const dolphinMappingPlayStarted = callable<[number, PlayPick | Record<string, never> | null], { ok: boolean; applied?: boolean }>(
     "dolphin_mapping_play_started"
 );
-export const dolphinMappingPlayEnded = callable<[], { ok: boolean }>("dolphin_mapping_play_ended");
 export const saveBackupsInfo = callable<[number], SaveBackupsInfo>("save_backups_info");
 export const saveBackupsRestore = callable<[number, string], { ok: boolean; error?: string }>("save_backups_restore");
 export const saveBackupsClear = callable<[number], { ok: boolean }>("save_backups_clear");

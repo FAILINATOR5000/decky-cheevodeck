@@ -101,10 +101,7 @@ class DolphinMapperMixin(PluginContext):
         return self.dolphin_mappings_store.reorder(ordered_ids)
 
     async def apply_dolphin_mapping(self, mapping_id):
-        result = await asyncio.to_thread(self._apply_dolphin_mapping_sync, mapping_id)
-        if result.get("ok"):
-            await asyncio.to_thread(self.dolphin_launch_mappings.forget_put_back)
-        return result
+        return await asyncio.to_thread(self._apply_dolphin_mapping_sync, mapping_id)
 
     def _apply_dolphin_mapping_sync(self, mapping_id, config_dirs=None):
         with _dolphin_ini_lock:
@@ -185,7 +182,6 @@ class DolphinMapperMixin(PluginContext):
 
     async def dolphin_mapping_play_started(self, game_id: int = 0, choice=None):
         game_id = to_int(game_id, 0)
-        await asyncio.to_thread(self.dolphin_launch_mappings.put_back, False)
         if game_id <= 0:
             return {"ok": False}
         target = await asyncio.to_thread(self.multiplayer_service.play_mapping_target, game_id,
@@ -199,9 +195,6 @@ class DolphinMapperMixin(PluginContext):
         applied = await asyncio.to_thread(self.dolphin_launch_mappings.apply, game_id, target["systemId"],
                                           target["install"], "play")
         return {"ok": True, "applied": applied}
-
-    async def dolphin_mapping_play_ended(self):
-        return {"ok": await asyncio.to_thread(self.dolphin_launch_mappings.put_back)}
 
     def _read_sysfs(self, path):
         try:

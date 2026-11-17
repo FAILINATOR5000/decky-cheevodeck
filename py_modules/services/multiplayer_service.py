@@ -5720,7 +5720,6 @@ class MultiplayerService:
         if held is not None and not (unlaunched and held["session"] == stale["id"]):
             return {"ok": False, "error": ERROR_BUSY}
         if unlaunched:
-            self._put_mapping_back(stale)
             self._session = None
             self._remove_session_files(stale["id"])
             self._abandon_round_saves(stale["id"])
@@ -5906,6 +5905,7 @@ class MultiplayerService:
                 self._close_guest_tunnels_soon()
             return {"ok": False, "error": ERROR_WRITE_FAILED}
 
+        self._apply_mapping(local, "play")
         self._session = {
             "id": sid,
             "appid": local["appid"],
@@ -5913,7 +5913,6 @@ class MultiplayerService:
             "role": role,
             "mode": mode,
             "emulator": local["emulator"],
-            "mapping": self._apply_mapping(local, "play"),
             "files": files,
             "started": 0.0,
             "seen": False,
@@ -6042,6 +6041,7 @@ class MultiplayerService:
         except OSError as e:
             decky.logger.warning("stream: couldn't write the session files (%s)", type(e).__name__)
             return {"ok": False, "error": ERROR_WRITE_FAILED}
+        self._apply_mapping(local, "stream")
         self._session = {
             "id": sid,
             "appid": local["appid"],
@@ -6049,7 +6049,6 @@ class MultiplayerService:
             "role": role,
             "mode": "stream",
             "emulator": local["emulator"],
-            "mapping": self._apply_mapping(local, "stream"),
             "backup": backup,
             "files": [],
             "started": 0.0,
@@ -6298,7 +6297,6 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_WRITE_FAILED}
         current = self._session
         if current is not None and current["id"] == sid and not current["started"]:
-            self._put_mapping_back(current)
             self._session = None
             self._remove_session_files(sid)
             self._abandon_round_saves(sid)
@@ -6574,12 +6572,7 @@ class MultiplayerService:
         if self._round_saves is not None:
             self._round_saves.abandon(sid)
 
-    def _put_mapping_back(self, current: dict) -> None:
-        if current.pop("mapping", False):
-            threading.Thread(target=self._mappings.put_back, name="dolphin-mapping-put-back", daemon=True).start()
-
     def _session_over(self, current: dict) -> None:
-        self._put_mapping_back(current)
         self._steady_end()
         if current.get("roundSaves"):
             threading.Thread(target=self._round_saves.end, args=(current["id"],), name="round-saves-end",
