@@ -177,6 +177,22 @@ def dsi_only(path):
     return data is not None and len(data) > _DS_UNIT_OFFSET and data[_DS_UNIT_OFFSET] == _DSI_ONLY
 
 
+_NES_MAGIC = b"NES\x1a"
+_NES_EEPROM_MAPPERS = (16, 157, 159)
+
+
+def nes_save_ram_only(path):
+    data = _rom_bytes(path, (".nes",), 16)
+    if data is None or len(data) < 16 or data[:4] != _NES_MAGIC:
+        return False
+    mapper = (data[7] & 0xF0) | (data[6] >> 4)
+    if data[7] & 0x0C == 0x08:
+        mapper |= (data[8] & 0x0F) << 8
+        if data[11] >> 4:
+            return False
+    return mapper not in _NES_EEPROM_MAPPERS
+
+
 _GENESIS_SUFFIXES = (".md", ".bin", ".gen")
 _GENESIS_NAME = slice(0x100, 0x110)
 _GENESIS_IO = slice(0x190, 0x1A0)

@@ -34,6 +34,7 @@ RAM_SOURCE = "cheevodeck-round-saves"
 SAVE_RAM_CORES = {
     "gambatte": (4, 6),
     "mgba": (4, 5, 6),
+    "mesen": (7,),
     "snes9x": (3,),
     "genesis_plus_gx": (1, 11, 15, 33),
     "picodrive": (1, 10, 11),

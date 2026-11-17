@@ -348,7 +348,7 @@ class RetroArch:
 
     def save_settings(self, core: str, rom: Path) -> dict:
         found = {"folder": self.base / "saves", "inContentDir": False, "byCore": True, "byContent": False,
-                 "overrideFolder": False}
+                 "overrideFolder": False, "overrideContentDir": False}
         if self.cfg_path is None:
             return found
         files = [_first_values(read_cfg_lines(self.cfg_path))]
@@ -366,6 +366,8 @@ class RetroArch:
                             found["folder"] = folder
                 elif key in _SAVE_FLAGS and value in ("true", "1", "false", "0"):
                     found[_SAVE_FLAGS[key]] = value in ("true", "1")
+                    if key == "savefiles_in_content_dir" and index > 0 and value in ("true", "1"):
+                        found["overrideContentDir"] = True
         return found
 
     def _core_dir(self, core: str) -> Path:
@@ -1023,7 +1025,7 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     if command_port:
         cfg += [("network_cmd_enable", "true"), ("network_cmd_port", str(command_port))]
     if save_dir is not None:
-        cfg.append(("savefile_directory", str(save_dir)))
+        cfg += [("savefile_directory", str(save_dir)), ("savefiles_in_content_dir", "false")]
     if mode == "couch" and role == "host" and check_frames != DEFAULT_CHECK_FRAMES:
         cfg.append(("netplay_check_frames", str(check_frames)))
     if mode == "couch":

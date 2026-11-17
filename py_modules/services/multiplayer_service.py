@@ -6190,8 +6190,10 @@ class MultiplayerService:
             return None
         found = ra.save_settings(local["core"], rom)
         reason = ""
-        if found["inContentDir"]:
-            reason = "Save Files in Content Directory is on"
+        if local["core"] == "mesen" and not rom_headers.nes_save_ram_only(rom):
+            reason = "this cart keeps save files of its own"
+        elif found["overrideContentDir"]:
+            reason = "an override saves beside the game"
         elif found["overrideFolder"]:
             reason = "an override sets the save folder"
         elif not local["fallback"] and str(rom) not in original:
