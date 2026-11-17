@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import decky
+import rtc_formats
 import subprocess_util
 from utils import (
     atomic_file,
@@ -45,6 +46,7 @@ SAVE_RAM_CORES = {
     "mednafen_pcfx": (49,),
     "virtualjaguar": (17,),
     "sameduck": (69,),
+    "sameboy": (4, 6),
 }
 
 _SESSION = re.compile(r"^[0-9a-f]{16}$")
@@ -112,7 +114,8 @@ class RoundSaves:
             decky.logger.warning("saves: couldn't list the running rounds (%s)", type(e).__name__)
             return None
 
-    def begin(self, sid: str, game_id: int, title: str, pairs: list, probe=None) -> bool:
+    def begin(self, sid: str, game_id: int, title: str, pairs: list, probe=None, clock=None,
+              keep_clock: bool = False) -> bool:
         with self._lock:
             if not self._clear_earlier_locked():
                 decky.logger.info("saves: %s's round saves go straight to the save (an earlier round's emulator "
@@ -121,14 +124,14 @@ class RoundSaves:
             root = self.root(sid)
             ram = self._mount_locked()
             try:
-                files = self._seed(root, pairs)
+                files = self._seed(root, pairs, clock, keep_clock)
                 seen = probe is None or probe(root)
                 if not seen and ram:
                     self._debug("RetroArch can't see the memory folder, trying the disk")
                     _remove_tree(root)
                     self._unmount_locked()
                     ram = False
-                    files = self._seed(root, pairs)
+                    files = self._seed(root, pairs, clock, keep_clock)
                     seen = probe(root)
                 if not seen:
                     raise _Fallback("RetroArch can't see the round folder")
@@ -153,19 +156,28 @@ class RoundSaves:
         decky.logger.info("saves: %s's round saves go through CheevoDeck (%s)", title, state["tier"])
         return True
 
-    def _seed(self, root: Path, pairs: list) -> dict:
+    def _seed(self, root: Path, pairs: list, clock=None, keep_clock: bool = False) -> dict:
         _remove_tree(root)
         ensure_dir(root)
         os.chmod(root, 0o700)
         files = {}
-        for real, copy in pairs:
+        for index, (real, copy) in enumerate(pairs):
             ensure_dir(copy.parent)
             entry = {"real": str(real), "baseline": None, "lastWritten": None, "size": None, "seeded": None,
                      "blocked": False}
             data = _read(real)
+            if index and clock and (data is None or rtc_formats.fits(clock[1], data)):
+                entry["clock"] = list(clock)
+                entry["lastRound"] = None
+            elif index and keep_clock:
+                entry["keep"] = True
             if data is not None:
+                seed = data
+                if entry.get("clock"):
+                    seed = rtc_formats.convert(data, clock[1], clock[0], int(time.time()))
+                    entry["lastRound"] = _sha1(seed)
                 with atomic_file(copy) as out:
-                    out.write(data)
+                    out.write(seed)
                 entry["baseline"] = _sha1(data)
                 entry["seeded"] = os.stat(copy).st_mtime_ns
             files[str(copy)] = entry
@@ -204,7 +216,7 @@ class RoundSaves:
         changed = False
         saved = False
         for index, (copy, entry) in enumerate(state["files"].items()):
-            if entry["blocked"]:
+            if entry["blocked"] or entry.get("keep"):
                 continue
             data = _read(copy, follow=False)
             if not data:
@@ -216,8 +228,21 @@ class RoundSaves:
                 self._debug("%s is %s bytes, the round's is %s, skipped", Path(copy).name, len(data), entry["size"])
                 continue
             digest = _sha1(data)
+            clock = entry.get("clock")
+            if clock:
+                if digest == entry["lastRound"]:
+                    continue
+                round_digest = digest
+                data = _as_real(entry, data)
+                if data is None:
+                    self._warn_once("clock:" + copy, "%s isn't in %s's clock format, CheevoDeck left %s alone",
+                                    Path(copy).name, clock[0], entry["real"])
+                    continue
+                digest = _sha1(data)
             last = entry["lastWritten"] or entry["baseline"]
             if digest == last:
+                if clock:
+                    entry["lastRound"] = round_digest
                 continue
             if index and not saved and not final:
                 continue
@@ -235,6 +260,8 @@ class RoundSaves:
                 self._warn_once("write:" + copy, "couldn't write %s (%s)", real.name, type(e).__name__)
                 continue
             entry["lastWritten"] = digest
+            if clock:
+                entry["lastRound"] = round_digest
             saved = saved or index == 0
             self._save_locked(state)
             now = time.monotonic()
@@ -344,7 +371,10 @@ class RoundSaves:
             return "the save changed outside the round"
         for copy, entry in files.items():
             data = _read(copy, follow=False)
-            if data and _sha1(data) != (entry["lastWritten"] or entry["baseline"]):
+            if not data or entry.get("keep") or (entry.get("clock") and _sha1(data) == entry["lastRound"]):
+                continue
+            data = _as_real(entry, data)
+            if data is None or _sha1(data) != (entry["lastWritten"] or entry["baseline"]):
                 return "not all of it was copied"
         stray = _unexpected_file(files, root)
         return f"an unexpected file, {stray}" if stray else ""
@@ -516,9 +546,25 @@ def _valid(raw, roots: Path) -> bool:
         for key in ("size", "seeded"):
             if entry.get(key) is not None and type(entry[key]) is not int:
                 return False
-        if type(entry.get("blocked")) is not bool:
+        if type(entry.get("blocked")) is not bool or type(entry.get("keep", False)) is not bool:
             return False
+        clock = entry.get("clock")
+        if clock is not None:
+            if not isinstance(clock, list) or len(clock) != 2 or set(clock) != set(rtc_formats.SIZES):
+                return False
+            last_round = entry.get("lastRound", "")
+            if last_round is not None and not (isinstance(last_round, str) and _SHA1.match(last_round)):
+                return False
     return True
+
+
+def _as_real(entry: dict, data: bytes):
+    clock = entry.get("clock")
+    if not clock:
+        return data
+    if not rtc_formats.fits(clock[0], data):
+        return None
+    return rtc_formats.convert(data, clock[0], clock[1], int(time.time()))
 
 
 def _unexpected_file(files: dict, root: Path) -> str:
