@@ -1069,14 +1069,17 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     return write_cfg(cfg), write_cfg(options.items()), remap
 
 
-def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path, adapter: str = ""):
-    taps = multitap(core, adapter)
-    if not taps:
+def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path, adapter: str = "",
+                        taps: bool = True, shaders_off: bool = False):
+    taps = multitap(core, adapter) if taps else {}
+    if not taps and not shaders_off:
         return None
     cfg = [
         ("config_save_on_exit", "false"),
         ("remap_save_on_exit", "false"),
     ]
+    if shaders_off:
+        cfg.append(("video_shader_enable", "false"))
     remap = None
     if taps.get("devices"):
         cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]

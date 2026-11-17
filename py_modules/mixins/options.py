@@ -721,6 +721,14 @@ class OptionsMixin(PluginContext):
             "mpSteadyWifi": value,
         }
 
+    async def save_mp_stream_shaders_off(self, mp_stream_shaders_off: bool):
+        value = self.settings_store.update_mp_stream_shaders_off(mp_stream_shaders_off)
+
+        return {
+            "ok": True,
+            "mpStreamShadersOff": value,
+        }
+
     async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
         value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
 

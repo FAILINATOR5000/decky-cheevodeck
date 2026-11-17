@@ -886,6 +886,7 @@ export type SettingsResponse = {
     mpStreamSlowConnection: boolean;
     mpChatToastsInGame: boolean;
     mpSteadyWifi: boolean;
+    mpStreamShadersOff: boolean;
     mpStreamScreenWarningOff: boolean;
     hotspotIntroOff: boolean;
     hotspotDedicated: boolean;

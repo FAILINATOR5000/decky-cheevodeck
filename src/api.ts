@@ -976,6 +976,9 @@ export const saveMpChatToastsInGame = callable<[boolean], { ok: boolean; mpChatT
     "save_mp_chat_toasts_in_game"
 );
 export const saveMpSteadyWifi = callable<[boolean], { ok: boolean; mpSteadyWifi: boolean }>("save_mp_steady_wifi");
+export const saveMpStreamShadersOff = callable<[boolean], { ok: boolean; mpStreamShadersOff: boolean }>(
+    "save_mp_stream_shaders_off"
+);
 export const saveMpStreamSlowConnection = callable<[boolean], { ok: boolean; mpStreamSlowConnection: boolean }>(
     "save_mp_stream_slow_connection"
 );

@@ -3269,6 +3269,8 @@ const ES: LocaleTable = {
     Chat: "Chat",
     "In-Game Chat Toasts": "Avisos del chat en el juego",
     "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "Si está activado, cada vez que alguien envíe un mensaje en el chat de la sala, aparecerá como aviso mientras juegas.",
+    "Turn Off Shaders While Hosting": "Desactivar shaders al alojar",
+    "Starts RetroArch with its shaders off for this session only, so the stream stays sharp. Your shader settings aren't changed.": "Inicia RetroArch con los shaders desactivados solo durante esta sesión, para que la transmisión se vea nítida. Tus ajustes de shaders no cambian.",
     "Steady Wi-Fi": "Wi-Fi estable",
     "For everyone in the room who's on Wi-Fi: stops scanning for networks and power saving during a round, so the game doesn't stutter. Wired players aren't touched, and everything goes back afterwards.": "Para todos en la sala que usen Wi-Fi: durante una ronda se detienen la búsqueda de redes y el ahorro de energía, para que el juego no se trabe. A quienes estén conectados por cable no se les cambia nada, y al terminar todo vuelve a como estaba.",
     "Send": "Enviar",

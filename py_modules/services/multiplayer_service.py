@@ -1701,6 +1701,9 @@ class MultiplayerService:
             return overlay.mp_fallback
         return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
 
+    def _stream_shaders_off(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpStreamShadersOff", True))
+
     def _play_fallback_on(self) -> bool:
         overlay = self._overlay()
         if overlay is not None and overlay.play_fallback is not None:
@@ -6031,23 +6034,27 @@ class MultiplayerService:
             if _route_args(route):
                 parts.append(_route_args(route))
             room = self._room
-            if local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
-                    and room is not None and room["max"] > 2:
+            taps = local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
+                and room is not None and room["max"] > 2
+            shaders_off = local["emulator"] == "retroarch" and self._stream_shaders_off()
+            if taps or shaders_off:
                 ra = self._retroarch()
                 rom = Path(local["path"])
-                adapter = self._room_tap(room)
-                devices = session.multitap(local["core"], adapter).get("devices", {})
+                adapter = self._room_tap(room) if taps else ""
+                devices = session.multitap(local["core"], adapter).get("devices", {}) if taps else {}
                 if devices and (session.remap_port_conflict(ra, core=local["core"], rom=rom, devices=devices)
                                 or ra.overriding_key(local["core"], rom, session.MULTITAP_CFG_KEYS)):
                     decky.logger.info("stream: %s's own remap or override sets its controller ports, no multiplayer "
                                       "adapter", local["core"])
-                else:
+                    taps = False
+                if taps or shaders_off:
                     cfg_path = self._session_dir / f"session-{sid}.cfg"
                     opt_path = self._session_dir / f"session-{sid}.opt"
                     remap_dir = self._session_dir / f"session-{sid}.remaps"
                     cfg_text, opt_text, remap = session.stream_host_session(ra, core=local["core"], rom=rom,
                                                                             opt_path=opt_path, remap_dir=remap_dir,
-                                                                            adapter=adapter)
+                                                                            adapter=adapter, taps=taps,
+                                                                            shaders_off=shaders_off)
                     files = [cfg_path]
                     if opt_text is not None:
                         self._write(opt_path, opt_text)
@@ -6058,8 +6065,11 @@ class MultiplayerService:
                     if not self._readable_by_owner(files):
                         raise OSError("session files are not the home owner's")
                     parts.insert(0, f"--appendconfig {session.quote(str(cfg_path))}")
-                    decky.logger.info("stream: %s gets its multiplayer adapter for %s seats%s", local["core"],
-                                      room["max"], f" ({TAP_NAMES[adapter]})" if adapter else "")
+                    if taps:
+                        decky.logger.info("stream: %s gets its multiplayer adapter for %s seats%s", local["core"],
+                                          room["max"], f" ({TAP_NAMES[adapter]})" if adapter else "")
+                    if shaders_off:
+                        decky.logger.info("stream: RetroArch starts with its shaders off for this session")
             backup = self._backup_target(local) if self._backups is not None else None
             if backup is not None:
                 self._backups.back_up(backup, "stream", "together")

@@ -2,7 +2,7 @@ import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { Router } from "@decky/ui";
 import { useSyncExternalStore } from "react";
 
-import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi } from "../api";
+import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi, saveMpStreamShadersOff } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerLounge, MultiplayerLoungeBoard, MultiplayerRoomStatus, MultiplayerVote } from "../types";
 import { logError } from "./errors";
@@ -68,6 +68,8 @@ const listeners = new Set<() => void>();
 let chatToastsInGame = true;
 const chatToastListeners = new Set<() => void>();
 let steadyWifi = true;
+let streamShadersOff = true;
+const streamShadersListeners = new Set<() => void>();
 
 function publishChatToasts(next: boolean) {
     if (next === chatToastsInGame) {
@@ -102,6 +104,42 @@ export async function changeChatToastsInGame(next: boolean) {
     catch (e) {
         logError("room chat: saving In-Game Chat Toasts", e);
         publishChatToasts(was);
+    }
+}
+
+function publishStreamShaders(next: boolean) {
+    if (next === streamShadersOff) {
+        return;
+    }
+    streamShadersOff = next;
+    for (const listener of streamShadersListeners) {
+        listener();
+    }
+}
+
+export function setStreamShadersSettings(next: { mpStreamShadersOff?: boolean }) {
+    publishStreamShaders(next.mpStreamShadersOff ?? streamShadersOff);
+}
+
+export function useStreamShadersOff(): boolean {
+    return useSyncExternalStore((listener) => {
+        streamShadersListeners.add(listener);
+        return () => {
+            streamShadersListeners.delete(listener);
+        };
+    }, () => streamShadersOff);
+}
+
+export async function changeStreamShadersOff(next: boolean) {
+    const was = streamShadersOff;
+    publishStreamShaders(next);
+    try {
+        const saved = await saveMpStreamShadersOff(next);
+        publishStreamShaders(saved.mpStreamShadersOff);
+    }
+    catch (e) {
+        logError("room: saving Turn Off Shaders While Hosting", e);
+        publishStreamShaders(was);
     }
 }
 

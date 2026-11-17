@@ -86,7 +86,7 @@ import {
     useSlowConnection,
     useStreamSetup
 } from "../utils/streamPlay";
-import { changeChatToastsInGame, useChatToastsInGame } from "../utils/multiplayerRoomState";
+import { changeChatToastsInGame, changeStreamShadersOff, useChatToastsInGame, useStreamShadersOff } from "../utils/multiplayerRoomState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { hotspotWithoutInternet, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
@@ -298,6 +298,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const stream = useStreamSetup(visible && mp.mode === "stream");
     const slowConnection = useSlowConnection();
     const chatToastsInGame = useChatToastsInGame();
+    const streamShadersOff = useStreamShadersOff();
     const hotspot = useHotspot();
 
     useEffect(() => {
@@ -435,8 +436,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         && (mp.mode === "couch" || roomCore === "gpsp" || roomCore === "melondsds");
     const savesOnClose = mp.mode === "couch"
         && UNLOAD_SAVE_SYSTEMS.includes(hosted?.systemId ?? joined?.room.systemId ?? local?.systemId ?? 0);
-    const dreamcastHost = mp.mode === "stream" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch"
-        && (hosted?.systemId ?? local?.systemId) === DREAMCAST_SYSTEM;
+    const streamRetroArchHost = mp.mode === "stream" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
+    const dreamcastHost = streamRetroArchHost && (hosted?.systemId ?? local?.systemId) === DREAMCAST_SYSTEM;
     const roomTitle = hosted?.title ?? joined?.room.title ?? local?.title ?? "";
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const shownCheck = gateCheck ?? mp.check;
@@ -1808,6 +1809,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             help={t(language, "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.")}
         />
     );
+    const streamShadersRow = streamRetroArchHost && (
+        <ToggleRow
+            bottomSeparator="none"
+            controlled
+            label={t(language, "Turn Off Shaders While Hosting")}
+            value={streamShadersOff}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:streamshaders"
+            focusFallback={["multiplayer:toggle:chattoasts", "multiplayer:toggle:steadywifi", "multiplayer:toggle:voice", "multiplayer:toggle:watch", "multiplayer:runswith", "multiplayer:host", exitKey]}
+            onChange={(next) => void changeStreamShadersOff(next)}
+            help={t(language, "Starts RetroArch with its shaders off for this session only, so the stream stays sharp. Your shader settings aren't changed.")}
+        />
+    );
     const perGameShown = !joined && (showCores || showRunsWith || showWatch || showAdapter);
     const optionRows = (roomHasOptions || inSession) && (
         <>
@@ -1826,11 +1840,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showShare && syncOffRow}
             {showShare && syncFrequencyRow}
             {showAdapter && adapterRow}
-            {!joined && (showHardcore || voiceRow || chatToastRow) && <SectionTitle label={t(language, "Options")} />}
+            {!joined && (showHardcore || voiceRow || chatToastRow || streamShadersRow) && <SectionTitle label={t(language, "Options")} />}
             {showHardcore && hardcoreRow}
             {voiceRow}
             {steadyWifiRow}
             {chatToastRow}
+            {streamShadersRow}
         </>
     );
 
