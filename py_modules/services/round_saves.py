@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import decky
+import subprocess_util
 from utils import (
     atomic_file,
     child_owner,
@@ -26,6 +27,9 @@ UNCLAIMED = "round-saves-unclaimed"
 PROVE_PINGS = 3
 WROTE_LOG_SECONDS = 60
 EXIT_POLL_SECONDS = 5
+RAM_MB = 64
+MOUNT_SECONDS = 10
+RAM_SOURCE = "cheevodeck-round-saves"
 
 SAVE_RAM_CORES = {
     "gambatte": (4, 6),
@@ -114,18 +118,28 @@ class RoundSaves:
                                   "is still running)", title)
                 return False
             root = self.root(sid)
+            ram = self._mount_locked()
             try:
                 files = self._seed(root, pairs)
-                if probe is not None and not probe(root):
+                seen = probe is None or probe(root)
+                if not seen and ram:
+                    self._debug("RetroArch can't see the memory folder, trying the disk")
+                    _remove_tree(root)
+                    self._unmount_locked()
+                    ram = False
+                    files = self._seed(root, pairs)
+                    seen = probe(root)
+                if not seen:
                     raise _Fallback("RetroArch can't see the round folder")
                 state = {"schemaVersion": CURRENT_SCHEMA_VERSION, "session": sid, "game": game_id,
-                         "root": str(root), "files": files, "proven": False, "stray": False,
-                         "at": int(time.time())}
+                         "root": str(root), "tier": "memory" if ram else "disk", "files": files,
+                         "proven": False, "stray": False, "at": int(time.time())}
                 ensure_dir(self._record.parent)
                 save_json_file(self._record, state, compact=True)
             except (OSError, _Fallback) as e:
                 reason = str(e) if isinstance(e, _Fallback) else f"couldn't set up the round folder, {type(e).__name__}"
                 _remove_tree(root)
+                self._unmount_locked()
                 decky.logger.info("saves: %s's round saves go straight to the save (%s)", title, reason)
                 return False
             self._state = state
@@ -135,7 +149,7 @@ class RoundSaves:
             self._unproven = 0
             self._warned = set()
             self._wrote_at = {}
-        decky.logger.info("saves: %s's round saves go through CheevoDeck (disk)", title)
+        decky.logger.info("saves: %s's round saves go through CheevoDeck (%s)", title, state["tier"])
         return True
 
     def _seed(self, root: Path, pairs: list) -> dict:
@@ -172,6 +186,7 @@ class RoundSaves:
                 return
             _remove_tree(Path(raw["root"]))
             self._forget_locked()
+            self._unmount_locked()
 
     def tick(self, sid: str) -> bool:
         with self._lock:
@@ -273,6 +288,11 @@ class RoundSaves:
                 self._tick_locked(state, final=True)
             if forget:
                 self._forget_locked()
+                if _mounted(self._roots):
+                    for entry in list(self._roots.iterdir()):
+                        _remove_tree(entry)
+            if state is None or forget:
+                self._unmount_locked()
 
     def adopt(self, sid: str) -> bool:
         with self._lock:
@@ -288,13 +308,16 @@ class RoundSaves:
     def _finish_locked(self, raw: dict) -> None:
         self._tick_locked(raw, final=True)
         root = Path(raw["root"])
+        if raw.get("tier") == "memory" and not root.is_dir():
+            decky.logger.info("saves: game %s's round copies were in memory and went with the restart, its save "
+                              "has everything up to the last copy", raw["game"])
         why = self._unfinished(raw, root)
         if why and root.is_dir():
             name = time.strftime("%Y%m%d-%H%M%S") + f"-{raw['game']}"
             target = self._unclaimed / name
             try:
                 ensure_dir(self._unclaimed)
-                os.rename(root, target)
+                shutil.move(root, target)
                 decky.logger.warning("saves: kept game %s's round folder at %s (%s)", raw["game"], target, why)
             except OSError as e:
                 decky.logger.warning("saves: couldn't keep game %s's round folder (%s), left at %s", raw["game"],
@@ -306,6 +329,7 @@ class RoundSaves:
         else:
             _remove_tree(root)
         self._forget_locked()
+        self._unmount_locked()
 
     def _unfinished(self, raw: dict, root: Path) -> str:
         if raw["stray"]:
@@ -367,7 +391,9 @@ class RoundSaves:
                 else:
                     self._finish_locked(raw)
                     changed = True
-            return self._sweep_folders_locked() or changed
+            changed = self._sweep_folders_locked() or changed
+            self._unmount_locked()
+            return changed
 
     def sweep(self, live: str) -> None:
         with self._lock:
@@ -385,6 +411,7 @@ class RoundSaves:
             else:
                 self._finish_locked(raw)
             self._sweep_folders_locked()
+            self._unmount_locked()
 
     def _sweep_folders_locked(self) -> bool:
         if not self._roots.is_dir():
@@ -401,6 +428,44 @@ class RoundSaves:
             _remove_tree(entry)
             removed = True
         return removed
+
+    def _mount_locked(self) -> bool:
+        if _mounted(self._roots):
+            return True
+        owner = child_owner()
+        if owner is None:
+            return False
+        try:
+            ensure_dir(self._roots)
+            if any(self._roots.iterdir()):
+                self._debug("round-saves isn't empty, the round goes on disk")
+                return False
+            code, _out, err = subprocess_util.run_command(
+                ["mount", "-t", "tmpfs", "-o",
+                 f"size={RAM_MB}m,mode=0700,uid={owner[0]},gid={owner[1]},nosuid,nodev,noexec",
+                 RAM_SOURCE, str(self._roots)], timeout=MOUNT_SECONDS)
+        except Exception as e:
+            self._debug("couldn't mount the memory folder (%s)", type(e).__name__)
+            return False
+        if code != 0:
+            self._debug("couldn't mount the memory folder (%s)", err.strip()[:200] or f"exit {code}")
+            return False
+        return True
+
+    def _unmount_locked(self) -> None:
+        if not _mounted(self._roots):
+            return
+        try:
+            if any(self._roots.iterdir()):
+                return
+            code, _out, _err = subprocess_util.run_command(["umount", str(self._roots)], timeout=MOUNT_SECONDS)
+            if code != 0:
+                code, _out, err = subprocess_util.run_command(["umount", "-l", str(self._roots)],
+                                                              timeout=MOUNT_SECONDS)
+                if code != 0:
+                    decky.logger.warning("saves: couldn't unmount the memory folder (%s)", err.strip()[:200])
+        except Exception as e:
+            decky.logger.warning("saves: couldn't unmount the memory folder (%s)", type(e).__name__)
 
     def _load(self):
         raw = load_json_file(self._record, None)
@@ -429,6 +494,8 @@ def _valid(raw, roots: Path) -> bool:
     if raw.get("root") != str(root) or type(raw.get("game")) is not int:
         return False
     if type(raw.get("proven")) is not bool or type(raw.get("stray")) is not bool:
+        return False
+    if raw.get("tier", "disk") not in ("memory", "disk"):
         return False
     files = raw.get("files")
     if not isinstance(files, dict) or not files:
@@ -499,6 +566,15 @@ def _write_real(path: Path, data: bytes) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def _mounted(path: Path) -> bool:
+    target = str(path)
+    try:
+        with open("/proc/self/mountinfo", encoding="utf-8", errors="replace") as handle:
+            return any(line.split()[4].replace("\\040", " ") == target for line in handle)
+    except (OSError, IndexError):
+        return False
 
 
 def _remove_tree(path: Path) -> None:
