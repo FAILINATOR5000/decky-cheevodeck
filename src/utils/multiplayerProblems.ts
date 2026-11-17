@@ -97,6 +97,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     stream_not_set_up: "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).",
     stream_one_console: "Stream Play isn't available for this system: its multiplayer needs one console per player.",
     sunshine_running: "Sunshine is already running on this device. Close it before hosting a Stream Play room.",
+    sunshine_running_guest: "Sunshine is already running on this device. Close it before joining a Stream Play room.",
     stream_needs_update: "Streaming needs a CheevoDeck update.",
     sunshine_failed: "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.",
     host_too_slow: "The host's internet connection is too slow to handle another connection.",

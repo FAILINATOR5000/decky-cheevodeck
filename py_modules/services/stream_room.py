@@ -25,6 +25,7 @@ PAIR_POLL_SECONDS = 1.0
 PAIR_GIVE_UP_SECONDS = 15
 LIST_SECONDS = 10
 GUEST_PAIR_RETRY_SECONDS = 10
+PIPE_RETRY_SECONDS = 10
 NOT_PAIRED = "has not been paired"
 KILL_SECONDS = 10
 SERVERINFO_PORT = 47989
@@ -403,6 +404,8 @@ class GuestStream:
         self._pin = ""
         self._pipe = None
         self._pipe_task = None
+        self._pipe_failed_at = 0.0
+        self.ports_taken = False
         self._pairing = None
         self._tried_at = 0.0
         self._closed = False
@@ -421,7 +424,8 @@ class GuestStream:
         self.low = stream["low"]
         self.half = stream["half"]
         self.host_size = stream["hs"]
-        if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet:
+        if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet \
+                and time.monotonic() - self._pipe_failed_at >= PIPE_RETRY_SECONDS:
             raw = proto.unwrap(key, "stoken", stream["n"], stream["token"])
             if raw is not None and stream["occ"]:
                 self._pipe_task = asyncio.ensure_future(self._open_pipe(raw.hex(), stream["occ"]))
@@ -449,12 +453,19 @@ class GuestStream:
         pipe = StreamPipe(role="guest", meet=self._meet, room=self._room_id, seat=self._seat, token=token,
                           mbit=STREAM_MBIT_DECLARED, occupant=occupant, debug=self._debug, allow_direct=not FORCE_RELAY[0])
         if not await pipe.start():
-            decky.logger.warning("stream: couldn't open the guest pipe (Sunshine's ports taken here?)")
+            if not self.ports_taken:
+                decky.logger.warning("stream: couldn't open the guest pipe, Moonlight's ports are taken here")
             self.failed = True
+            self.ports_taken = True
+            self._pipe_failed_at = time.monotonic()
+            self._pipe_task = None
             return
         if self._closed:
             pipe.close()
             return
+        if self.ports_taken:
+            self.ports_taken = False
+            self.failed = False
         self._pipe = pipe
 
     def forget_pairing(self) -> None:

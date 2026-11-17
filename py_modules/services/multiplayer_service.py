@@ -5949,6 +5949,8 @@ class MultiplayerService:
         stream = joined.get("stream") if joined is not None else None
         if stream is not None and stream.busy:
             return {"ok": False, "error": ERROR_GATE, "gate": "stream_busy", "detail": {}}
+        if stream is not None and stream.ports_taken:
+            return {"ok": False, "error": ERROR_GATE, "gate": "sunshine_running_guest", "detail": {}}
         if stream is not None:
             stream.wait_paired(PAIR_WAIT_SECONDS)
             if stream.paired and stream.unpaired_after_all():

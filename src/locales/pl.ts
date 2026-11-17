@@ -3585,6 +3585,7 @@ const PL: LocaleTable = {
     "Watching (relay)": "Ogląda (przekaźnik)",
     "Couldn't connect": "Nie udało się połączyć",
     "Sunshine is already running on this device. Close it before hosting a Stream Play room.": "Sunshine już działa na tym urządzeniu. Zamknij go przed hostowaniem pokoju gry w streamingu.",
+    "Sunshine is already running on this device. Close it before joining a Stream Play room.": "Sunshine już działa na tym urządzeniu. Zamknij go przed dołączeniem do pokoju gry w streamingu.",
     "Streaming needs a CheevoDeck update.": "Streaming wymaga aktualizacji CheevoDeck.",
     "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.": "Streaming nie uruchomił się na tym urządzeniu. Spróbuj ponownie. Jeśli to się powtarza, uruchom urządzenie ponownie.",
     "Checking your connection…": "Sprawdzanie połączenia…",
