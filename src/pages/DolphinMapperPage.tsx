@@ -1,4 +1,4 @@
-import { PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BackButton } from "../components/ui/BackButton";
@@ -16,6 +16,7 @@ import { CollapseChevron } from "../components/ui/CollapseChevron";
 import { CollapseToggleButton } from "../components/ui/CollapseToggleButton";
 import { ExternalLink } from "../components/ui/ExternalLink";
 import { FocusTarget } from "../components/ui/FocusTarget";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -35,7 +36,8 @@ import {
     dolphinSystemFilterLabel,
     groupMappingsByTag,
     nextDolphinMapperMode,
-    nextDolphinSystemFilter
+    nextDolphinSystemFilter,
+    type MappingGroup
 } from "../utils/dolphin";
 import {
     BUTTON_BUMPER_RIGHT,
@@ -45,13 +47,15 @@ import {
 import { playOkSound, toastAfterPress } from "../utils/navSound";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { achievementGreen } from "../utils/style";
+import { textSize } from "../utils/scale";
 import { useFocusClaim } from "../hooks/useFocusClaim";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { useDolphinMapper } from "../components/mapping/DolphinMapperContext";
 import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
 import { MappingCardBody } from "../components/mapping/MappingCardBody";
 import { showManagedModal } from "../utils/modalRegistry";
 import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
-import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
+import { overrideRecord, pendingLandingKey, topEntryId, usePageLanding } from "../focusRecords";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { ControllerOrderSection, PAD_ORDER_FOCUS_KEY } from "../components/mapping/ControllerOrderSection";
 import { useControllerOrder } from "../hooks/useControllerOrder";
@@ -65,6 +69,12 @@ const CARD_FOCUS_PREFIX = "dmapcard:";
 const GROUP_FALLBACK = ["dolphinMapper:filter"];
 
 const APPLY_ERROR_SETTLE_MS = 250;
+
+const ROWS_INITIAL = 24;
+const ROWS_STEP = 12;
+const PREFETCH_DISTANCE = 4;
+const SENTINEL_ROOT_MARGIN_PX = 600;
+const NAV_ENTER_MAINTAIN_Y = 3;
 
 const BT_PASSTHROUGH_GUIDE_URL = "https://retrodeck.readthedocs.io/en/latest/wiki_emulator_guides/dolphin/dolphin-wii-remote/";
 
@@ -94,6 +104,18 @@ type DolphinMapperPageProps = {
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
 };
+
+type ListRow =
+    | { kind: "group"; group: MappingGroup }
+    | { kind: "card"; slot: number; mapping: DolphinMapping; groupKey: string };
+
+function rowKey(row: ListRow): string {
+    return row.kind === "group" ? `group:${row.group.key}` : `card:${row.mapping.id}`;
+}
+
+function rowFocusKey(row: ListRow): string {
+    return row.kind === "group" ? `dolphinMapper:group:${row.group.key}` : `${CARD_FOCUS_PREFIX}${row.mapping.id}`;
+}
 
 function DolphinMapperPage(props: DolphinMapperPageProps) {
     const {
@@ -211,19 +233,53 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         return painted;
     }, [groups, collapsedSet]);
 
-    const slotIndexById = useMemo(() => {
-        const byId = new Map<string, number>();
-        visualOrder.forEach((mapping, index) => {
-            byId.set(mapping.id, index);
-        });
-        return byId;
-    }, [visualOrder]);
+    const mode = mouseKeyboardMode ? dolphinMapperMode : "map";
+    const reordering = mode === "reorder";
+
+    const rows = useMemo(() => {
+        const built: ListRow[] = [];
+        if (reordering) {
+            mappings.forEach((mapping, slot) => {
+                built.push({ kind: "card", slot, mapping, groupKey: "" });
+            });
+            return built;
+        }
+        let slot = 0;
+        for (const group of groups) {
+            built.push({ kind: "group", group });
+            if (collapsedSet.has(group.key)) {
+                continue;
+            }
+            for (const mapping of group.mappings) {
+                built.push({ kind: "card", slot, mapping, groupKey: group.key });
+                slot += 1;
+            }
+        }
+        return built;
+    }, [reordering, mappings, groups, collapsedSet]);
+
+    const list = useSlidingWindow({
+        items: rows,
+        itemKey: rowKey,
+        focusKeyFor: rowFocusKey,
+        windowId: "dolphinMapper:list",
+        heightScope: ["dolphinMapper:list", language, textSize(12), buttonSpacing].join("|"),
+        dynamicLoading: true,
+        initialRows: ROWS_INITIAL,
+        rowStep: ROWS_STEP,
+        prefetchDistance: PREFETCH_DISTANCE,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: reordering ? "flat" : dolphinSystemFilter,
+        openFirst: pendingLandingKey("dolphinMapper") ?? undefined
+    });
 
     usePageLanding({
         view: "dolphinMapper",
         active: view === "dolphinMapper",
         defaultKey: "dolphinMapper:back",
         ready: (loaded || loadFailed) && (padOrderCollapsed || padOrder.settled),
+        holds: (key) => rows.some((row) => rowFocusKey(row) === key),
+        open: (key) => list.openAt(key),
         reveal: (key) => {
             if (key.startsWith(`${PAD_ORDER_FOCUS_KEY}:`)) {
                 if (!padOrderCollapsed) {
@@ -246,9 +302,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     });
 
     const belowDisabled = dolphinBluetoothPassthrough;
-    const mode = mouseKeyboardMode ? dolphinMapperMode : "map";
-    const reordering = mode === "reorder";
-
 
     const gamepadCardActions = !mouseKeyboardMode && !belowDisabled;
 
@@ -404,6 +457,8 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     cardReorderPickRef.current = handleCardReorderPick;
     const cardReorderFollowRef = useRef(handleCardReorderFollow);
     cardReorderFollowRef.current = handleCardReorderFollow;
+    const windowFocusRef = useRef(list.onItemFocus);
+    windowFocusRef.current = list.onItemFocus;
 
     const cardList = useMemo<MappingCardListProps>(() => ({
         language,
@@ -414,6 +469,9 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         },
         onCardBlur: (mappingId) => {
             cardBlurRef.current(mappingId);
+        },
+        onCardFocus: (at) => {
+            windowFocusRef.current(at);
         },
         onCardDelete: gamepadCardActions
             ? (mapping: DolphinMapping) => {
@@ -437,24 +495,36 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
             : undefined
     }), [language, belowDisabled, buttonSpacing, gamepadCardActions, gamepadReorderAvailable]);
 
+    const claim = rowClaim.claim;
+    const claimOvertaken = claim !== null && claim.armed
+        && !list.mountedItems.some((row) => row.kind === "card" && !reordering && row.slot === claim.slotIndex);
+    useEffect(function dropOvertakenClaim() {
+        if (claimOvertaken) {
+            rowClaim.spend();
+        }
+    }, [claimOvertaken, rowClaim.spend]);
+
     if (view !== "dolphinMapper") {
         return null;
     }
 
-    function renderCard(mapping: DolphinMapping, reactKey: string | number, slotIndex: number, groupKey: string) {
+    function renderCard(row: Extract<ListRow, { kind: "card" }>, at: number, guardAt: number) {
+        const reactKey = `slot:${row.slot}`;
         const card = (
             <MappingCard
                 key={reactKey}
-                mapping={mapping}
-                groupKey={groupKey}
-                isReorderTarget={(reordering || gamepadReorderAvailable) && reorderTargetId === mapping.id}
-                isPendingDelete={pendingDeleteId === mapping.id}
-                applyBlocked={applyBlockedId === mapping.id}
+                mapping={row.mapping}
+                groupKey={row.groupKey}
+                windowIndex={at}
+                isReorderTarget={(reordering || gamepadReorderAvailable) && reorderTargetId === row.mapping.id}
+                isPendingDelete={pendingDeleteId === row.mapping.id}
+                applyBlocked={applyBlockedId === row.mapping.id}
+                onGamepadDirection={at === guardAt ? list.guardTopRow(list.start) : undefined}
                 list={cardList}
             />
         );
 
-        const claim = rowClaim.claim;
+        const slotIndex = reordering ? NO_CLAIM_SLOT : row.slot;
         if (!claim || claim.slotIndex !== slotIndex) {
             return card;
         }
@@ -462,12 +532,18 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
             <FocusClaim
                 key={reactKey}
                 token={claim.token}
-                armed={claim.armed}
+                armed={claim.armed && !claimOvertaken}
                 onSpent={rowClaim.spend}
             >
                 {card}
             </FocusClaim>
         );
+    }
+
+    const headersDead = belowDisabled || reorderTargetId !== null;
+    let guardAt = list.start;
+    if (headersDead && list.mountedItems.length > 0 && list.mountedItems[0].kind === "group") {
+        guardAt += 1;
     }
 
     const page = (
@@ -679,36 +755,42 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 </PanelSectionRow>
             )}
 
-            {reordering
-                ? mappings.map((mapping, index) => renderCard(mapping, index, NO_CLAIM_SLOT, ""))
-                : groups.map((group) => {
-                    const collapsed = collapsedSet.has(group.key);
-                    return (
-                        <div key={group.key}>
-                            <SectionTitle
-                                label={group.header}
-                                align="start"
-                                scaled={false}
-                                dimmed={belowDisabled}
-                                action={
-                                    <CollapseToggleButton
-                                        collapsed={collapsed}
-                                        focusKey={`dolphinMapper:group:${group.key}`}
-                                        focusFallback={GROUP_FALLBACK}
-                                        disabled={belowDisabled || reorderTargetId !== null}
-                                        onToggle={() => toggleGroupCollapsed(group.key)}
-                                    />
-                                }
-                            />
-                            {!collapsed && group.mappings.map((mapping, index) => renderCard(
-                                mapping,
-                                index,
-                                slotIndexById.get(mapping.id) ?? NO_CLAIM_SLOT,
-                                group.key
-                            ))}
-                        </div>
-                    );
-                })}
+            <Focusable
+                flow-children="column"
+                resetNavOnEntry
+                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+            >
+                <SlidingWindowRows list={list}>
+                    {list.mountedItems.map((row, index) => {
+                        const at = list.start + index;
+                        if (row.kind === "card") {
+                            return renderCard(row, at, guardAt);
+                        }
+                        const { group } = row;
+                        return (
+                            <div key={rowKey(row)}>
+                                <SectionTitle
+                                    label={group.header}
+                                    align="start"
+                                    scaled={false}
+                                    dimmed={belowDisabled}
+                                    action={
+                                        <CollapseToggleButton
+                                            collapsed={collapsedSet.has(group.key)}
+                                            focusKey={rowFocusKey(row)}
+                                            focusFallback={GROUP_FALLBACK}
+                                            disabled={headersDead}
+                                            onToggle={() => toggleGroupCollapsed(group.key)}
+                                            onGamepadFocus={() => list.onItemFocus(at)}
+                                            onGamepadDirection={list.guardTopRow(at)}
+                                        />
+                                    }
+                                />
+                            </div>
+                        );
+                    })}
+                </SlidingWindowRows>
+            </Focusable>
         </PanelSection>
     );
 
@@ -721,6 +803,7 @@ type MappingCardListProps = {
     buttonOuterStyle: CSSProperties;
     onCardClick: (mapping: DolphinMapping) => void;
     onCardBlur: (mappingId: string) => void;
+    onCardFocus: (at: number) => void;
     onCardDelete?: (mapping: DolphinMapping) => void;
     onCardEdit?: (mapping: DolphinMapping) => void;
     onCardReorderPick?: (mappingId: string) => void;
@@ -730,6 +813,8 @@ type MappingCardListProps = {
 type MappingCardProps = {
     mapping: DolphinMapping;
     groupKey: string;
+    windowIndex: number;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
     isReorderTarget: boolean;
     isPendingDelete: boolean;
     applyBlocked: boolean;
@@ -737,7 +822,7 @@ type MappingCardProps = {
 };
 
 const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
-    const { mapping, groupKey, isReorderTarget, isPendingDelete, applyBlocked, list } = props;
+    const { mapping, groupKey, windowIndex, onGamepadDirection, isReorderTarget, isPendingDelete, applyBlocked, list } = props;
     const { language, belowDisabled } = list;
 
     const outerStyle: CSSProperties = {
@@ -754,6 +839,7 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
     }
 
     function handleGamepadFocus() {
+        list.onCardFocus(windowIndex);
         list.onCardReorderFollow?.(mapping.id);
     }
 
@@ -789,6 +875,7 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
             onBlur={handleBlur}
             onGamepadFocus={handleGamepadFocus}
             onGamepadBlur={handleBlur}
+            onGamepadDirection={onGamepadDirection}
             onButtonDown={handleButtonDown}
         >
             <MappingCardBody mapping={mapping} language={language}>
