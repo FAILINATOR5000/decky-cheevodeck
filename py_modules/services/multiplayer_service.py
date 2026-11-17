@@ -3871,23 +3871,28 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
         current["startedAt"] = time.time()
+        joined = self._joined
+        if room is not None:
+            current["steadyWifi"] = room["steadyWifi"]
+        elif joined is not None and not joined["launched"]:
+            status = joined["status"]
+            current["steadyWifi"] = (status["room"] if status is not None else joined["row"]).get("steadyWifi", True)
         self._write_round_state(current)
         current["watch"] = self._spawn(self._watch(current))
         game_id = current.get("gameId", 0)
         if room is not None:
             decky.logger.info("multiplayer: host launched with %s guests", len(room["roster"]))
-            self._steady_start(room["steadyWifi"])
+            self._steady_start(current["steadyWifi"])
             pads = _virtual_pads(self._user_home)
             if pads and pads[0] == SUNSHINE_PAD and not _sunshine_pads():
                 decky.logger.warning("multiplayer: Steam's controller list starts with a Stream Play guest who "
                                      "isn't connected, so the host's controller may have the wrong name in game")
             self._count_host_round(room)
             return {"ok": True, "gameId": game_id}
-        joined = self._joined
         if joined is not None and not joined["launched"]:
             joined["launched"] = True
             status = joined["status"]
-            self._steady_start((status["room"] if status is not None else joined["row"]).get("steadyWifi", True))
+            self._steady_start(current["steadyWifi"])
             if status is not None:
                 joined["launchedRound"] = status["round"]
             if status is not None and joined["countedRound"] != status["round"]:
@@ -6998,6 +7003,8 @@ class MultiplayerService:
         self._session = current
         current["watch"] = self._spawn(self._watch(current))
         decky.logger.info("multiplayer: re-adopted session %s after a restart", sid)
+        if current.get("steadyWifi"):
+            self._steady_start(True)
 
     def _write_round_state(self, current: dict) -> None:
         nand = current.get("wiiNand")
@@ -7008,6 +7015,7 @@ class MultiplayerService:
             "savePort": current.get("savePort", 0),
             "saveFiles": [str(path) for path in current.get("saveFiles", [])],
             "startedAt": current["startedAt"],
+            "steadyWifi": current.get("steadyWifi", False),
             "wiiNand": {**nand, "user": str(nand["user"]), "config": str(nand["config"]),
                         "before": list(nand["before"]) if nand["before"] else None} if nand else None,
             "backup": {**backup, "paths": [str(path) for path in backup["paths"]]} if backup else None,
@@ -7033,6 +7041,8 @@ class MultiplayerService:
             found["saveFiles"] = [Path(path) for path in files]
         if type(raw.get("startedAt")) in (int, float):
             found["startedAt"] = float(raw["startedAt"])
+        if raw.get("steadyWifi") is True:
+            found["steadyWifi"] = True
         nand = raw.get("wiiNand")
         if isinstance(nand, dict) and "startedAt" in found and all(
                 isinstance(nand.get(key), str) for key in ("user", "config", "install", "code")) \
