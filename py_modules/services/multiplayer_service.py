@@ -4438,7 +4438,8 @@ class MultiplayerService:
             now = time.time()
             fresh = {index: {**cred, "expires": int(cred["u"].split(":")[0]), "n": secrets.token_hex(16)}
                      for index, cred in enumerate(creds)}
-            kept = {index: cred for index, cred in room["turn"].items() if not _turn_due(cred, now)}
+            due = any(_turn_due(cred, now) for cred in room["turn"].values())
+            kept = {} if due else dict(room["turn"])
             room["turn"] = {**fresh, **kept}
             room["turnSeq"] += 1
             if renewed and kept:
