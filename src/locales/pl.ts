@@ -3286,6 +3286,8 @@ const PL: LocaleTable = {
     "Couldn't connect to the host through the online lobby. Try again.": "Nie udało się połączyć z hostem przez lobby online. Spróbuj ponownie.",
     "CheevoDeck couldn't write the files this game needs. Try again. If it keeps happening, restart your device.": "CheevoDeck nie mógł zapisać plików potrzebnych tej grze. Spróbuj ponownie. Jeśli to się powtarza, uruchom urządzenie ponownie.",
     "This game can't be played this way on this device": "W tę grę nie można grać w ten sposób na tym urządzeniu",
+    "The host runs an older CheevoDeck ({{version}}). Some things may not show until they update.": "Host używa starszej wersji CheevoDeck ({{version}}). Niektóre rzeczy pojawią się dopiero po jej aktualizacji.",
+    "The host runs a newer CheevoDeck ({{version}}). Update CheevoDeck to see everything.": "Host używa nowszej wersji CheevoDeck ({{version}}). Zaktualizuj CheevoDeck, aby zobaczyć wszystko.",
     "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.": "Ta sesja używa {{core}}. Skrót zostaje przy {{shortcutCore}}.",
     "Using {{core}} for this session, as it works better for Couch Play. Your shortcut stays on {{shortcutCore}}.": "W tej sesji używany jest {{core}}, bo lepiej działa w Couch Play. Twój skrót zostaje przy {{shortcutCore}}.",
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Zapisy RetroArch są sortowane według rdzenia, więc {{core}} nie zobaczy twojego zwykłego zapisu.",

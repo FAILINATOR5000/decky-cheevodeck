@@ -633,7 +633,6 @@ def read_status_reply(key: bytes, message, nonce: str):
     if (
         room is None
         or (message.get("vote") is not None and vote is None)
-        or lounge is None
         or message.get("state") not in STATES
         or type(message.get("hardcore")) is not bool
         or not is_ipv4(message.get("ip"))
@@ -1014,27 +1013,24 @@ def _lounge_board(raw, pattern, players_most: int, cells: int, line_most: int = 
 
 def read_lounge(raw):
     if not isinstance(raw, dict):
-        return None
+        return {}
+    lounge = {}
     ttt = _lounge_board(raw.get("ttt"), _TTT_BOARD, 2, 9)
+    if ttt is not None:
+        lounge["ttt"] = ttt
     c4 = _lounge_board(raw.get("c4"), _C4_BOARD, 4, 42)
+    if c4 is not None and type(raw["c4"].get("started")) is bool:
+        c4["started"] = raw["c4"]["started"]
+        lounge["c4"] = c4
     rev = _lounge_board(raw.get("rev"), _REV_BOARD, 2, 64)
+    if rev is not None and type(raw["rev"].get("started")) is bool and _small_int(raw["rev"].get("passed"), -1, 1):
+        rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
+        lounge["rev"] = rev
     chk = _lounge_board(raw.get("chk"), _CHK_BOARD, 2, 64, _CHK_LINE)
-    if (
-        ttt is None
-        or c4 is None
-        or rev is None
-        or chk is None
-        or type(raw["c4"].get("started")) is not bool
-        or type(raw["rev"].get("started")) is not bool
-        or not _small_int(raw["rev"].get("passed"), -1, 1)
-        or type(raw["chk"].get("started")) is not bool
-        or not _small_int(raw["chk"].get("chain"), -1, 63)
-    ):
-        return None
-    c4["started"] = raw["c4"]["started"]
-    rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
-    chk.update(started=raw["chk"]["started"], chain=raw["chk"]["chain"])
-    return {"ttt": ttt, "c4": c4, "rev": rev, "chk": chk}
+    if chk is not None and type(raw["chk"].get("started")) is bool and _small_int(raw["chk"].get("chain"), -1, 63):
+        chk.update(started=raw["chk"]["started"], chain=raw["chk"]["chain"])
+        lounge["chk"] = chk
+    return lounge
 
 
 def read_vote_press(raw):

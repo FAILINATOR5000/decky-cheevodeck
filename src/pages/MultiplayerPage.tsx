@@ -504,6 +504,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
         ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
         ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
+        ...(joined?.hostVersion ? [{ text: t(language, joined.hostVersion === "older"
+            ? "The host runs an older CheevoDeck ({{version}}). Some things may not show until they update."
+            : "The host runs a newer CheevoDeck ({{version}}). Update CheevoDeck to see everything.",
+        { version: joined.room.pv ?? "" }), color: undefined }] : []),
         ...(lineProblem ? [{ text: problemLine(lineProblem.code, { size: stream.size || "?", ...lineProblem.detail }),
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))
@@ -1652,6 +1656,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
     const vote = hosted?.vote ?? joined?.status?.vote ?? null;
     const lounge = hosted?.lounge ?? joined?.status?.lounge ?? null;
+    const shownLoungeGame = lounge?.[loungeGame] ? loungeGame
+        : (["ttt", "c4", "rev", "chk"] as const).find((game) => lounge?.[game]) ?? null;
     function explainTab(tab: MultiplayerRoomTab) {
         const text = tab === "audio"
             ? t(language, "Voice chat is off in this room. The host can turn it on in the Room tab.")
@@ -1666,10 +1672,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             disabled={tabOff}
             dot={{
                 vote: Boolean(vote?.open && vote.mine < 0),
-                lounge: lounge !== null && (lounge.ttt.players.length > 0 && !lounge.ttt.end
-                    || lounge.c4.players.length > 0 && !lounge.c4.end
-                    || lounge.rev.players.length > 0 && !lounge.rev.end
-                    || lounge.chk.players.length > 0 && !lounge.chk.end)
+                lounge: lounge !== null && Object.values(lounge).some((board) => board.players.length > 0 && !board.end)
             }}
             onPick={showRoomTab}
             onDisabled={explainTab}
@@ -1704,11 +1707,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     {t(language, "Say Something")}
                 </FocusableItem>
             </PanelSectionRow>
-            <LoungeTab
+            {shownLoungeGame && <LoungeTab
                 language={language}
                 lounge={lounge}
                 ownSeat={hosted ? 0 : joined?.seat ?? -1}
-                game={loungeGame}
+                game={shownLoungeGame}
                 avatars={friends.state.avatars}
                 self={hosted
                     ? { name: hosted.seats[0]?.name ?? "", pic: hosted.seats[0]?.pic ?? "" }
@@ -1716,7 +1719,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 buttonStyle={buttonStyle}
                 exitKey={exitKey}
                 onGame={showLoungeGame}
-            />
+            />}
         </>
     );
     const miscRows = streamRoom && (

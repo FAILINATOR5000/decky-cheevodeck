@@ -34,6 +34,7 @@ from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
+from services.update_checker_service import parse_version
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
 
 LEASE_SECONDS = 30
@@ -5674,6 +5675,7 @@ class MultiplayerService:
             "detail": joined["detail"],
             "chat": list(joined["chat"]),
             "autostart": self._pending_start(joined),
+            "hostVersion": _version_gap(joined["row"].get("pv", "")),
         }
 
     def room_status(self) -> dict:
@@ -7480,12 +7482,18 @@ def _in_lounge_match(status, seat: int) -> bool:
                for board in boards.values())
 
 
+def _version_gap(host: str) -> str:
+    theirs, ours = parse_version(host), parse_version(PLUGIN_VERSION)
+    if theirs is None or ours is None or theirs == ours:
+        return ""
+    return "older" if theirs < ours else "newer"
+
+
 def _lounge_marker(view):
     if view is None:
         return None
     marker = {}
-    for name in ("ttt", "c4", "rev", "chk"):
-        board = view[name]
+    for name, board in view.items():
         players = board["players"]
         won = board["end"] == "win" and 0 <= board["winner"] < len(players)
         marker[name] = {"match": board["match"], "opener": players[0]["seat"] if players else -1,

@@ -3025,10 +3025,10 @@ export type MultiplayerLoungeBoard = {
 };
 
 export type MultiplayerLounge = {
-    ttt: MultiplayerLoungeBoard;
-    c4: MultiplayerLoungeBoard & { started: boolean };
-    rev: MultiplayerLoungeBoard & { started: boolean; passed: number };
-    chk: MultiplayerLoungeBoard & { started: boolean; chain: number };
+    ttt?: MultiplayerLoungeBoard;
+    c4?: MultiplayerLoungeBoard & { started: boolean };
+    rev?: MultiplayerLoungeBoard & { started: boolean; passed: number };
+    chk?: MultiplayerLoungeBoard & { started: boolean; chain: number };
 };
 
 export type MultiplayerWhere = "local" | "online";
@@ -3047,6 +3047,7 @@ export type MultiplayerRoomFilter = {
 export type MultiplayerRoomRow = {
     room: string;
     user: string;
+    pv?: string;
     name: string;
     status: string;
     where: MultiplayerWhere;
@@ -3211,6 +3212,7 @@ export type MultiplayerRoomStatus =
         detail: Record<string, string>;
         chat: MultiplayerChatLine[];
         autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
+        hostVersion?: "" | "older" | "newer";
         voice?: unknown;
     }
     | { ok: true; seq: number; role: null; closedReason: string; lobby: boolean };
