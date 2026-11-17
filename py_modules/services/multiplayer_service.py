@@ -5812,11 +5812,10 @@ class MultiplayerService:
                     system_dir = self._session_dir / f"session-{sid}.system"
                     self._build_system_folder(ra, rom, system_dir)
                 remap_dir = self._session_dir / f"session-{sid}.remaps"
-                if (mode == "couch" or local["core"] in proto.NETPACKET_CORES) and not self._retroarch_saves_netplay():
+                if ((mode == "couch" and role == "host") or local["core"] in proto.NETPACKET_CORES) \
+                        and not self._retroarch_saves_netplay():
                     save_port = _command_port()
                     save_files = ra.save_paths(local["core"], rom)
-                    if mode == "couch" and role == "guest":
-                        save_files = [path.parent / ".netplay" / path.name for path in save_files]
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
