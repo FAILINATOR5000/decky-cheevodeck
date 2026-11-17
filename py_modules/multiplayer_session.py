@@ -71,7 +71,8 @@ COUCH_CORES = {
     51: "prosystem", 29: "bluemsx", 2: "mupen64plus_next", 40: "flycast",
 }
 
-COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY}
+COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY, 1: "picodrive", 11: "picodrive", 15: "picodrive",
+                     33: "picodrive"}
 
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
