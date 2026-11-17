@@ -41,10 +41,13 @@ function CorePickerModal(props: CorePickerModalProps) {
         })) });
     }
     if (choices.cores.length > 0) {
-        sections.push({ title: "RetroArch", rows: choices.cores.map((row) => ({
+        const recommended = choices.cores.filter((row) => row.core === choices.recommendedCore);
+        const others = choices.cores.filter((row) => row.core !== choices.recommendedCore);
+        sections.push({ title: "RetroArch", rows: [...recommended, ...others].map((row) => ({
             key: `core:${row.core}`,
             label: row.name,
-            pick: { appid: 0, kind: "retroarch", core: row.core }
+            pick: { appid: 0, kind: "retroarch", core: row.core },
+            mark: row.core === choices.recommendedCore ? t(language, "Recommended") : undefined
         })) });
     }
 

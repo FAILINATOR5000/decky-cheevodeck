@@ -1748,7 +1748,7 @@ class EmulatorService:
                 and core["core"] in packed]
         if not fits:
             return None
-        table = session.COUCH_CORES.get(system_id) if couch else catalog.RECOMMENDED_CORES.get(system_id)
+        table = session.COUCH_RECOMMENDED.get(system_id) if couch else catalog.RECOMMENDED_CORES.get(system_id)
         recommended = table if any(core["core"] == table for core in fits) else fits[0]["core"]
         first = self._retroarch_steps(inventory)
         step = self._core_step(inventory, recommended)

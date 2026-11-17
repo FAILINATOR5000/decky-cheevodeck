@@ -28,6 +28,7 @@ PPSSPP_FLATPAK = "org.ppsspp.PPSSPP"
 
 PPSSPP_STANDALONE = "ppsspp-standalone"
 GAMBATTE = "gambatte"
+SAMEBOY = "sameboy"
 PPSSPP_CORE = "ppsspp"
 GPSP = "gpsp"
 MELONDS_DS = "melondsds"
@@ -69,6 +70,8 @@ COUCH_CORES = {
     63: "potator", 17: "virtualjaguar", 43: "opera", 69: "sameduck", 24: "pokemini", 60: "mame", 27: "mame",
     51: "prosystem", 29: "bluemsx", 2: "mupen64plus_next", 40: "flycast",
 }
+
+COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY}
 
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",

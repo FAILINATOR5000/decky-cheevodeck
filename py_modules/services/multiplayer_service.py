@@ -1552,7 +1552,10 @@ class MultiplayerService:
         room_core = room["core"] if room is not None else ""
         usual = detected["core"]
         if local["fallback"]:
-            usual = self._core_with_save(ra, compatible, Path(pick["path"]), session.COUCH_CORES.get(system_id, ""))
+            table = session.COUCH_RECOMMENDED.get(system_id, "") if mode == "couch" else ""
+            if table not in compatible:
+                table = session.COUCH_CORES.get(system_id, "")
+            usual = self._core_with_save(ra, compatible, Path(pick["path"]), table)
         chosen = core or self._default_core(ra, compatible, usual, room_core)
         if not core and mode == "couch" and saved_core in compatible:
             chosen = saved_core
@@ -1879,12 +1882,15 @@ class MultiplayerService:
         if system_id in session.DOLPHIN_SYSTEMS or system_id == session.N64_SYSTEM:
             emulators = self._standalone_entries(("dolphin",) if system_id in session.DOLPHIN_SYSTEMS else ("rmg",))
         local, _gate, _detail = self._route("couch", game_id, "", None, use_saved=False)
+        cores = local["choices"] if local is not None else []
+        recommended = session.COUCH_RECOMMENDED.get(system_id, "")
         return {
             "ok": True,
             "shortcuts": shortcuts,
             "emulators": emulators,
             "defaultCore": local["coreName"] if local is not None and local.get("coreName") else "",
-            "cores": local["choices"] if local is not None else [],
+            "cores": cores,
+            "recommendedCore": recommended if any(row["core"] == recommended for row in cores) else "",
             "saved": self._game_options.get(game_id)["pick"],
         }
 

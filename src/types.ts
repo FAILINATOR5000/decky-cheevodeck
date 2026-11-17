@@ -3312,6 +3312,7 @@ export type CouchChoices = {
     emulators: PlayChoiceEntry[];
     defaultCore: string;
     cores: MultiplayerCoreChoice[];
+    recommendedCore: string;
     saved: PlayPick | null;
 };
 
