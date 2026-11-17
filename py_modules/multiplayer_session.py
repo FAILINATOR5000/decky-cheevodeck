@@ -217,6 +217,8 @@ _STANDALONE_NAMES = (
     ("rmg", ("rmg", "rmg.sh", "rosaliesmupengui", "rosaliesmupengui.sh", "com.github.rosalie241.rmg")),
 )
 _CPU_FLAGS = {0: "-i", 1: "-j", 2: "-r", 3: "-J"}
+_SAVE_FLAGS = {"savefiles_in_content_dir": "inContentDir", "sort_savefiles_enable": "byCore",
+               "sort_savefiles_by_content_enable": "byContent"}
 _CFG_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
 _INI_LINE = re.compile(r"^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$")
 
@@ -249,6 +251,13 @@ def read_cfg_lines(path) -> list:
     return pairs
 
 
+def _first_values(pairs) -> dict:
+    values = {}
+    for key, value in pairs:
+        values.setdefault(key, value)
+    return values
+
+
 def write_cfg(pairs) -> str:
     return "".join(f'{key} = "{value}"\n' for key, value in pairs)
 
@@ -279,7 +288,6 @@ class RetroArch:
         self.info_dir = self._dir("libretro_info_path", base / "info")
         self.cores_dir = self._dir("libretro_directory", base / "cores")
         self.remap_dir = self._dir("input_remapping_directory", self.config_dir / "remaps")
-        self.save_dir = self._dir("savefile_directory", None)
         self.system_dir = self._dir("system_directory", base / "system")
         self._info = {}
 
@@ -336,11 +344,28 @@ class RetroArch:
         return features in ("", "deterministic")
 
     def sorts_saves_by_core(self, core: str, rom: Path) -> bool:
-        value = self.cfg.get("sort_savefiles_enable", "false")
-        for key, found in self.override_pairs(core, rom):
-            if key == "sort_savefiles_enable":
-                value = found
-        return value == "true"
+        return self.save_settings(core, rom)["byCore"]
+
+    def save_settings(self, core: str, rom: Path) -> dict:
+        found = {"folder": self.base / "saves", "inContentDir": False, "byCore": True, "byContent": False}
+        if self.cfg_path is None:
+            return found
+        main = _first_values(read_cfg_lines(self.cfg_path))
+        files = [main]
+        if main.get("auto_overrides_enable") not in ("false", "0"):
+            files += [_first_values(read_cfg_lines(path)) for path in self.override_files(core, rom)]
+        for values in files:
+            for key, value in values.items():
+                if key == "savefile_directory":
+                    if value == "default":
+                        found["folder"] = self.base / "saves"
+                    else:
+                        folder = _expand(value, self.home, self.base)
+                        if folder is not None and folder.is_dir():
+                            found["folder"] = folder
+                elif key in _SAVE_FLAGS and value in ("true", "1", "false", "0"):
+                    found[_SAVE_FLAGS[key]] = value in ("true", "1")
+        return found
 
     def _core_dir(self, core: str) -> Path:
         return self.config_dir / self.core_name(core)
@@ -373,17 +398,15 @@ class RetroArch:
         return []
 
     def save_paths(self, core: str, rom: Path) -> list:
-        folder = self.save_dir
-        for key, value in self.override_pairs(core, rom):
-            if key == "savefile_directory":
-                folder = _expand(value, self.home, self.base)
-        if folder is None:
+        found = self.save_settings(core, rom)
+        if found["inContentDir"]:
             folder = rom.parent
         else:
-            if self.cfg.get("sort_savefiles_by_content_enable", "false") == "true":
-                folder = folder / rom.parent.name
-            if self.sorts_saves_by_core(core, rom):
-                folder = folder / self.core_name(core)
+            folder = found["folder"]
+        if found["byContent"]:
+            folder = folder / rom.parent.name
+        if found["byCore"]:
+            folder = folder / self.core_name(core)
         return [folder / f"{rom.stem}{suffix}" for suffix in (".srm", ".rtc")]
 
 
