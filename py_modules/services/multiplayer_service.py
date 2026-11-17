@@ -231,6 +231,7 @@ _JOIN_REFUSALS = {
 }
 
 _SESSION_ID = re.compile(r"session-([0-9a-f]{16})\.")
+ROUND_STATE = ".state"
 
 PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
 
@@ -3869,6 +3870,7 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
         current["startedAt"] = time.time()
+        self._write_round_state(current)
         current["watch"] = self._spawn(self._watch(current))
         game_id = current.get("gameId", 0)
         if room is not None:
@@ -6606,7 +6608,7 @@ class MultiplayerService:
         self._remove_session_files(current["id"])
 
     def _remove_session_files(self, sid: str) -> None:
-        for suffix in (".opt", *SESSION_SUFFIXES):
+        for suffix in (".opt", ROUND_STATE, *SESSION_SUFFIXES):
             path = self._session_dir / f"session-{sid}{suffix}"
             try:
                 path.unlink()
@@ -6982,12 +6984,63 @@ class MultiplayerService:
             "error": "",
             "watch": None,
         }
+        current.update(self._read_round_state(sid))
         if self._round_saves is not None and self._round_saves.adopt(sid):
             cfg = session.read_cfg(self._session_dir / f"session-{sid}.cfg")
             current.update({"roundSaves": True, "saveFiles": [], "savePort": to_int(cfg.get("network_cmd_port"), 0)})
         self._session = current
         current["watch"] = self._spawn(self._watch(current))
         decky.logger.info("multiplayer: re-adopted session %s after a restart", sid)
+
+    def _write_round_state(self, current: dict) -> None:
+        nand = current.get("wiiNand")
+        backup = current.get("backup")
+        state = {
+            "gameId": current.get("gameId", 0),
+            "role": current.get("role", ""),
+            "savePort": current.get("savePort", 0),
+            "saveFiles": [str(path) for path in current.get("saveFiles", [])],
+            "startedAt": current["startedAt"],
+            "wiiNand": {**nand, "user": str(nand["user"]), "config": str(nand["config"]),
+                        "before": list(nand["before"]) if nand["before"] else None} if nand else None,
+            "backup": {**backup, "paths": [str(path) for path in backup["paths"]]} if backup else None,
+        }
+        try:
+            self._write(self._session_dir / f"session-{current['id']}{ROUND_STATE}", json.dumps(state))
+        except (OSError, TypeError, ValueError) as e:
+            decky.logger.warning("multiplayer: couldn't keep the round's state for a restart (%s)", type(e).__name__)
+
+    def _read_round_state(self, sid: str) -> dict:
+        raw = load_json_file(self._session_dir / f"session-{sid}{ROUND_STATE}", None)
+        if not isinstance(raw, dict):
+            return {}
+        found = {}
+        if type(raw.get("gameId")) is int:
+            found["gameId"] = raw["gameId"]
+        if raw.get("role") in ("host", "guest"):
+            found["role"] = raw["role"]
+        files = raw.get("saveFiles")
+        if type(raw.get("savePort")) is int and 0 < raw["savePort"] < 65536 and isinstance(files, list) \
+                and all(isinstance(path, str) and os.path.isabs(path) for path in files):
+            found["savePort"] = raw["savePort"]
+            found["saveFiles"] = [Path(path) for path in files]
+        if type(raw.get("startedAt")) in (int, float):
+            found["startedAt"] = float(raw["startedAt"])
+        nand = raw.get("wiiNand")
+        if isinstance(nand, dict) and "startedAt" in found and all(
+                isinstance(nand.get(key), str) for key in ("user", "config", "install", "code")) \
+                and type(nand.get("gameId")) is int:
+            before = nand.get("before")
+            found["wiiNand"] = {"user": Path(nand["user"]), "config": Path(nand["config"]), "install": nand["install"],
+                                "code": nand["code"], "gameId": nand["gameId"],
+                                "before": tuple(before) if isinstance(before, list) and len(before) == 2
+                                and all(type(part) is int for part in before) else None}
+        backup = raw.get("backup")
+        if isinstance(backup, dict) and type(backup.get("gameId")) is int and type(backup.get("systemId")) is int \
+                and isinstance(backup.get("emulator"), str) and isinstance(backup.get("paths"), list) \
+                and all(isinstance(path, str) and os.path.isabs(path) for path in backup["paths"]):
+            found["backup"] = {**backup, "paths": [Path(path) for path in backup["paths"]]}
+        return found
 
     def _restore_sessions(self) -> set:
         raw = load_json_file(self._session_dir / RESTORE_RECORD, None)
