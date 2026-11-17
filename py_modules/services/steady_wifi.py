@@ -325,6 +325,8 @@ class SteadyWifi:
                 return False
             if now == POWER_OFF and self._write_power(POWER_ON):
                 power = "power saving on"
+            elif now == POWER_OFF:
+                return False
             elif now == POWER_ON:
                 power = "power saving already on"
         self._remove_record()
