@@ -351,9 +351,8 @@ class RetroArch:
                  "overrideFolder": False}
         if self.cfg_path is None:
             return found
-        main = _first_values(read_cfg_lines(self.cfg_path))
-        files = [main]
-        if main.get("auto_overrides_enable") not in ("false", "0"):
+        files = [_first_values(read_cfg_lines(self.cfg_path))]
+        if self.loads_overrides():
             files += [_first_values(read_cfg_lines(path)) for path in self.override_files(core, rom)]
         for index, values in enumerate(files):
             for key, value in values.items():
@@ -377,7 +376,14 @@ class RetroArch:
         name = self.core_name(core)
         return [folder / f"{name}.cfg", folder / f"{rom.parent.name}.cfg", folder / f"{rom.stem}.cfg"]
 
+    def loads_overrides(self) -> bool:
+        if self.cfg_path is None:
+            return True
+        return _first_values(read_cfg_lines(self.cfg_path)).get("auto_overrides_enable") not in ("false", "0")
+
     def override_pairs(self, core: str, rom: Path) -> list:
+        if not self.loads_overrides():
+            return []
         pairs = []
         for path in self.override_files(core, rom):
             pairs.extend(read_cfg_lines(path))
