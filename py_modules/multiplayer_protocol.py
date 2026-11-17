@@ -265,14 +265,11 @@ def seek_asker(message) -> str:
     return ulid if is_ulid(ulid) else ""
 
 
-def read_seek(message, now: float):
+def read_seek(message):
     if not _ours(message) or message.get("op") != "seek":
         return None
     nonce = message.get("n")
-    stamp = message.get("ts")
-    if not is_nonce(nonce) or type(stamp) is not int:
-        return None
-    if abs(stamp - now) > CLOCK_SKEW_SECONDS:
+    if not is_nonce(nonce) or type(message.get("ts")) is not int:
         return None
     return nonce
 

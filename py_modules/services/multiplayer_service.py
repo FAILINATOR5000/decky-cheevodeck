@@ -133,6 +133,7 @@ SAVE_SILENT_WARN_SECONDS = 30
 RETROARCH_NETPLAY_AUTOSAVE_SINCE = None
 RETROARCH_COMMAND_PORT = 55355
 ROUND_FOLDER_PROBE_SECONDS = 10
+SKEW_LOG_SECONDS = 60
 
 SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
@@ -3904,7 +3905,7 @@ class MultiplayerService:
         if room is None:
             return
         message = decode(data)
-        nonce = proto.read_seek(message, time.time())
+        nonce = proto.read_seek(message)
         if nonce is None:
             return
         now = time.monotonic()
@@ -4065,7 +4066,7 @@ class MultiplayerService:
             room["streams"].seat_taken(seat, peer if door == "lan" else "", door == "server")
         if invite is not None:
             room["passesUsed"].add(invite)
-        await conversation.say({"ok": True, "seat": seat, "ip": address,
+        await conversation.say({"ok": True, "seat": seat, "ip": address, "now": int(time.time()),
                                 "t": proto.joined_tag(key, nc, ns, seat, address, ga, gb)})
         decky.logger.info("multiplayer: seat %s taken%s", seat, " through the online lobby" if door == "server" else "")
         self._announce()
@@ -5126,6 +5127,7 @@ class MultiplayerService:
                 "ip": "127.0.0.1" if row["door"] == "server" else row["address"],
                 "ownIp": answer["ownIp"],
                 "key": answer["key"],
+                "skew": answer["skew"],
                 "status": None,
                 "failures": 0,
                 "heard": time.monotonic(),
@@ -5240,7 +5242,12 @@ class MultiplayerService:
         ):
             return {"ok": False, "error": ERROR_HOST_GONE}
         shared = await asyncio.to_thread(proto.dh_shared, private, other)
-        return {"ok": True, "seat": seat, "ip": address, "ownIp": own, "key": proto.seat_key(key, nc, ns, shared)}
+        host_now = answer.get("now")
+        skew = host_now - int(time.time()) if type(host_now) is int else 0
+        if abs(skew) > SKEW_LOG_SECONDS:
+            decky.logger.info("multiplayer: this device's clock is %s s off the host's, following the host's", skew)
+        return {"ok": True, "seat": seat, "ip": address, "ownIp": own, "key": proto.seat_key(key, nc, ns, shared),
+                "skew": skew}
 
     async def _poll(self, joined: dict) -> None:
         while self._joined is joined:
@@ -5593,7 +5600,8 @@ class MultiplayerService:
         nonce = secrets.token_hex(16)
         payload = {**self._report(joined), "since": joined["chatSince"], "fsince": joined["fsince"],
                    "vc": joined["vc"], "vsince": joined["vsince"], **(extra or {})}
-        message = proto.make_tagged(joined["key"], op, joined["row"]["room"], joined["seat"], nonce, int(time.time()),
+        message = proto.make_tagged(joined["key"], op, joined["row"]["room"], joined["seat"], nonce,
+                                    int(time.time()) + joined["skew"],
                                     payload)
         try:
             reader, writer = await asyncio.wait_for(self._dial(joined["row"], message), HANDSHAKE_SECONDS)
