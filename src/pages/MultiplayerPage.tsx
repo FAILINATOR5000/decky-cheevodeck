@@ -536,6 +536,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : []),
         ...(pingsSaves ? [t(language, savesOnClose ? "unload_saves_heads_up" : "retroarch_exit_heads_up")] : []),
         ...(dreamcastHost ? [t(language, "dreamcast_exit_heads_up")] : []),
+        ...(mp.mode === "stream" && !joined && !(streamRetroArchHost && streamShadersOff)
+            ? [t(language, streamRetroArchHost ? "stream_shaders_heads_up" : "stream_shaders_heads_up_plain")] : []),
         ...(mp.mode === "link" && HANDHELD_LINK_CORES.includes(roomCore) ? [t(language, "link_online_heads_up")] : [])
     ];
     const tips = [
