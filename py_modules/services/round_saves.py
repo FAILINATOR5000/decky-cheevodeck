@@ -201,7 +201,8 @@ class RoundSaves:
         if not state["proven"] and not self._prove_locked(state, final):
             return False
         changed = False
-        for copy, entry in state["files"].items():
+        saved = False
+        for index, (copy, entry) in enumerate(state["files"].items()):
             if entry["blocked"]:
                 continue
             data = _read(copy, follow=False)
@@ -217,6 +218,8 @@ class RoundSaves:
             last = entry["lastWritten"] or entry["baseline"]
             if digest == last:
                 continue
+            if index and not saved and not final:
+                continue
             changed = True
             real = Path(entry["real"])
             if _sha1_of(real) != last:
@@ -231,6 +234,7 @@ class RoundSaves:
                 self._warn_once("write:" + copy, "couldn't write %s (%s)", real.name, type(e).__name__)
                 continue
             entry["lastWritten"] = digest
+            saved = saved or index == 0
             self._save_locked(state)
             now = time.monotonic()
             if final or now - self._wrote_at.get(copy, -WROTE_LOG_SECONDS) >= WROTE_LOG_SECONDS:
