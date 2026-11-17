@@ -35,8 +35,6 @@ CERT_FILE = "cacert.pem"
 MARKER_DIR = Path("/run/cheevodeck")
 COMPOSITE_MARKER = "force-composite"
 
-RUNTIME_MAX_SECONDS = 4 * 3600
-RENEW_BEFORE_SECONDS = 15 * 60
 START_SECONDS = 25
 API_SECONDS = 5
 PIN_SECONDS = 20
@@ -216,7 +214,6 @@ class StreamHost:
             "LIBVA_DRIVER_NAME": "radeonsi",
         }
         argv = ["systemd-run", f"--unit={UNIT_NAME}", "--collect", "--quiet",
-                f"--property=RuntimeMaxSec={RUNTIME_MAX_SECONDS}",
                 "--property=BindsTo=plugin_loader.service", "--property=After=plugin_loader.service",
                 f"--working-directory={state}"]
         argv += [f"--setenv={key}={value}" for key, value in env.items()]
@@ -302,12 +299,6 @@ class StreamHost:
         self._force_composite(False)
         self._release_ports()
         self._started_at = 0.0
-
-    def renew_if_due(self) -> None:
-        if not self._started_at or time.monotonic() - self._started_at < RUNTIME_MAX_SECONDS - RENEW_BEFORE_SECONDS:
-            return
-        decky.logger.info("stream: renewing Sunshine before its time limit")
-        self.restart(lambda: True)
 
     def restart(self, wanted) -> str:
         with self._lock:

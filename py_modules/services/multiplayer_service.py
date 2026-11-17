@@ -3768,12 +3768,6 @@ class MultiplayerService:
                     decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
                 self._steady_sweep()
                 self._round_saves_sweep()
-                streams = room.get("streams")
-                if streams is not None and self._stream_host is not None and not streams.streaming():
-                    try:
-                        await asyncio.to_thread(self._stream_host.renew_if_due)
-                    except Exception as e:
-                        decky.logger.warning("stream: renewing Sunshine failed (%s)", type(e).__name__)
         finally:
             self._stop_rmg_server(room["id"])
 
