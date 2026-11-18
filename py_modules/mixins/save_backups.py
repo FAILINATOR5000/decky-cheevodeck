@@ -2,6 +2,7 @@ import asyncio
 
 from cheevo_check_systems import by_console_id
 from mixins._context import PluginContext
+from services.game_clock import EXIT_WAIT_SECONDS
 from services.save_backups import clean_game_id, emulator_running
 
 
@@ -13,9 +14,11 @@ class SaveBackupsMixin(PluginContext):
 
     async def save_backups_play_started(self, game_id: int = 0, choice=None):
         game_id = clean_game_id(game_id)
+        await asyncio.to_thread(self.game_clock.put_back)
         await self.save_backups.end("play")
         if not game_id:
             return {"ok": False}
+        await asyncio.to_thread(self.multiplayer_service.check_play_clock, game_id, _choice(choice))
         target = await asyncio.to_thread(self.multiplayer_service.play_backup_target, game_id, _choice(choice))
         if target is not None:
             await asyncio.to_thread(self.save_backups.back_up, target, "launch", "play")
@@ -23,6 +26,7 @@ class SaveBackupsMixin(PluginContext):
         return {"ok": True}
 
     async def save_backups_play_ended(self):
+        await asyncio.to_thread(self.game_clock.put_back, EXIT_WAIT_SECONDS)
         await self.save_backups.end("play")
         return {"ok": True}
 

@@ -101,6 +101,11 @@ function CorePickerModal(props: CorePickerModalProps) {
                     </div>
                 ))}
             </div>
+            {choices.clockSwitchSafe && (
+                <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
+                    {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}
+                </div>
+            )}
             <Focusable
                 style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                 flow-children="row"

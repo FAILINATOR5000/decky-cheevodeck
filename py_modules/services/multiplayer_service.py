@@ -22,7 +22,7 @@ import decky
 import emulator_catalog as catalog
 import multiplayer_lounge as lounge
 import multiplayer_protocol as proto
-from services import dolphin_game_mappings, game_pipes, stream_room, wii_saves
+from services import dolphin_game_mappings, game_clock, game_pipes, stream_room, wii_saves
 import multiplayer_session as session
 import rom_headers
 import rtc_formats
@@ -172,6 +172,7 @@ RMG_UDP_PORTS = RMG_TCP_PORTS[1:]
 PIPE_TCP_PORTS = (proto.RETROARCH_NETPLAY_PORT, proto.GAMBATTE_LINK_PORT, *RMG_TCP_PORTS)
 PIPE_UDP_PORTS = ((DOLPHIN_TUNNEL_PORT, proto.DOLPHIN_NETPLAY_PORT), *RMG_UDP_PORTS)
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin", ".rmg": "rmg"}
+GUEST_SAVES = ".saves"
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
 ERROR_NO_ACCOUNT = "no_account"
@@ -398,9 +399,10 @@ class MultiplayerService:
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
         stream_setup=None, stream_host=None, emulator_service=None, save_backups=None, dolphin_mappings=None,
-        steady_wifi=None, round_saves=None,
+        steady_wifi=None, round_saves=None, clock=None,
     ):
         self._settings_store = settings_store
+        self._clock = clock
         self._steady = steady_wifi
         self._round_saves = round_saves
         self._mappings = dolphin_mappings
@@ -1868,6 +1870,7 @@ class MultiplayerService:
             "saved": saved,
             "savedMissing": saved is not None and self._choice_route(game, saved) is None,
             "session": self._session_picks.get(game_id),
+            "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
         }
 
     def couch_choices(self, game_id: int) -> dict:
@@ -1895,7 +1898,16 @@ class MultiplayerService:
             "cores": cores,
             "recommendedCore": recommended if any(row["core"] == recommended for row in cores) else "",
             "saved": self._game_options.get(game_id)["pick"],
+            "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
         }
+
+    def _clock_switch_safe(self, game: dict, cores: list) -> bool:
+        if self._clock is None or game["systemId"] not in session.GB_SYSTEMS \
+                or not all(core in cores for core in rtc_formats.SIZES):
+            return False
+        ra = self._retroarch()
+        rom = next((Path(entry["path"]) for entry in game["paths"] if os.path.isfile(entry["path"])), None)
+        return ra.found and rom is not None and any(ra.save_paths(core, rom)[1].is_file() for core in rtc_formats.SIZES)
 
     def save_play_pick(self, game_id: int, use: str, pick) -> dict:
         if use == "couch":
@@ -2095,6 +2107,41 @@ class MultiplayerService:
             return 0, ""
         system = by_console_id(game["systemId"])
         return game["systemId"], system.name if system is not None else ""
+
+    def check_play_clock(self, game_id: int, choice=None) -> None:
+        route, _gate, _detail = self._play_route(game_id, choice=choice)
+        if route is not None:
+            self._check_launch_clock(game_id, route, "play")
+
+    def _check_launch_clock(self, game_id: int, route: dict, trigger: str) -> bool:
+        game = (self._library() or {}).get(game_id)
+        emulator, core = _route_emulator(route)
+        if self._clock is None or game is None or emulator != "retroarch" \
+                or game["systemId"] not in session.GB_SYSTEMS or core not in rtc_formats.SIZES:
+            return False
+        ra = self._retroarch()
+        if not ra.found:
+            return False
+        rom = Path(route["rom"])
+        path = ra.save_paths(core, rom)[1]
+        owner = ""
+        if not route["fallback"]:
+            detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
+            owner = detected["core"] if detected and detected["emulator"] == "retroarch" else ""
+        if owner not in rtc_formats.SIZES:
+            owner = _clock_format(_read_quietly(path)) or core
+        if ra.save_paths(owner, rom)[1] != path:
+            owner = core
+        self._clock.check(path, core, game["title"], self._clock_backup(self._route_target(game_id, route), trigger))
+        if owner == core:
+            return False
+        self._clock.hold(path, core, owner, game["title"])
+        return True
+
+    def _clock_backup(self, target, trigger: str):
+        if self._backups is None or target is None:
+            return None
+        return lambda: self._backups.back_up(target, "rtc", trigger)
 
     def play_backup_target(self, game_id: int, choice=None):
         route, _gate, _detail = self._play_route(game_id, choice=choice)
@@ -5834,6 +5881,7 @@ class MultiplayerService:
         save_files = []
         save_dir = None
         owner, keep = "", False
+        clock_held = False
         wii_nand = None
         try:
             ensure_dir(self._session_dir)
@@ -5847,8 +5895,10 @@ class MultiplayerService:
                     system_dir = self._session_dir / f"session-{sid}.system"
                     self._build_system_folder(ra, rom, system_dir)
                 remap_dir = self._session_dir / f"session-{sid}.remaps"
-                owner, keep = self._clock_owner(local, ra, rom) if not (mode == "couch" and role == "guest") \
-                    else ("", False)
+                guest = mode == "couch" and role == "guest"
+                if not guest:
+                    self._check_round_clock(local, ra, rom)
+                owner, keep = self._clock_owner(local, ra, rom) if not guest else ("", False)
                 if ((mode == "couch" and role == "host") or local["core"] in proto.NETPACKET_CORES or owner or keep) \
                         and not self._retroarch_saves_netplay():
                     save_port = _command_port()
@@ -5856,14 +5906,14 @@ class MultiplayerService:
                     save_dir = self._round_folder(sid, local, ra, rom, original, owner, keep)
                     if save_dir is not None:
                         save_files = []
-                    elif owner:
-                        decky.logger.warning("saves: %s's clock can't be converted for this round, %s reads %s's "
-                                             "as it is", local["title"], local["coreName"], ra.core_name(owner))
+                if save_dir is None and not guest:
+                    clock_held = self._hold_round_clock(local, ra, rom)
+                guest_dir = self._guest_save_folder(sid, local, ra, rom) if guest else None
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                     system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
-                    adapter=adapter, command_port=save_port, check_frames=check_frames, save_dir=save_dir,
+                    adapter=adapter, command_port=save_port, check_frames=check_frames, save_dir=save_dir or guest_dir,
                 )
                 if adapter and mode == "couch" and players > 2 and not watch:
                     decky.logger.info("multiplayer: %s plugs in %s for %s players", local["core"],
@@ -5929,6 +5979,8 @@ class MultiplayerService:
             decky.logger.warning("multiplayer: couldn't write the session files (%s)", type(e).__name__)
             if save_dir is not None:
                 self._abandon_round_saves(sid)
+            if clock_held:
+                self._clock.put_back()
             if relayed:
                 self._close_guest_tunnels_soon()
             return {"ok": False, "error": ERROR_WRITE_FAILED}
@@ -5950,6 +6002,7 @@ class MultiplayerService:
             "savePort": save_port,
             "saveFiles": save_files,
             "roundSaves": save_dir is not None,
+            "clockHeld": clock_held,
             "wiiNand": wii_nand,
             "backup": backup,
         }
@@ -6070,6 +6123,7 @@ class MultiplayerService:
                                           room["max"], f" ({TAP_NAMES[adapter]})" if adapter else "")
                     if shaders_off:
                         decky.logger.info("stream: RetroArch starts with its shaders off for this session")
+            clock_held = self._check_launch_clock(local["gameId"], route, "together")
             backup = self._backup_target(local) if self._backups is not None else None
             if backup is not None:
                 self._backups.back_up(backup, "stream", "together")
@@ -6087,6 +6141,7 @@ class MultiplayerService:
             "mode": "stream",
             "emulator": local["emulator"],
             "backup": backup,
+            "clockHeld": clock_held,
             "files": [],
             "started": 0.0,
             "seen": False,
@@ -6281,6 +6336,49 @@ class MultiplayerService:
                               local["title"], ra.core_name(owner), len(clock), "" if other else " and leaves it alone")
             return "", not other
         return owner, False
+
+    def _check_round_clock(self, local: dict, ra, rom: Path) -> None:
+        core = local.get("core", "")
+        if self._clock is None or local["emulator"] != "retroarch" or local["systemId"] not in session.GB_SYSTEMS \
+                or core not in rtc_formats.SIZES:
+            return
+        owner = local.get("shortcutCore", "")
+        if owner not in rtc_formats.SIZES:
+            owner = _clock_format(_read_quietly(ra.save_paths(core, rom)[1]))
+        if owner not in rtc_formats.SIZES:
+            owner = self._play_core(ra, local["systemId"], rom)
+        if owner not in rtc_formats.SIZES:
+            owner = core
+        backup = self._backup_target(local, owner) if self._backups is not None else None
+        self._clock.check(ra.save_paths(owner, rom)[1], owner, local["title"], self._clock_backup(backup, "together"))
+
+    def _hold_round_clock(self, local: dict, ra, rom: Path) -> bool:
+        core = local.get("core", "")
+        if self._clock is None or local["emulator"] != "retroarch" or local["systemId"] not in session.GB_SYSTEMS \
+                or core not in rtc_formats.SIZES:
+            return False
+        path = ra.save_paths(core, rom)[1]
+        found = _clock_format(_read_quietly(path))
+        if not found or found == core:
+            return False
+        backup = self._backup_target(local) if self._backups is not None else None
+        if not self._clock.check(path, core, local["title"], self._clock_backup(backup, "together")):
+            return False
+        self._clock.hold(path, core, found, local["title"])
+        decky.logger.info("saves: %s's round reads the save directly, its clock goes back to %s's format when it "
+                          "ends", local["title"], ra.core_name(found))
+        return True
+
+    def _guest_save_folder(self, sid: str, local: dict, ra, rom: Path):
+        if local["core"] != session.GAMBATTE or local["systemId"] not in session.GB_SYSTEMS:
+            return None
+        found = ra.save_settings(local["core"], rom)
+        if found["overrideFolder"] or found["overrideContentDir"]:
+            self._debug("an override sets %s's save folder, the guest's round keeps it", local["title"])
+            return None
+        folder = self._session_dir / f"session-{sid}{GUEST_SAVES}"
+        ensure_dir(folder)
+        return folder
 
     def _probe_round_folder(self, root: Path) -> bool:
         marker, answer = root / ".probe", root / ".probe-ok"
@@ -6561,6 +6659,8 @@ class MultiplayerService:
         self._backups.follow(current["id"], backup, "together")
 
     async def _end_backup(self, current: dict) -> None:
+        if current.pop("clockHeld", False):
+            await asyncio.to_thread(self._clock.put_back, game_clock.EXIT_WAIT_SECONDS)
         if current.pop("backup", None) is not None:
             await self._backups.end(current["id"])
 
@@ -6608,7 +6708,7 @@ class MultiplayerService:
     def _finish(self, current: dict) -> None:
         current["exited"] = True
         decky.logger.info("multiplayer: session %s ended", current["id"])
-        if current.get("backup") is not None and not self._stopping:
+        if (current.get("backup") is not None or current.get("clockHeld")) and not self._stopping:
             self._spawn(self._end_backup(current))
         self._remove_files(current)
         self._emit({"state": "ended", "session": current["id"]})
@@ -6648,6 +6748,8 @@ class MultiplayerService:
 
     def _session_over(self, current: dict) -> None:
         self._steady_end()
+        if not current["seen"] and current.pop("clockHeld", False):
+            threading.Thread(target=self._clock.put_back, name="clock-put-back", daemon=True).start()
         if current.get("roundSaves"):
             threading.Thread(target=self._round_saves.end, args=(current["id"],), name="round-saves-end",
                              daemon=True).start()
@@ -6676,7 +6778,7 @@ class MultiplayerService:
         self._remove_session_files(current["id"])
 
     def _remove_session_files(self, sid: str) -> None:
-        for suffix in (".opt", ROUND_STATE, *SESSION_SUFFIXES):
+        for suffix in (".opt", ROUND_STATE, GUEST_SAVES, *SESSION_SUFFIXES):
             path = self._session_dir / f"session-{sid}{suffix}"
             try:
                 path.unlink()
@@ -7130,6 +7232,11 @@ def _remove_system_folder(folder: Path) -> None:
         shutil.rmtree(folder)
     except OSError as e:
         decky.logger.warning("multiplayer: couldn't remove a session system folder (%s)", type(e).__name__)
+
+
+def _clock_format(data) -> str:
+    now = int(time.time())
+    return next((core for core in rtc_formats.SIZES if rtc_formats.valid(core, data, now)), "")
 
 
 def _read_quietly(path: Path):

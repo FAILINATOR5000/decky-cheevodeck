@@ -3304,6 +3304,7 @@ export type PlayChoices = {
     saved: PlayPick | null;
     savedMissing: boolean;
     session: PlayPick | Record<string, never> | null;
+    clockSwitchSafe: boolean;
 };
 
 export type CouchChoices = {
@@ -3315,6 +3316,7 @@ export type CouchChoices = {
     cores: MultiplayerCoreChoice[];
     recommendedCore: string;
     saved: PlayPick | null;
+    clockSwitchSafe: boolean;
 };
 
 export type FixChoice = {
@@ -3422,7 +3424,7 @@ export type DolphinGameMappings = {
     mappings?: DolphinMapping[];
 };
 
-export type SaveBackupReason = "launch" | "couch" | "link" | "stream" | "end" | "mid" | "wii-copy-back" | "restore";
+export type SaveBackupReason = "launch" | "couch" | "link" | "stream" | "end" | "mid" | "wii-copy-back" | "restore" | "rtc";
 
 export type SaveBackupsInfo = {
     ok: boolean;

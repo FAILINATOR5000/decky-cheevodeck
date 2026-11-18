@@ -34,7 +34,8 @@ const REASON_LABELS: Record<SaveBackupReason, string> = {
     end: "After session",
     mid: "Mid-session",
     "wii-copy-back": "Before Wii copy-back",
-    restore: "Before restore"
+    restore: "Before restore",
+    rtc: "Before real-time clock conversion"
 };
 
 const RESTORE_ERRORS: Record<string, string> = {

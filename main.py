@@ -47,6 +47,7 @@ from services.stream_setup import StreamSetup
 from services.emulator_service import EmulatorService
 from services.stream_host import StreamHost
 from services.steady_wifi import SteadyWifi
+from services.game_clock import GameClock
 from services.round_saves import RoundSaves
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
@@ -612,6 +613,7 @@ class Plugin(
             runtime_dir=self.runtime_dir,
             debug_on=lambda: getattr(self, "_debug_logging", False),
         )
+        self.game_clock = GameClock(runtime_dir=self.runtime_dir)
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
@@ -627,6 +629,7 @@ class Plugin(
             emulator_service=self.emulator_service,
             steady_wifi=self.steady_wifi,
             round_saves=self.round_saves,
+            game_clock=self.game_clock,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -877,6 +880,7 @@ class Plugin(
             dolphin_mappings=self.dolphin_launch_mappings,
             steady_wifi=self.steady_wifi,
             round_saves=self.round_saves,
+            clock=self.game_clock,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(
