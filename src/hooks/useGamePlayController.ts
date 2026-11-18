@@ -147,10 +147,7 @@ export function useGamePlayController(props: {
                     gameId: forGame,
                     purpose: "launch",
                     choices,
-                    onPick: (pick, remember) => void launchPicked(forGame, pick, remember),
-                    onForget: () => multiplayerSavePlayPick(forGame, "play", null)
-                        .then(() => undefined)
-                        .catch((e) => logError("play: Forget didn't clear the pick", e))
+                    onPick: (pick, remember) => void launchPicked(forGame, pick, remember)
                 });
             })
             .catch((e) => logError("play: couldn't list what can play this game", e));

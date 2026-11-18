@@ -194,6 +194,12 @@ class MultiplayerMixin(PluginContext):
         await self.multiplayer_service.refresh_room_pick(game_id)
         return saved
 
+    async def multiplayer_set_play_remember(self, game_id: int = 0, on: bool = False, pick=None):
+        game_id = to_int(game_id, 0)
+        saved = await asyncio.to_thread(self.multiplayer_service.set_play_remember, game_id, on is True, _choice(pick))
+        await self.multiplayer_service.refresh_room_pick(game_id)
+        return saved
+
     async def multiplayer_set_stream_pick(self, game_id: int = 0, pick=None, remember: bool = False):
         game_id = to_int(game_id, 0)
         saved = await asyncio.to_thread(

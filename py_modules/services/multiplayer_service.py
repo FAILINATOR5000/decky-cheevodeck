@@ -1921,6 +1921,7 @@ class MultiplayerService:
             "recommendedCore": table if any(row["core"] == table for row in cores + missing) else "",
             "standalones": self._standalone_entries(self._play_kinds(system_id)),
             "saved": saved,
+            "remember": self._picks.remembers(game_id),
             "savedMissing": saved is not None and self._choice_route(game, saved) is None,
             "session": self._session_picks.get(game_id),
             "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
@@ -1986,6 +1987,12 @@ class MultiplayerService:
 
     def forget_game_options(self, ulid) -> None:
         self._game_options.remove_account(ulid)
+
+    def set_play_remember(self, game_id: int, on: bool, pick) -> dict:
+        cleaned = clean_pick(pick) if pick else None
+        if on and cleaned is not None:
+            self._session_picks.pop(game_id, None)
+        return {"ok": self._picks.set_remember(game_id, on, cleaned)}
 
     def set_stream_pick(self, game_id: int, pick, remember: bool) -> dict:
         cleaned = clean_pick(pick) if pick else None

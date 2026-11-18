@@ -1,7 +1,7 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useMemo, useState } from "react";
 
-import { multiplayerPlayChoices } from "../../api";
+import { multiplayerPlayChoices, multiplayerSetPlayRemember } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { PlayChoices, PlayPick } from "../../types";
@@ -25,7 +25,6 @@ type PlayWithProps = {
     purpose: "launch" | "set";
     choices: PlayChoices;
     onPick: (pick: PlayPick | null, remember: boolean) => void | Promise<void>;
-    onForget: () => Promise<void>;
     close: () => void;
 };
 
@@ -101,8 +100,27 @@ function rowsOf(language: LanguageCode, choices: PlayChoices): Row[] {
 function PlayWithModal(props: PlayWithProps) {
     const { language, gameId, purpose, close } = props;
     const [choices, setChoices] = useState(props.choices);
-    const [remember, setRemember] = useState(false);
-    const current = purpose === "set" && choices.session !== null ? choices.session : choices.saved;
+    const sessionOnly = purpose === "set" && choices.session !== null;
+    const [remember, setRemember] = useState(choices.remember && !sessionOnly);
+    const current = sessionOnly ? choices.session : choices.saved;
+    const checked = current && "kind" in current ? current as PlayPick : null;
+
+    function reload() {
+        multiplayerPlayChoices(gameId)
+            .then((found) => {
+                if (found.ok) {
+                    setChoices(found);
+                }
+            })
+            .catch((e) => logError("play: listing what can play this game again", e));
+    }
+
+    function changeRemember(on: boolean) {
+        setRemember(on);
+        multiplayerSetPlayRemember(gameId, on, on ? checked : null)
+            .then(reload)
+            .catch((e) => logError("play: saving Remember for this game", e));
+    }
     const installs = useCoreInstalls(() => {
         multiplayerPlayChoices(gameId)
             .then((found) => {
@@ -141,30 +159,23 @@ function PlayWithModal(props: PlayWithProps) {
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "8px" }}>
+            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "4px" }}>
                 {t(language, "Play With…")}
             </div>
-            <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <ToggleRow
-                        label={t(language, "Remember for this game")}
-                        value={remember}
-                        onChange={setRemember}
-                        bottomSeparator="none"
-                        focusKey="playwith:remember"
-                    />
-                </div>
-                {choices.saved !== null && (
-                    <div data-focus-key="playwith:forget">
-                        <DialogButton
-                            style={{ minWidth: 0, padding: "4px 14px" }}
-                            onClick={() => void props.onForget().finally(close)}
-                        >
-                            {t(language, "Forget")}
-                        </DialogButton>
-                    </div>
-                )}
-            </Focusable>
+            <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
+                {purpose === "launch"
+                    ? t(language, "Select an emulator/core to temporarily launch your game with immediately upon selecting it.")
+                    : t(language, "Stream Play launches your game the same way the Play button does. Turn on Remember for this game to make your choice the default for both.")}
+            </div>
+            <ToggleRow
+                label={t(language, "Remember for this game")}
+                value={remember}
+                onChange={changeRemember}
+                bottomSeparator="none"
+                focusKey="playwith:remember"
+                help={t(language, "When enabled, the checked emulator/core will be the new default launch method for the Play button.")}
+                modalHelp
+            />
             {choices.savedMissing && (
                 <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginBottom: "6px" }}>
                     {t(language, "Your saved pick is missing, so the usual choice runs.")}
