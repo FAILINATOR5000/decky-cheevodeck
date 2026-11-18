@@ -513,6 +513,9 @@ class EmulatorService:
     def listed_core_info(self, core: str):
         return self._infos_from_zip().get(core)
 
+    def core_listed(self, core: str) -> bool:
+        return core in (self._store.get()["nightly"].get("cores") or {})
+
     def _crc(self, path, st) -> str:
         key = (str(path), st.st_mtime_ns, st.st_size)
         if key not in self._crcs:

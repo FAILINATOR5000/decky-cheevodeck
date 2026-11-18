@@ -1295,6 +1295,8 @@ class MultiplayerService:
             return ""
         if ra.info(table) is not None and not ra.runs_system(table, system_id):
             return ""
+        if not ra.installed(table) and (self._emulators is None or not self._emulators.core_listed(table)):
+            return ""
         if local["fallback"]:
             return table if usual == table else ""
         if not session.shares_saves(table, shortcut_core, system_id):
@@ -1303,6 +1305,11 @@ class MultiplayerService:
         if ra.save_paths(table, rom) != ra.save_paths(shortcut_core, rom) and not self._owner_save_ok(ra, local, table):
             return ""
         return table
+
+    def _could_couch(self, ra, core: str, system_id: int) -> bool:
+        if not core or ra.info(core) is None:
+            return False
+        return ra.runs_system(core, system_id) and ra.can_couch(core) and core not in proto.NETPACKET_CORES
 
     def _owner_save_ok(self, ra, local: dict, core: str) -> bool:
         if self._round_saves is None or not self._round_saves.takes(core, local["systemId"]) \
@@ -1581,19 +1588,21 @@ class MultiplayerService:
                 else session.COUCH_CORES.get(system_id, "")
             usual = self._core_with_save(ra, compatible, Path(pick["path"]), table)
         local["opensRom"] = local["fallback"] or str(pick["path"]) in pick["shortcut"]["launchOptions"]
-        recommended = self._couch_override(ra, local, compatible, usual) \
-            if mode == "couch" and room is None and not core and not saved_core and own_pick is None else ""
+        override = self._couch_override(ra, local, compatible, usual) \
+            if mode == "couch" and room is None and not saved_core and own_pick is None else ""
+        recommended = override if not core else ""
         chosen = core or recommended or self._default_core(ra, compatible, usual, room_core)
         if not core and mode == "couch" and saved_core in compatible:
             chosen = saved_core
         missing = ""
         if mode == "couch" and room is None and not core:
-            wanted = saved_core or recommended or (usual if not local["fallback"] else "")
+            shortcut = usual if not local["fallback"] and self._could_couch(ra, usual, system_id) else ""
+            wanted = saved_core or recommended or shortcut
             if wanted and not ra.installed(wanted):
                 missing = chosen = wanted
         if mode == "couch" and saved_core and chosen == saved_core:
             local["picked"] = True
-        local["recommended"] = bool(recommended) and chosen == recommended
+        local["recommended"] = bool(override) and chosen == override
         local["missingCore"] = bool(missing)
 
         if mode == "link":
@@ -5981,7 +5990,8 @@ class MultiplayerService:
                     save_dir = self._round_folder(sid, local, ra, rom, original, owner, keep)
                     if save_dir is not None:
                         save_files = []
-                if save_dir is None and owner and ra.save_paths(owner, rom) != ra.save_paths(local["core"], rom):
+                if save_dir is None and owner and self._owner_save_ok(ra, local, local["core"]) \
+                        and ra.save_paths(owner, rom) != ra.save_paths(local["core"], rom):
                     decky.logger.info("saves: %s's round can't reach %s's save, not starting it", local["title"],
                                       ra.core_name(owner))
                     if relayed:
