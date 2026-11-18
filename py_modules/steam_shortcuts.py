@@ -521,19 +521,13 @@ class _Index:
     def _stale(self, snap, fresh=False):
         return snap is None or self._stamps() != snap.stamps or (fresh and mounts() != self.mounts)
 
-    def stale(self):
-        return self._stale(self.snapshot)
-
     def current(self, fresh=False):
         snap = self.snapshot
         if snap is not None and not self._stale(snap, fresh):
             return snap
-        if snap is not None and not fresh:
-            self.rebuild_soon()
-            return snap
         with self.lock:
             if self._stale(self.snapshot, fresh):
-                self._build()
+                self._build(drives=fresh or self.snapshot is None)
             return self.snapshot
 
     def rebuild_soon(self, force=False):
@@ -609,11 +603,11 @@ class _Index:
             rows.append(_make_row(entry, key, match))
         return rows
 
-    def _build(self, verify=False):
+    def _build(self, verify=False, drives=True):
         self.threads.append(threading.get_ident())
         self.builds += 1
         now = time.monotonic()
-        mounted = mounts()
+        mounted = mounts() if drives or self.mounts is None else self.mounts
         if self.mounts is not None and mounted != self.mounts:
             _log.info("shortcuts: the mounted drives changed, matching every shortcut again")
             self._memo = {}
@@ -812,11 +806,7 @@ def _row_for_app(app_id, home):
         return None
     signed = wanted - (1 << 32) if wanted >= (1 << 31) else wanted
     by_appid = current(home).by_appid
-    found = by_appid.get(wanted) or by_appid.get(signed)
-    if found is None and _index_for(home).stale():
-        by_appid = current(home, fresh=True).by_appid
-        found = by_appid.get(wanted) or by_appid.get(signed)
-    return found
+    return by_appid.get(wanted) or by_appid.get(signed)
 
 
 def shortcuts_by_rom(home=None):
