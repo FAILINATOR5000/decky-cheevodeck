@@ -40,6 +40,7 @@ from services.update_checker_service import parse_version
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
 
 LEASE_SECONDS = 30
+CRC_MAX_BYTES = 64 << 20
 VISIT_CAP_SECONDS = 600
 
 SEEK_SECONDS = 1.2
@@ -1157,6 +1158,8 @@ class MultiplayerService:
         try:
             st = os.stat(path)
         except OSError:
+            return ""
+        if st.st_size > CRC_MAX_BYTES and not path.lower().endswith(".zip"):
             return ""
         key = (path, st.st_mtime_ns, st.st_size)
         if key not in self._crc_memo:
@@ -5281,10 +5284,12 @@ class MultiplayerService:
             local, reason, detail, seat_state = await asyncio.to_thread(self._verdict, {"row": row, "own": 0, "core": ""})
             digest = await asyncio.to_thread(self._hash_of_path, local, local["systemId"]) \
                 if local and row["mode"] != "stream" else ""
+            crc = await asyncio.to_thread(self._crc_of, local["real"]) \
+                if local and row["mode"] == "couch" and local["emulator"] == "retroarch" else ""
             params = proto.join_params(
                 self._user(),
                 digest,
-                self._crc_of(local["real"]) if local and row["mode"] == "couch" and local["emulator"] == "retroarch" else "",
+                crc,
                 local["core"] if local else "",
                 local["emuVersion"] if local else "",
                 self._device_id(),
