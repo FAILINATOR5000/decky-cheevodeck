@@ -5,7 +5,7 @@ from pathlib import Path
 
 import decky
 from multiplayer_protocol import is_ulid
-from multiplayer_session import CHECK_FRAMES, DEFAULT_CHECK_FRAMES
+from multiplayer_session import CHECK_FRAMES, DEFAULT_CHECK_FRAMES, STREAM_BITRATES
 from play_picks_store import clean_pick
 from utils import (
     NewerSchemaFile,
@@ -26,6 +26,7 @@ DEFAULTS = {
     "share": False,
     "adapter": "auto",
     "watch": False,
+    "bitrate": 0,
 }
 
 
@@ -36,6 +37,8 @@ def clean_option(key: str, value):
         return value if type(value) is int and value in CHECK_FRAMES else None
     if key == "adapter":
         return value if value in ADAPTERS else None
+    if key == "bitrate":
+        return value if type(value) is int and value in STREAM_BITRATES else None
     if key in ("share", "watch"):
         return value if type(value) is bool else None
     return None

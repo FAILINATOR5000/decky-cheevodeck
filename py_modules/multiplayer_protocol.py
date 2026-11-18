@@ -765,9 +765,10 @@ def read_stream(raw):
     occupant = raw.get("occ", "")
     if not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None:
         return None
-    low, half = raw.get("low", False), raw.get("half", False)
+    low, ceiling = raw.get("low", False), raw.get("max", 0)
     return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
-            "low": low is True, "half": half is True, "hs": _host_size(raw.get("hs"))}
+            "low": low is True, "max": ceiling if type(ceiling) is int and 0 <= ceiling <= 100000 else 0,
+            "hs": _host_size(raw.get("hs"))}
 
 
 def _host_size(raw):

@@ -102,7 +102,7 @@ PAGE_CHOICES = {
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
            "mine": False, "after": None}
 NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
-ROOM_OPTION_KEYS = ("checkFrames", "share", "watch")
+ROOM_OPTION_KEYS = ("checkFrames", "share", "watch", "bitrate")
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
 BAD_TAGS_PER_ADDRESS = 3
@@ -3237,6 +3237,7 @@ class MultiplayerService:
                 "adapter": saved["adapter"] if saved["adapter"] in session.adapters_for(described["core"]) else "auto",
                 "checkFrames": check_frames if mode == "couch" and check_frames in session.CHECK_FRAMES
                 else session.DEFAULT_CHECK_FRAMES,
+                "bitrate": saved["bitrate"] if mode == "stream" else 0,
                 "voice": bool(voice),
                 "steadyWifi": bool(steady_wifi),
                 "max": seats,
@@ -3396,7 +3397,7 @@ class MultiplayerService:
         return status.get("adapter", "") if status else ""
 
     async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None,
-                           check_frames=None, steady_wifi=None) -> dict:
+                           check_frames=None, steady_wifi=None, bitrate=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -3411,7 +3412,7 @@ class MultiplayerService:
             decky.logger.info("multiplayer: Steady Wi-Fi turned %s for the room", "on" if steady_wifi else "off")
             self._announce()
         if (voice is not None or steady_wifi is not None) and hardcore is None and core is None and share is None \
-                and watch is None and adapter is None and check_frames is None:
+                and watch is None and adapter is None and check_frames is None and bitrate is None:
             return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
@@ -3431,6 +3432,8 @@ class MultiplayerService:
             room["checkFrames"] = changed["checkFrames"] = check_frames
         if changed or hardcore_changed:
             self._changed(room)
+        if room["mode"] == "stream" and bitrate in session.STREAM_BITRATES and bitrate != room["bitrate"]:
+            room["bitrate"] = changed["bitrate"] = bitrate
         if changed:
             await asyncio.to_thread(self._game_options.set, room["gameId"], changed)
         return {"ok": True, "room": self._host_view(room)}
@@ -3540,6 +3543,7 @@ class MultiplayerService:
         room["share"] = saved["share"] and mode == "couch"
         room["watch"] = saved["watch"] and mode in ("couch", "stream")
         room["checkFrames"] = saved["checkFrames"] if mode == "couch" else session.DEFAULT_CHECK_FRAMES
+        room["bitrate"] = saved["bitrate"] if mode == "stream" else 0
 
     async def refresh_room_pick(self, game_id: int) -> None:
         async with self._lock:
@@ -3667,7 +3671,7 @@ class MultiplayerService:
         online = room["where"] == "online"
         room["streams"] = stream_room.HostStreams(
             sunshine=self._stream_host, room_id=room["id"], online=online, meet=room["meet"], digest=room["digest"],
-            slow=self._slow_connection, debug=self._debug,
+            ceiling=lambda: room["bitrate"], debug=self._debug,
         )
         for index, seat in enumerate(room["seats"]):
             if index > 0 and seat is not None:
@@ -3910,6 +3914,7 @@ class MultiplayerService:
             "adapter": room["adapter"],
             "adapterAuto": room["tapAuto"],
             "checkFrames": room["checkFrames"],
+            "bitrate": room["bitrate"],
             "adapterShown": bool(room["tapAuto"]) and room["max"] > 2
                 and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],

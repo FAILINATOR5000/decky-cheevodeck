@@ -35,6 +35,7 @@ import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openMessageCenter } from "../components/multiplayer/MessageCenterModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
 import { openStreamScreenWarning } from "../components/multiplayer/StreamScreenWarningModal";
+import { bitrateLabel, openStreamBitrate } from "../components/multiplayer/StreamBitrateModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
@@ -1054,6 +1055,22 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </FocusableItem>
         </PanelSectionRow>
     );
+    const bitrateRow = mp.mode === "stream" && !joined && (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:streambitrate"
+                focusFallback={["multiplayer:runswith", "multiplayer:toggle:watch", "multiplayer:host", "multiplayer:back"]}
+                disabled={roomLocked}
+                onClick={() => openStreamBitrate({ language, chosen: mp.streamBitrate, onPick: actions.setStreamBitrate })}
+                help={t(language, roomLocked ? "Close the room to change it"
+                    : "The most each guest's stream can use for this game. Auto picks the best quality for each guest's connection and screen. Simple games need far less, so a lower setting leaves room for more guests. Guests online may get less if your connection can't carry it.")}
+            >
+                {t(language, "Stream Bitrate: {{rate}}", { rate: bitrateLabel(language, mp.streamBitrate) })}
+            </FocusableItem>
+        </PanelSectionRow>
+    );
     const hardcoreRow = (mp.mode === "link" || !couchGuest) && (
         <ToggleRow
             bottomSeparator="none"
@@ -1740,7 +1757,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
     const miscRows = streamRoom && (
         <>
-            <ToggleRow
+            {joined && <ToggleRow
                 bottomSeparator="none"
                 controlled
                 label={t(language, "Slow Connection")}
@@ -1749,8 +1766,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:toggle:slowconnection"
                 focusFallback={["multiplayer:roomtab:stream", ...roomKeys]}
                 onChange={(next) => void changeSlowConnection(next)}
-                help={t(language, "Halves the stream's quality so it fits a slow internet connection. Affects rooms you host and rooms you join.")}
-            />
+                help={t(language, "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.")}
+            />}
             <PanelSectionRow>
                 <FocusableItem
                     bottomSeparator="none"
@@ -1847,6 +1864,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {coreRows}
             {linkInstallRow}
             {runsWithRow}
+            {bitrateRow}
             {showShare && shareRow}
             {showWatch && watchRow}
             {showShare && syncOffRow}

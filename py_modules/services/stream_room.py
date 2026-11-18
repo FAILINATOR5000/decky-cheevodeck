@@ -92,13 +92,13 @@ def _bare(address: str) -> str:
 
 
 class HostStreams:
-    def __init__(self, *, sunshine, room_id: str, online: bool, meet, digest: bytes, slow, debug):
+    def __init__(self, *, sunshine, room_id: str, online: bool, meet, digest: bytes, ceiling, debug):
         self._sunshine = sunshine
         self._room_id = room_id
         self._online = online
         self._meet = meet
         self._digest = digest
-        self._slow = slow
+        self._ceiling = ceiling
         self._debug = debug
         self._seats = {}
         self._pairing = None
@@ -204,7 +204,7 @@ class HostStreams:
         entry = self._seats.get(index)
         if entry is None:
             return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": "",
-                    "low": False, "half": False}
+                    "low": False, "max": 0}
         label = f"{index}|{entry['occ']}"
         token = proto.wrap(key, "stoken", entry["n"], bytes.fromhex(stream_token(self._digest, label))) \
             if entry["piped"] else ""
@@ -215,7 +215,7 @@ class HostStreams:
             **self._share(index),
             "occ": entry["occ"],
             "low": not entry["piped"] and self._lan_order(index) > LAN_FULL_GUESTS,
-            "half": bool(self._slow()),
+            "max": self._ceiling(),
         }
         if self.host_size is not None:
             body["hs"] = list(self.host_size)
@@ -398,7 +398,7 @@ class GuestStream:
         self.full = False
         self.cap = 0
         self.low = False
-        self.half = False
+        self.max = 0
         self.host_size = None
         self.kbps = 0
         self._pin = ""
@@ -422,7 +422,7 @@ class GuestStream:
         self.cap = stream["cap"]
         self.full = stream["full"]
         self.low = stream["low"]
-        self.half = stream["half"]
+        self.max = stream["max"]
         self.host_size = stream["hs"]
         if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet \
                 and time.monotonic() - self._pipe_failed_at >= PIPE_RETRY_SECONDS:
@@ -622,8 +622,8 @@ class GuestStream:
             width, height = stream_size(*self.host_size)
             self._debug("stream: capped at the host's %sx%s", width, height)
         kbps = tier_kbps(height, self.path != "direct" or self.low)
-        if self.half:
-            kbps //= 2
+        if self.max:
+            kbps = min(kbps, self.max)
         if slow:
             kbps //= 2
         if self.cap:

@@ -694,6 +694,13 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function setStreamBitrate(kbps: number) {
+        saveForGame({ bitrate: kbps });
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, null, null, null, kbps));
+        }
+    }
+
     function setAdapter(next: MultiplayerAdapter) {
         if (hosted) {
             void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, next));
@@ -784,6 +791,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             watchOnly: hosted ? hosted.watch : watchOnly,
             checkFrames: hosted ? hosted.checkFrames
                 : gameOptions?.gameId === gameId ? gameOptions.options.checkFrames : DEFAULT_CHECK_FRAMES,
+            streamBitrate: hosted ? hosted.bitrate
+                : gameOptions?.gameId === gameId ? gameOptions.options.bitrate : 0,
             visibleError,
             hosted,
             joined,
@@ -814,6 +823,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setShare,
             setWatch,
             setSyncCheck,
+            setStreamBitrate,
             setAdapter,
             setVoice,
             setSteadyWifi,

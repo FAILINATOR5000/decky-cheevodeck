@@ -2991,6 +2991,7 @@ export type MultiplayerGameOptions = {
     checkFrames: number;
     share: boolean;
     watch: boolean;
+    bitrate: number;
 };
 
 export type MultiplayerTab = "play" | "friends";
@@ -3157,6 +3158,7 @@ export type MultiplayerHostedRoom = {
     adapterAuto: "" | "team" | "4way" | "port1" | "port2";
     adapterShown: boolean;
     checkFrames: number;
+    bitrate: number;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
