@@ -133,6 +133,10 @@ export function useEmulatorJobs(): EmulatorJobs {
     return useSyncExternalStore(subscribe, () => jobs);
 }
 
+export function useEmulatorJobsFinished(): number {
+    return useSyncExternalStore(subscribe, () => jobs.finished);
+}
+
 export function registerEmulatorJobs() {
     addEventListener(JOB_EVENT, onJobEvent);
     void refreshEmulatorJobs();

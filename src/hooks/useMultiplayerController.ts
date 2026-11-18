@@ -54,6 +54,7 @@ import {
 } from "../utils/multiplayerSession";
 import { changeSteadyWifi, pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 import { useStreamSetup } from "../utils/streamPlay";
+import { useEmulatorJobsFinished } from "../utils/emulatorJobs";
 import { useFixPlan, type FixAnswer } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
 
@@ -449,6 +450,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const joinedState = joined?.status?.state ?? "";
     const streamReady = useStreamSetup(isActive).status?.ready ?? false;
     const fixesFinished = useFixPlan().finished;
+    const jobsFinished = useEmulatorJobsFinished();
     const gameFilesChanged = useGameFilePick().changed;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
     useEffect(() => {
@@ -485,7 +487,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             }
         })();
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
-        joined?.reason, streamReady, fixesFinished, gameFilesChanged]);
+        joined?.reason, streamReady, fixesFinished, jobsFinished, gameFilesChanged]);
 
     const hostState = hosted?.hostState ?? "";
     const fixSeenRef = useRef({ fixesFinished, gameFilesChanged });

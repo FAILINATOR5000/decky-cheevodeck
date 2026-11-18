@@ -1,55 +1,107 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
+import { useMemo, useState } from "react";
+import { multiplayerCouchChoices } from "../../api";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { CoreInstallLine, useCoreInstalls } from "../emulators/CoreInstall";
 import { FocusableItem } from "../ui/FocusableItem";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import type { CouchChoices, PlayPick } from "../../types";
+import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, modalBodyStyle } from "../../utils/style";
 
+const ROWS_INITIAL = 30;
+const ROWS_STEP = 30;
+const NAV_ENTER_MAINTAIN_Y = 3;
+
 type CorePickerModalProps = {
     language: LanguageCode;
+    gameId: number;
     choices: CouchChoices;
     onPick: (pick: PlayPick | null) => Promise<void>;
     close: () => void;
 };
 
-type Row = { key: string; label: string; pick: PlayPick | null; mark?: string };
+type Row =
+    | { kind: "heading"; key: string; label: string }
+    | { kind: "choice"; key: string; label: string; pick: PlayPick | null; mark?: string }
+    | { kind: "missing"; key: string; label: string; core: string; mark?: string };
 
-function CorePickerModal(props: CorePickerModalProps) {
-    const { language, choices, onPick, close } = props;
-    const saved = choices.saved;
-
-    const sections: { title: string; rows: Row[] }[] = [];
+function rowsOf(language: LanguageCode, choices: CouchChoices): Row[] {
+    const rows: Row[] = [];
     if (choices.shortcuts.length > 0) {
-        sections.push({ title: t(language, "Your shortcuts"), rows: choices.shortcuts.map((row) => ({
-            key: `own:${row.appid}`,
-            label: `${row.name} (${row.detail})`,
-            pick: row.default ? null : { appid: row.appid, kind: row.kind, core: "" },
-            mark: row.default ? t(language, "Default") : undefined
-        })) });
+        rows.push({ kind: "heading", key: "heading:shortcuts", label: t(language, "Your shortcuts") });
+        for (const row of choices.shortcuts) {
+            rows.push({
+                kind: "choice",
+                key: `own:${row.appid}`,
+                label: `${row.name} (${row.detail})`,
+                pick: row.default ? null : { appid: row.appid, kind: row.kind, core: "" },
+                mark: row.default ? t(language, "Default") : undefined
+            });
+        }
     }
     else if (choices.defaultCore) {
-        sections.push({ title: "", rows: [{ key: "default", pick: null,
-            label: t(language, "Default ({{core}})", { core: choices.defaultCore }) }] });
+        rows.push({ kind: "choice", key: "default", pick: null,
+            label: t(language, "Default ({{core}})", { core: choices.defaultCore }) });
     }
-    if (choices.emulators.length > 0) {
-        sections.push({ title: "", rows: choices.emulators.map((row) => ({
-            key: `emulator:${row.appid}`,
-            label: row.label,
-            pick: { appid: row.appid, kind: row.kind, core: "" }
-        })) });
+    for (const row of choices.emulators) {
+        rows.push({ kind: "choice", key: `emulator:${row.appid}`, label: row.label,
+            pick: { appid: row.appid, kind: row.kind, core: "" } });
     }
-    if (choices.cores.length > 0) {
-        const recommended = choices.cores.filter((row) => row.core === choices.recommendedCore);
-        const others = choices.cores.filter((row) => row.core !== choices.recommendedCore);
-        sections.push({ title: "RetroArch", rows: [...recommended, ...others].map((row) => ({
+    if (choices.cores.length > 0 || choices.missing.length > 0) {
+        const recommended = choices.recommendedCore;
+        const mark = (core: string) => (core === recommended ? t(language, "Recommended") : undefined);
+        const installed: Row[] = choices.cores.map((row) => ({
+            kind: "choice",
             key: `core:${row.core}`,
             label: row.name,
             pick: { appid: 0, kind: "retroarch", core: row.core },
-            mark: row.core === choices.recommendedCore ? t(language, "Recommended") : undefined
-        })) });
+            mark: mark(row.core)
+        }));
+        const missing: Row[] = choices.missing.map((row) => ({
+            kind: "missing", key: `core:${row.core}`, label: row.name, core: row.core, mark: mark(row.core)
+        }));
+        const first = (row: Row) => row.key === `core:${recommended}`;
+        rows.push({ kind: "heading", key: "heading:retroarch", label: "RetroArch" });
+        rows.push(...installed.filter(first), ...missing.filter(first),
+            ...installed.filter((row) => !first(row)), ...missing.filter((row) => !first(row)));
     }
+    return rows;
+}
+
+function CorePickerModal(props: CorePickerModalProps) {
+    const { language, gameId, onPick, close } = props;
+    const [choices, setChoices] = useState(props.choices);
+    const saved = choices.saved;
+    const installs = useCoreInstalls(() => {
+        multiplayerCouchChoices(gameId)
+            .then((found) => {
+                if (found.ok) {
+                    setChoices(found);
+                }
+            })
+            .catch((e) => logError("multiplayer: listing the Couch choices after an install", e));
+    });
+
+    const rows = useMemo(() => rowsOf(language, choices), [language, choices]);
+    const list = useSlidingWindow({
+        items: rows,
+        itemKey: (row) => row.key,
+        focusKeyFor: (row) => `multiplayer-core-picker:${row.key}`,
+        windowId: "multiplayer-core-picker:list",
+        heightScope: ["multiplayer-core-picker:list", language].join("|"),
+        dynamicLoading: true,
+        initialRows: ROWS_INITIAL,
+        rowStep: ROWS_STEP,
+        fullSteps: true,
+        prefetchDistance: 4,
+        sentinelRootMarginPx: 600,
+        resetKey: String(gameId)
+    });
 
     function chosen(pick: PlayPick | null): boolean {
         if (saved === null || pick === null) {
@@ -58,12 +110,12 @@ function CorePickerModal(props: CorePickerModalProps) {
         return saved.appid === pick.appid && saved.core === pick.core;
     }
 
-    function press(row: Row) {
-        if (chosen(row.pick)) {
+    function press(pick: PlayPick | null) {
+        if (chosen(pick)) {
             close();
             return;
         }
-        void onPick(row.pick).finally(close);
+        void onPick(pick).finally(close);
     }
 
     return (
@@ -72,35 +124,50 @@ function CorePickerModal(props: CorePickerModalProps) {
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                 {t(language, "Choose a Core")}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {sections.map((section, index) => (
-                    <div key={index} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {section.title && (
-                            <div style={{ ...modalBodyStyle(), fontWeight: 700, marginTop: "6px" }}>{section.title}</div>
-                        )}
-                        {section.rows.map((row) => {
-                            const active = chosen(row.pick);
+            <Focusable
+                flow-children="column"
+                resetNavOnEntry
+                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+            >
+                <SlidingWindowRows list={list}>
+                    {list.mountedItems.map((row, index) => {
+                        const at = list.start + index;
+                        if (row.kind === "heading") {
                             return (
-                                <FocusableItem
-                                    key={row.key}
-                                    outerStyle={{ width: "100%", minWidth: 0 }}
-                                    focusKey={`multiplayer-core-picker:${row.key}`}
-                                    onClick={() => press(row)}
-                                    autoFocus={active}
-                                >
-                                    <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
+                                <div key={row.key} style={{ ...modalBodyStyle(), fontWeight: 700, marginTop: "6px" }}>
+                                    {row.label}
+                                </div>
+                            );
+                        }
+                        const active = row.kind === "choice" && chosen(row.pick);
+                        return (
+                            <FocusableItem
+                                key={row.key}
+                                outerStyle={{ width: "100%", minWidth: 0 }}
+                                focusKey={`multiplayer-core-picker:${row.key}`}
+                                onClick={() => (row.kind === "choice" ? press(row.pick) : void installs.install(row.core))}
+                                onGamepadFocus={() => list.onItemFocus(at)}
+                                onGamepadDirection={list.guardTopRow(at)}
+                                autoFocus={active}
+                            >
+                                <div style={{ width: "100%", display: "flex", flexDirection: "column", textAlign: "left" }}>
+                                    <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px" }}>
                                         <span style={{ fontSize: `${modalSize(15)}px`, fontWeight: active ? 700 : 500, minWidth: 0, flex: 1 }}>
                                             {row.label}
                                         </span>
                                         {row.mark && <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>{row.mark}</span>}
                                         {active && <span style={{ color: achievementGreen, flexShrink: 0 }}>{"✔"}</span>}
                                     </div>
-                                </FocusableItem>
-                            );
-                        })}
-                    </div>
-                ))}
-            </div>
+                                    {row.kind === "missing" && (
+                                        <CoreInstallLine language={language} state={installs.states[row.core]} fontSize={modalSize(12)} />
+                                    )}
+                                </div>
+                            </FocusableItem>
+                        );
+                    })}
+                </SlidingWindowRows>
+            </Focusable>
             {choices.clockSwitchSafe && (
                 <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
                     {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}

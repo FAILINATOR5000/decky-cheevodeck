@@ -1856,16 +1856,20 @@ class MultiplayerService:
             recommended = self._route_name(route, ra) if route is not None else ""
         vehicle = next((row for row in own if self._shortcut_entry(row, ra)["kind"] == "retroarch"), None) \
             or self._emulator_shortcut("retroarch", None)
-        cores = []
+        cores, missing = [], []
         if vehicle is not None and ra.found:
             cores = [{"appid": vehicle["appid"], "kind": "retroarch", "core": core, "label": ra.core_name(core)}
                      for core in self._compatible(ra, "", system_id)]
+            missing = self._missing_cores(system_id, False)
         saved = self._picks.get(game_id, "play")
+        table = catalog.RECOMMENDED_CORES.get(system_id, "")
         return {
             "ok": True,
             "shortcuts": shortcuts,
             "recommended": recommended,
             "cores": cores,
+            "missing": missing,
+            "recommendedCore": table if any(row["core"] == table for row in cores + missing) else "",
             "standalones": self._standalone_entries(self._play_kinds(system_id)),
             "saved": saved,
             "savedMissing": saved is not None and self._choice_route(game, saved) is None,
@@ -1889,6 +1893,8 @@ class MultiplayerService:
             emulators = self._standalone_entries(("dolphin",) if system_id in session.DOLPHIN_SYSTEMS else ("rmg",))
         local, _gate, _detail = self._route("couch", game_id, "", None, use_saved=False)
         cores = local["choices"] if local is not None else []
+        missing = [row for row in self._missing_cores(system_id, True) if row["core"] not in proto.NETPACKET_CORES] \
+            if local is not None and local["emulator"] == "retroarch" else []
         recommended = session.COUCH_RECOMMENDED.get(system_id, "")
         return {
             "ok": True,
@@ -1896,10 +1902,14 @@ class MultiplayerService:
             "emulators": emulators,
             "defaultCore": local["coreName"] if local is not None and local.get("coreName") else "",
             "cores": cores,
-            "recommendedCore": recommended if any(row["core"] == recommended for row in cores) else "",
+            "missing": missing,
+            "recommendedCore": recommended if any(row["core"] == recommended for row in cores + missing) else "",
             "saved": self._game_options.get(game_id)["pick"],
             "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
         }
+
+    def _missing_cores(self, system_id: int, couch: bool) -> list:
+        return self._emulators.missing_cores(system_id, couch) if self._emulators is not None else []
 
     def _clock_switch_safe(self, game: dict, cores: list) -> bool:
         if self._clock is None or game["systemId"] not in session.GB_SYSTEMS \

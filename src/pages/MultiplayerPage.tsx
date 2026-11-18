@@ -88,6 +88,8 @@ import {
 } from "../utils/streamPlay";
 import { changeChatToastsInGame, changeStreamShadersOff, useChatToastsInGame, useStreamShadersOff } from "../utils/multiplayerRoomState";
 import { ProgressBar } from "../components/ui/ProgressBar";
+import { CoreInstallLine, useCoreInstalls } from "../components/emulators/CoreInstall";
+import { textSize } from "../utils/scale";
 import { hotspotWithoutInternet, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
@@ -114,6 +116,12 @@ const DIR_UP = 9;
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const HANDHELD_LINK_CORES = ["gambatte", "gpsp", "melondsds"];
+const LINK_INSTALLS: Record<string, { core: string; name: string }> = {
+    link_needs_gambatte: { core: "gambatte", name: "Gambatte" },
+    link_needs_gpsp: { core: "gpsp", name: "gpSP" },
+    link_needs_melondsds: { core: "melondsds", name: "melonDS DS" },
+    link_needs_ppsspp: { core: "ppsspp", name: "PPSSPP" }
+};
 const UNLOAD_SAVE_SYSTEMS = [9, 81, 14, 43, 27, 60, 24, 29];
 const DREAMCAST_SYSTEM = 40;
 const NO_CORES: MultiplayerCoreChoice[] = [];
@@ -420,6 +428,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const shown = mp.gameId !== null && mp.gameId === currentGameId ? state.payload : mp.headerPayload;
     const art = useGameHeaderArt(mp.gameId, shown, state.showIcons && visible);
+    const linkInstalls = useCoreInstalls(() => undefined);
 
     if (!visible) {
         return null;
@@ -835,10 +844,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.gameId === null) {
             return;
         }
-        multiplayerCouchChoices(mp.gameId)
+        const forGame = mp.gameId;
+        multiplayerCouchChoices(forGame)
             .then((found) => {
                 if (found.ok) {
-                    openCorePicker({ language, choices: found, onPick: actions.chooseCouchPick });
+                    openCorePicker({ language, gameId: forGame, choices: found, onPick: actions.chooseCouchPick });
                 }
             })
             .catch((e) => logError("multiplayer: listing the Couch choices", e));
@@ -856,6 +866,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 }
                 showPlayWith({
                     language,
+                    gameId: forGame,
                     purpose: "set",
                     choices: found,
                     onPick: (pick, remember) => multiplayerSetStreamPick(forGame, pick, remember)
@@ -913,8 +924,26 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         : mp.mode === "couch" && ((local?.emulator === "retroarch" && choices.length > 0)
             || ((local?.emulator === "dolphin" || local?.emulator === "rmg") && (local.vehicles ?? 0) > 1)));
     const showRunsWith = Boolean(mp.mode === "stream" && !joined && local?.coreName);
+    const linkMissing = !joined && mp.mode === "link" && local === null ? LINK_INSTALLS[shownCheck?.gate ?? ""] : undefined;
 
     const scopeKey = joined ? "multiplayer:room" : `multiplayer:${mp.mode}`;
+
+    const linkInstallRow = linkMissing && (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:linkcore"
+                focusFallback={["multiplayer:host", "multiplayer:back"]}
+                onClick={() => void linkInstalls.install(linkMissing.core)}
+            >
+                <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
+                    <span>{t(language, "Core: {{core}}", { core: linkMissing.name })}</span>
+                    <CoreInstallLine language={language} state={linkInstalls.states[linkMissing.core]} fontSize={textSize(12)} />
+                </div>
+            </FocusableItem>
+        </PanelSectionRow>
+    );
 
     const coreRows = showCores && (
         <>
@@ -1486,7 +1515,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         showAdapter ? "multiplayer:adapter" : "", showHardcore ? "multiplayer:toggle:hardcore" : "",
         hosted ? "multiplayer:toggle:voice" : "",
         joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"].filter(Boolean);
-    const roomHasOptions = showCores || showHardcore || showWatch || hosted !== null;
+    const roomHasOptions = showCores || Boolean(linkMissing) || showHardcore || showWatch || hosted !== null;
     const afterSliders = ["multiplayer:roomtab:audio", ...roomKeys];
     const duckShown = gameVolume.output === "speaker" || gameVolume.output === "external";
     const voiceSliders = roomVoice && (
@@ -1824,7 +1853,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             help={t(language, "Starts RetroArch with its shaders off for this session only, so the stream stays sharp. Your shader settings aren't changed.")}
         />
     );
-    const perGameShown = !joined && (showCores || showRunsWith || showWatch || showAdapter);
+    const perGameShown = !joined && (showCores || Boolean(linkMissing) || showRunsWith || showWatch || showAdapter);
     const optionRows = (roomHasOptions || inSession) && (
         <>
             {(joined || perGameShown) && (
@@ -1836,6 +1865,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 </PanelSectionRow>
             )}
             {coreRows}
+            {linkInstallRow}
             {runsWithRow}
             {showShare && shareRow}
             {showWatch && watchRow}

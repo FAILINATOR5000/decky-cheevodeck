@@ -1735,6 +1735,22 @@ class EmulatorService:
             return None
         return first + [step]
 
+    def missing_cores(self, system_id: int, couch: bool) -> list:
+        packed = self._store.get()["nightly"].get("cores") or {}
+        if not packed:
+            return []
+        inventory = self.inventory(network=False)
+        system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
+        if system is None:
+            return []
+        ra = session.RetroArch(self._user_home)
+        infos = self._info_cores(ra) if ra.found and couch else {}
+        return [{"core": core["core"], "name": core["name"], "size": packed[core["core"]]["size"]}
+                for core in system["cores"]
+                if not ra.installed(core["core"]) and core["core"] in packed
+                and (not couch or ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip()
+                     in ("", "deterministic"))]
+
     def _system_core_plan(self, inventory: dict, system_id, couch: bool = True):
         system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
         if system is None:

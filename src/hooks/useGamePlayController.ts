@@ -144,6 +144,7 @@ export function useGamePlayController(props: {
                 }
                 showPlayWith({
                     language,
+                    gameId: forGame,
                     purpose: "launch",
                     choices,
                     onPick: (pick, remember) => void launchPicked(forGame, pick, remember),

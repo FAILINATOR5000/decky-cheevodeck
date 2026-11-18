@@ -3294,12 +3294,16 @@ type PlayChoiceEntry = PlayPick & { label: string; noAchievements?: boolean };
 
 type PlayShortcutEntry = PlayPick & { name: string; detail: string; default: boolean };
 
+type MissingCore = { core: string; name: string; size: number };
+
 export type PlayChoices = {
     ok: boolean;
     error?: string;
     shortcuts: PlayShortcutEntry[];
     recommended: string;
     cores: PlayChoiceEntry[];
+    missing: MissingCore[];
+    recommendedCore: string;
     standalones: PlayChoiceEntry[];
     saved: PlayPick | null;
     savedMissing: boolean;
@@ -3314,6 +3318,7 @@ export type CouchChoices = {
     emulators: PlayChoiceEntry[];
     defaultCore: string;
     cores: MultiplayerCoreChoice[];
+    missing: MissingCore[];
     recommendedCore: string;
     saved: PlayPick | null;
     clockSwitchSafe: boolean;
