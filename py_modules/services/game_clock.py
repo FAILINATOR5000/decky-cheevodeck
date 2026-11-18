@@ -21,7 +21,7 @@ class GameClock:
         self._record = Path(runtime_dir) / RECORD
         self._lock = threading.Lock()
 
-    def check(self, path: Path, aim: str, title: str, before_convert=None) -> str:
+    def check(self, path: Path, aim: str, title: str, before_convert=None, reset: bool = True) -> str:
         if aim not in rtc_formats.SIZES:
             return ""
         data = _read(path)
@@ -43,11 +43,15 @@ class GameClock:
             base = rtc_formats.misread_gambatte(data, now)
             if base is not None:
                 clock = rtc_formats.convert(rtc_formats.gambatte_clock(base), rtc_formats.GAMBATTE, aim, now)
+                if before_convert is not None:
+                    before_convert()
                 _write_real(path, clock)
                 decky.logger.info("clock: %s's clock file was a Gambatte clock SameBoy had misread, rebuilt it "
                                   "for %s", title, name)
                 return "recovered"
-            if len(data) in rtc_formats.SIZES.values():
+            if reset and len(data) in rtc_formats.SIZES.values():
+                if before_convert is not None:
+                    before_convert()
                 _write_real(path, rtc_formats.overflowed(aim, now))
                 decky.logger.info("clock: %s's clock file holds a time no core can run, replaced it with one the "
                                   "game will ask to set (%s)", title, name)
@@ -80,7 +84,7 @@ class GameClock:
             returns = self._load()
             due = [row for row in returns if row["at"] <= began]
             for row in due:
-                self.check(Path(row["path"]), row["owner"], row["title"])
+                self.check(Path(row["path"]), row["owner"], row["title"], reset=False)
             self._save([row for row in returns if row["at"] > began])
         return bool(due)
 

@@ -3952,9 +3952,7 @@ class MultiplayerService:
         ):
             decky.logger.info("multiplayer: the host's launch never started, back to the lobby")
             if current is not None:
-                self._session = None
-                self._remove_session_files(current["id"])
-                self._abandon_round_saves(current["id"])
+                self._drop_unlaunched(current)
             self._back_to_lobby(room, ERROR_LAUNCH_FAILED)
         self._want_turn(room)
         if room["state"] != "lobby" and self._public_state(room) == "playing":
@@ -4003,9 +4001,7 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NOT_READY}
         room = self._room
         if room is not None and room["state"] == "lobby":
-            self._session = None
-            self._remove_session_files(current["id"])
-            self._abandon_round_saves(current["id"])
+            self._drop_unlaunched(current)
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
         current["startedAt"] = time.time()
@@ -4936,9 +4932,7 @@ class MultiplayerService:
         if current is not None and current["started"]:
             return {"ok": False, "error": ERROR_BUSY}
         if current is not None:
-            self._session = None
-            self._remove_session_files(current["id"])
-            self._abandon_round_saves(current["id"])
+            self._drop_unlaunched(current)
         self._back_to_lobby(room, error if error and proto.is_reason(error) else ERROR_LAUNCH_FAILED)
         return {"ok": True}
 
@@ -5870,9 +5864,7 @@ class MultiplayerService:
         if held is not None and not (unlaunched and held["session"] == stale["id"]):
             return {"ok": False, "error": ERROR_BUSY}
         if unlaunched:
-            self._session = None
-            self._remove_session_files(stale["id"])
-            self._abandon_round_saves(stale["id"])
+            self._drop_unlaunched(stale)
             self._close_guest_tunnels_soon()
         room = self._room
         joined = self._joined
@@ -6171,6 +6163,7 @@ class MultiplayerService:
         route = local["route"]
         sid = secrets.token_hex(8)
         parts = []
+        clock_held = False
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
@@ -6224,6 +6217,8 @@ class MultiplayerService:
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("stream: couldn't write the session files (%s)", type(e).__name__)
+            if clock_held:
+                self._clock.put_back()
             return {"ok": False, "error": ERROR_WRITE_FAILED}
         self._apply_mapping(local, "stream")
         self._session = {
@@ -6464,6 +6459,14 @@ class MultiplayerService:
             return False
         path = ra.save_paths(core, rom)[1]
         found = _clock_format(_read_quietly(path))
+        if not found and not path.exists():
+            owner = local.get("shortcutCore", "") or self._play_core(ra, local["systemId"], rom)
+            if owner == core or owner not in rtc_formats.SIZES or ra.save_paths(owner, rom)[1] != path:
+                return False
+            self._clock.hold(path, core, owner, local["title"])
+            decky.logger.info("saves: %s's round reads the save directly, the clock it makes goes to %s's format "
+                              "when it ends", local["title"], ra.core_name(owner))
+            return True
         if not found or found == core:
             return False
         backup = self._backup_target(local) if self._backups is not None else None
@@ -6571,9 +6574,7 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_WRITE_FAILED}
         current = self._session
         if current is not None and current["id"] == sid and not current["started"]:
-            self._session = None
-            self._remove_session_files(sid)
-            self._abandon_round_saves(sid)
+            self._drop_unlaunched(current)
             self._close_guest_tunnels_soon()
         elif current is not None and current["id"] == sid and current["exited"]:
             self._remove_files(current)
@@ -6850,6 +6851,13 @@ class MultiplayerService:
     def _abandon_round_saves(self, sid: str) -> None:
         if self._round_saves is not None:
             self._round_saves.abandon(sid)
+
+    def _drop_unlaunched(self, current: dict) -> None:
+        self._session = None
+        self._remove_session_files(current["id"])
+        self._abandon_round_saves(current["id"])
+        if current.pop("clockHeld", False):
+            self._clock.put_back()
 
     def _session_over(self, current: dict) -> None:
         self._steady_end()
