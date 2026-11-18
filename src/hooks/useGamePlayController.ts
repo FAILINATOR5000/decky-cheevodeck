@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { multiplayerCheck, multiplayerPlayChoices, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
+import { multiplayerCheck, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
 import { showPlayWith } from "../components/game/PlayWithModal";
 import { showDolphinMappings } from "../components/game/DolphinMappingsModal";
 import { showSaveBackups } from "../components/game/SaveBackupsModal";
@@ -137,20 +137,12 @@ export function useGamePlayController(props: {
     }
 
     function openPlayWith(forGame: number) {
-        multiplayerPlayChoices(forGame)
-            .then((choices) => {
-                if (!choices.ok) {
-                    return;
-                }
-                showPlayWith({
-                    language,
-                    gameId: forGame,
-                    purpose: "launch",
-                    choices,
-                    onPick: (pick, remember) => void launchPicked(forGame, pick, remember)
-                });
-            })
-            .catch((e) => logError("play: couldn't list what can play this game", e));
+        showPlayWith({
+            language,
+            gameId: forGame,
+            purpose: "launch",
+            onPick: (pick, remember) => void launchPicked(forGame, pick, remember)
+        });
     }
 
     let label: string;

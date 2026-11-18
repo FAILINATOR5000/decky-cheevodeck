@@ -1,9 +1,10 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { multiplayerCouchChoices } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { CoreInstallLine, useCoreInstalls } from "../emulators/CoreInstall";
 import { FocusableItem } from "../ui/FocusableItem";
+import { InlineSpinner } from "../ui/InlineSpinner";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
@@ -20,7 +21,6 @@ const NAV_ENTER_MAINTAIN_Y = 3;
 type CorePickerModalProps = {
     language: LanguageCode;
     gameId: number;
-    choices: CouchChoices;
     onPick: (pick: PlayPick | null) => Promise<void>;
     close: () => void;
 };
@@ -77,21 +77,45 @@ function rowsOf(language: LanguageCode, choices: CouchChoices): Row[] {
     return rows;
 }
 
+const NO_ROWS: Row[] = [];
+
 function CorePickerModal(props: CorePickerModalProps) {
     const { language, gameId, onPick, close } = props;
-    const [choices, setChoices] = useState(props.choices);
-    const saved = choices.saved;
-    const installs = useCoreInstalls(() => {
+    const [choices, setChoices] = useState<CouchChoices | null>(null);
+    const saved = choices?.saved ?? null;
+
+    function load(closeOnFailure: boolean) {
         multiplayerCouchChoices(gameId)
             .then((found) => {
                 if (found.ok) {
                     setChoices(found);
                 }
+                else if (closeOnFailure) {
+                    close();
+                }
             })
-            .catch((e) => logError("multiplayer: listing the Couch choices after an install", e));
-    });
+            .catch((e) => logError("multiplayer: listing the Couch choices", e));
+    }
 
-    const rows = useMemo(() => rowsOf(language, choices), [language, choices]);
+    const [slow, setSlow] = useState(false);
+    useEffect(() => {
+        load(true);
+        const timer = window.setTimeout(() => setSlow(true), 500);
+        return () => window.clearTimeout(timer);
+    }, []);
+
+    const [settled, setSettled] = useState(false);
+    useEffect(() => {
+        if (choices === null || settled) {
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => setSettled(true));
+        return () => window.cancelAnimationFrame(frame);
+    }, [choices]);
+
+    const installs = useCoreInstalls(() => load(false));
+
+    const rows = useMemo(() => (choices === null ? NO_ROWS : rowsOf(language, choices)), [language, choices]);
     const list = useSlidingWindow({
         items: rows,
         itemKey: (row) => row.key,
@@ -128,6 +152,11 @@ function CorePickerModal(props: CorePickerModalProps) {
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                 {t(language, "Choose a Core")}
             </div>
+            {choices === null && slow && (
+                <div style={{ marginBottom: "8px" }}>
+                    <InlineSpinner label={t(language, "Loading...")} />
+                </div>
+            )}
             <Focusable
                 flow-children="column"
                 resetNavOnEntry
@@ -174,19 +203,23 @@ function CorePickerModal(props: CorePickerModalProps) {
                     })}
                 </SlidingWindowRows>
             </Focusable>
-            {choices.clockSwitchSafe && (
-                <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
-                    {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}
-                </div>
+            {choices !== null && settled && (
+                <>
+                    {choices?.clockSwitchSafe && (
+                        <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
+                            {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}
+                        </div>
+                    )}
+                    <Focusable
+                        style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
+                        flow-children="row"
+                    >
+                        <DialogButton onClick={close}>
+                            {t(language, "Close")}
+                        </DialogButton>
+                    </Focusable>
+                </>
             )}
-            <Focusable
-                style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
-                flow-children="row"
-            >
-                <DialogButton onClick={close}>
-                    {t(language, "Close")}
-                </DialogButton>
-            </Focusable>
         </ModalRoot>
     );
 }

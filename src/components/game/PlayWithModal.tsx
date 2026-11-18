@@ -1,5 +1,5 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { multiplayerPlayChoices, multiplayerSavePlayPick } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
@@ -14,6 +14,7 @@ import { achievementGreen, modalBodyStyle, warnAmber } from "../../utils/style";
 import { CoreInstallLine, useCoreInstalls } from "../emulators/CoreInstall";
 import { ButtonHints, type ButtonHint } from "../ui/ButtonHints";
 import { FocusableItem } from "../ui/FocusableItem";
+import { InlineSpinner } from "../ui/InlineSpinner";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
@@ -25,7 +26,6 @@ type PlayWithProps = {
     language: LanguageCode;
     gameId: number;
     purpose: "launch" | "set";
-    choices: PlayChoices;
     onPick: (pick: PlayPick | null, remember: boolean) => void | Promise<void>;
     close: () => void;
 };
@@ -99,21 +99,46 @@ function rowsOf(language: LanguageCode, choices: PlayChoices): Row[] {
     return rows;
 }
 
+const NO_ROWS: Row[] = [];
+
 function PlayWithModal(props: PlayWithProps) {
     const { language, gameId, purpose, close } = props;
-    const [choices, setChoices] = useState(props.choices);
-    const current = purpose === "set" && choices.session !== null ? choices.session : choices.saved;
-    const installs = useCoreInstalls(() => {
+    const [choices, setChoices] = useState<PlayChoices | null>(null);
+    const current = choices === null ? null
+        : purpose === "set" && choices.session !== null ? choices.session : choices.saved;
+
+    function load(closeOnFailure: boolean) {
         multiplayerPlayChoices(gameId)
             .then((found) => {
                 if (found.ok) {
                     setChoices(found);
                 }
+                else if (closeOnFailure) {
+                    close();
+                }
             })
-            .catch((e) => logError("play: listing what can play this game after an install", e));
-    });
+            .catch((e) => logError("play: listing what can play this game", e));
+    }
 
-    const rows = useMemo(() => rowsOf(language, choices), [language, choices]);
+    const [slow, setSlow] = useState(false);
+    useEffect(() => {
+        load(true);
+        const timer = window.setTimeout(() => setSlow(true), 500);
+        return () => window.clearTimeout(timer);
+    }, []);
+
+    const [settled, setSettled] = useState(false);
+    useEffect(() => {
+        if (choices === null || settled) {
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => setSettled(true));
+        return () => window.cancelAnimationFrame(frame);
+    }, [choices]);
+
+    const installs = useCoreInstalls(() => load(false));
+
+    const rows = useMemo(() => (choices === null ? NO_ROWS : rowsOf(language, choices)), [language, choices]);
     const list = useSlidingWindow({
         items: rows,
         itemKey: (row) => row.key,
@@ -133,7 +158,7 @@ function PlayWithModal(props: PlayWithProps) {
         const saving = purpose === "set"
             ? Promise.resolve(props.onPick(pick, true))
             : multiplayerSavePlayPick(gameId, "play", pick).then(() => undefined);
-        setChoices((was) => ({ ...was, saved: pick, session: null, savedMissing: false }));
+        setChoices((was) => (was === null ? was : { ...was, saved: pick, session: null, savedMissing: false }));
         saving.catch((e) => logError("play: making the default", e));
     }
 
@@ -158,7 +183,12 @@ function PlayWithModal(props: PlayWithProps) {
                     {t(language, "Stream Play launches your game the same way the Play button does, so the default you make here is the Play button's default too.")}
                 </div>
             )}
-            {choices.savedMissing && (
+            {choices === null && slow && (
+                <div style={{ marginBottom: "8px" }}>
+                    <InlineSpinner label={t(language, "Loading...")} />
+                </div>
+            )}
+            {choices?.savedMissing && (
                 <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginBottom: "6px" }}>
                     {t(language, "Your saved pick is missing, so the usual choice runs.")}
                 </div>
@@ -218,17 +248,21 @@ function PlayWithModal(props: PlayWithProps) {
                     })}
                 </SlidingWindowRows>
             </Focusable>
-            <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
-                {t(language, "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.")}
-            </div>
-            {choices.clockSwitchSafe && (
-                <div style={{ ...modalBodyStyle(), marginTop: "6px" }}>
-                    {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}
-                </div>
+            {choices !== null && settled && (
+                <>
+                    <div style={{ ...modalBodyStyle(), marginTop: "10px" }}>
+                        {t(language, "Saves don't carry over between emulators, and RetroArch may keep a separate save for each core, although most RetroArch cores work perfectly fine with the same save.")}
+                    </div>
+                    {choices?.clockSwitchSafe && (
+                        <div style={{ ...modalBodyStyle(), marginTop: "6px" }}>
+                            {t(language, "Switching between Gambatte and SameBoy is safe for this game: CheevoDeck converts its clock when it launches it. Launching it outside CheevoDeck doesn't.")}
+                        </div>
+                    )}
+                    <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }} flow-children="row">
+                        <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
+                    </Focusable>
+                </>
             )}
-            <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }} flow-children="row">
-                <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
-            </Focusable>
         </ModalRoot>
     );
 }

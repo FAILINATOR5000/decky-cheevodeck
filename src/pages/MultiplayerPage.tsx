@@ -58,7 +58,7 @@ import type {
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
-import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick, multiplayerTakeRefreshNote } from "../api";
+import { multiplayerGuestGames, multiplayerSetStreamPick, multiplayerTakeRefreshNote } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
 import {
     forgetMultiplayerRoomTab,
@@ -844,14 +844,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.gameId === null) {
             return;
         }
-        const forGame = mp.gameId;
-        multiplayerCouchChoices(forGame)
-            .then((found) => {
-                if (found.ok) {
-                    openCorePicker({ language, gameId: forGame, choices: found, onPick: actions.chooseCouchPick });
-                }
-            })
-            .catch((e) => logError("multiplayer: listing the Couch choices", e));
+        openCorePicker({ language, gameId: mp.gameId, onPick: actions.chooseCouchPick });
     }
 
     function openRunsWith() {
@@ -859,22 +852,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             return;
         }
         const forGame = mp.gameId;
-        multiplayerPlayChoices(forGame)
-            .then((found) => {
-                if (!found.ok) {
-                    return;
-                }
-                showPlayWith({
-                    language,
-                    gameId: forGame,
-                    purpose: "set",
-                    choices: found,
-                    onPick: (pick, remember) => multiplayerSetStreamPick(forGame, pick, remember)
-                        .then(() => undefined)
-                        .catch((e) => logError("multiplayer: saving the Stream pick", e))
-                });
-            })
-            .catch((e) => logError("multiplayer: listing what can run the game", e));
+        showPlayWith({
+            language,
+            gameId: forGame,
+            purpose: "set",
+            onPick: (pick, remember) => multiplayerSetStreamPick(forGame, pick, remember)
+                .then(() => undefined)
+                .catch((e) => logError("multiplayer: saving the Stream pick", e))
+        });
     }
 
     function describe(code: string, detail?: Record<string, string>) {
