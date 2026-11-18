@@ -1892,7 +1892,7 @@ class MultiplayerService:
         own = linked["shortcuts"] if linked is not None else []
         default = self._pick_shortcut(own, "play", system_id) if own else None
         shortcuts = [{**self._shortcut_entry(row, ra), "default": row is default} for row in own]
-        recommended = ""
+        recommended, route = "", None
         if not own:
             route, _gate, _detail = self._play_route(game_id, choice={})
             recommended = self._route_name(route, ra) if route is not None else ""
@@ -1905,6 +1905,10 @@ class MultiplayerService:
             missing = self._missing_cores(system_id, False)
         saved = self._picks.get(game_id, "play")
         table = catalog.RECOMMENDED_CORES.get(system_id, "")
+        if route is not None:
+            emulator, core = _route_emulator(route)
+            if emulator == "retroarch" and core:
+                table = core
         return {
             "ok": True,
             "shortcuts": shortcuts,
