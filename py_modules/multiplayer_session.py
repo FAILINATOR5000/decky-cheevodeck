@@ -273,6 +273,22 @@ def _first_values(pairs) -> dict:
     return values
 
 
+_FIRST_VALUES = {}
+
+
+def cfg_first_values(path) -> dict:
+    try:
+        st = os.stat(path)
+    except OSError:
+        return {}
+    stamp = (st.st_mtime_ns, st.st_size)
+    hit = _FIRST_VALUES.get(str(path))
+    if hit is None or hit[0] != stamp:
+        hit = (stamp, _first_values(read_cfg_lines(path)))
+        _FIRST_VALUES[str(path)] = hit
+    return hit[1]
+
+
 def write_cfg(pairs) -> str:
     return "".join(f'{key} = "{value}"\n' for key, value in pairs)
 
@@ -366,9 +382,9 @@ class RetroArch:
                  "overrideFolder": False, "overrideContentDir": False}
         if self.cfg_path is None:
             return found
-        files = [_first_values(read_cfg_lines(self.cfg_path))]
+        files = [cfg_first_values(self.cfg_path)]
         if self.loads_overrides():
-            files += [_first_values(read_cfg_lines(path)) for path in self.override_files(core, rom)]
+            files += [cfg_first_values(path) for path in self.override_files(core, rom)]
         for index, values in enumerate(files):
             for key, value in values.items():
                 if key == "savefile_directory":
@@ -396,7 +412,7 @@ class RetroArch:
     def loads_overrides(self) -> bool:
         if self.cfg_path is None:
             return True
-        return _first_values(read_cfg_lines(self.cfg_path)).get("auto_overrides_enable") not in ("false", "0")
+        return cfg_first_values(self.cfg_path).get("auto_overrides_enable") not in ("false", "0")
 
     def override_pairs(self, core: str, rom: Path) -> list:
         if not self.loads_overrides():
