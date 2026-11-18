@@ -863,7 +863,7 @@ export const multiplayerHost = callable<
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?, (boolean | null)?, (number | null)?],
+    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?, (boolean | null)?, (number | null)?, (boolean | null)?],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerGameOptions = callable<[number], { ok: boolean; options: MultiplayerGameOptions }>("multiplayer_game_options");

@@ -3238,6 +3238,7 @@ class MultiplayerService:
                 "checkFrames": check_frames if mode == "couch" and check_frames in session.CHECK_FRAMES
                 else session.DEFAULT_CHECK_FRAMES,
                 "bitrate": saved["bitrate"] if mode == "stream" else 0,
+                "uhd": False,
                 "voice": bool(voice),
                 "steadyWifi": bool(steady_wifi),
                 "max": seats,
@@ -3397,9 +3398,12 @@ class MultiplayerService:
         return status.get("adapter", "") if status else ""
 
     async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None,
-                           check_frames=None, steady_wifi=None, bitrate=None) -> dict:
+                           check_frames=None, steady_wifi=None, bitrate=None, uhd=None) -> dict:
         room = self._room
         joined = self._joined
+        if room is None and joined is not None and uhd is not None:
+            joined["uhd"] = bool(uhd)
+            return {"ok": True, "acceptUhd": joined["uhd"]}
         if room is None and joined is not None and hardcore is not None:
             joined["hardcore"] = bool(hardcore)
             return {"ok": True}
@@ -3411,8 +3415,12 @@ class MultiplayerService:
             room["steadyWifi"] = bool(steady_wifi)
             decky.logger.info("multiplayer: Steady Wi-Fi turned %s for the room", "on" if steady_wifi else "off")
             self._announce()
-        if (voice is not None or steady_wifi is not None) and hardcore is None and core is None and share is None \
-                and watch is None and adapter is None and check_frames is None and bitrate is None:
+        if uhd is not None and room["mode"] == "stream" and bool(uhd) != room["uhd"]:
+            room["uhd"] = bool(uhd)
+            decky.logger.info("multiplayer: 4K Support turned %s for the room", "on" if uhd else "off")
+            self._check_upload_for_uhd(room)
+        if (voice is not None or steady_wifi is not None or uhd is not None) and hardcore is None and core is None \
+                and share is None and watch is None and adapter is None and check_frames is None and bitrate is None:
             return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
@@ -3671,13 +3679,14 @@ class MultiplayerService:
         online = room["where"] == "online"
         room["streams"] = stream_room.HostStreams(
             sunshine=self._stream_host, room_id=room["id"], online=online, meet=room["meet"], digest=room["digest"],
-            ceiling=lambda: room["bitrate"], debug=self._debug,
+            ceiling=lambda: room["bitrate"], uhd=lambda: room["uhd"], debug=self._debug,
         )
         for index, seat in enumerate(room["seats"]):
             if index > 0 and seat is not None:
                 room["streams"].seat_taken(index, seat["peer"] if seat["door"] == "lan" else "", seat["door"] == "server")
         if online and server is not None:
-            self._spawn(room["streams"].measure(server))
+            self._spawn(room["streams"].measure(
+                server, stream_room.CEILING_KBPS if room["uhd"] else stream_room.SPEED_CHECK_KBPS))
         return ""
 
     def _park_sunshine(self) -> None:
@@ -3915,6 +3924,7 @@ class MultiplayerService:
             "adapterAuto": room["tapAuto"],
             "checkFrames": room["checkFrames"],
             "bitrate": room["bitrate"],
+            "uhd": room["uhd"],
             "adapterShown": bool(room["tapAuto"]) and room["max"] > 2
                 and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],
@@ -4065,9 +4075,28 @@ class MultiplayerService:
         if error:
             room["lastStart"] = {"round": room["round"], "ok": False, "error": error}
         decky.logger.info("multiplayer: the room is back in the lobby%s", f" ({error})" if error else "")
+        self._check_upload_for_uhd(room)
         self._cut_streams(room)
         self._close_host_tunnels()
         self._announce()
+
+    def _check_upload_for_uhd(self, room: dict) -> None:
+        streams = room.get("streams")
+        if not room["uhd"] or room["where"] != "online" or streams is None or room["state"] != "lobby":
+            return
+        loop = self._loop
+
+        def start() -> None:
+            self._spawn(streams.measure(self._lobby_server(), stream_room.CEILING_KBPS))
+
+        try:
+            on_loop = asyncio.get_running_loop() is loop
+        except RuntimeError:
+            on_loop = False
+        if on_loop:
+            start()
+        elif loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(start)
 
     def _close_host_tunnels(self) -> None:
         loop = self._loop
@@ -4797,7 +4826,7 @@ class MultiplayerService:
                     title=report["title"], launched=report["launched"], seatState=report["seatState"],
                     rank=report["rank"])
         if room.get("streams") is not None:
-            room["streams"].report(index, report["st"], report["kb"])
+            room["streams"].report(index, report["st"], report["kb"], report["uhd"])
         if self._seat_ready(room, seat) != was_ready:
             self._debug("seat %s %s", index, "ready" if not was_ready else "not ready")
         if self._late_ready(room, index, seat):
@@ -4890,6 +4919,8 @@ class MultiplayerService:
                 body["pipe"] = pipes.body(index, seat["key"])
         if room.get("rmgRound"):
             body["rmg"] = room["rmgRound"]
+        if room["uhd"] and room["mode"] == "stream":
+            body["uhd"] = True
         cred = room.get("turn", {}).get(index)
         if cred is not None and seat.get("vc"):
             body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],
@@ -5377,6 +5408,7 @@ class MultiplayerService:
                 "rowRev": 0,
                 "changed": self._emulators.changed if self._emulators is not None else 0,
                 "hardcore": bool(hardcore),
+                "uhd": False,
                 "seq": 0,
                 "said": None,
                 "ready": False,
@@ -5730,7 +5762,7 @@ class MultiplayerService:
         rank = self._rank()
         said = (joined["ready"], joined["readyRev"], joined["readyRound"], joined["can"], reason,
                 local["gameId"] if local else 0, local["title"] if local else "", joined["launched"], joined["hardcore"],
-                joined["seatState"], rank)
+                joined["seatState"], rank, joined["uhd"])
         if said != joined["said"]:
             joined["said"] = said
             joined["seq"] += 1
@@ -5750,6 +5782,7 @@ class MultiplayerService:
             can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
             title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
             seat_state=joined["seatState"], st=state, kb=kb, rank=rank,
+            uhd=joined["uhd"] and joined["row"]["mode"] == "stream",
         )
 
     def guest_games(self) -> dict:
@@ -5899,6 +5932,7 @@ class MultiplayerService:
                       and (joined["launchedRound"] == status["round"] or joined["retryRound"] == status["round"]),
             "notice": joined["notice"],
             "hardcore": joined["hardcore"],
+            "acceptUhd": joined["uhd"],
             "local": _local_view(joined["local"]) if joined["local"] is not None else None,
             "can": joined["can"],
             "reason": joined["reason"],

@@ -1063,7 +1063,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:streambitrate"
                 focusFallback={["multiplayer:runswith", "multiplayer:toggle:watch", "multiplayer:host", "multiplayer:back"]}
                 disabled={roomLocked}
-                onClick={() => openStreamBitrate({ language, chosen: mp.streamBitrate, onPick: actions.setStreamBitrate })}
+                onClick={() => openStreamBitrate({ language, chosen: mp.streamBitrate, fourK: Boolean(hosted?.uhd), onPick: actions.setStreamBitrate })}
                 help={t(language, roomLocked ? "Close the room to change it"
                     : "The most each guest's stream can use for this game. Auto picks the best quality for each guest's connection and screen. Simple games need far less, so a lower setting leaves room for more guests. Guests online may get less if your connection can't carry it.")}
             >
@@ -1768,12 +1768,34 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 onChange={(next) => void changeSlowConnection(next)}
                 help={t(language, "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.")}
             />}
+            {joined?.status?.uhd && <ToggleRow
+                bottomSeparator="none"
+                controlled
+                label={t(language, "Accept 4K Stream")}
+                value={Boolean(joined.acceptUhd)}
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:toggle:acceptuhd"
+                focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:stream", ...roomKeys]}
+                onChange={actions.setStreamUhd}
+                help={t(language, "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.")}
+            />}
+            {hosted && <ToggleRow
+                bottomSeparator="none"
+                controlled
+                label={t(language, "4K Support")}
+                value={hosted.uhd}
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:toggle:uhd"
+                focusFallback={["multiplayer:roomtab:stream", ...roomKeys]}
+                onChange={actions.setStreamUhd}
+                help={t(language, "Lets guests stream above 1080p, up to 4K, when your screen and theirs allow it and they accept. Needs a fast connection. Only for this session.")}
+            />}
             <PanelSectionRow>
                 <FocusableItem
                     bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:updatestreaming"
-                    focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:stream", ...roomKeys]}
+                    focusFallback={["multiplayer:toggle:acceptuhd", "multiplayer:toggle:slowconnection", "multiplayer:toggle:uhd", "multiplayer:roomtab:stream", ...roomKeys]}
                     onClick={pressUpdateStreaming}
                     help={t(language, "Updates Sunshine and Moonlight to their latest versions.")}
                 >

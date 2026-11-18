@@ -547,7 +547,8 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
-           launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0, rank=None) -> dict:
+           launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0, rank=None,
+           uhd: bool = False) -> dict:
     body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore,
             "seatState": seat_state}
@@ -557,6 +558,8 @@ def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: s
         body["st"] = st
     if kb:
         body["kb"] = kb
+    if uhd:
+        body["uhd"] = True
     return body
 
 
@@ -610,7 +613,7 @@ def read_report(raw):
     return {**{name: raw[name] for name in (*numbers, *flags, "reason", "seatState")},
             "title": _clean(raw["title"], _TITLE_MAX),
             "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0,
-            "rank": clean_rank(raw.get("rank"))}
+            "rank": clean_rank(raw.get("rank")), "uhd": raw.get("uhd") is True}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:
@@ -687,6 +690,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "stream": read_stream(message.get("stream")),
         "pipe": read_pipe(message.get("pipe")),
         "rmg": message["rmg"] if type(message.get("rmg")) is int and 0 < message["rmg"] < 2 ** 31 else 0,
+        "uhd": message.get("uhd") is True,
         "chatTop": message["chatTop"] if type(message.get("chatTop")) is int and 0 <= message["chatTop"] < 2 ** 31 else -1,
     }
 
@@ -768,7 +772,7 @@ def read_stream(raw):
     low, ceiling = raw.get("low", False), raw.get("max", 0)
     return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
             "low": low is True, "max": ceiling if type(ceiling) is int and 0 <= ceiling <= 100000 else 0,
-            "hs": _host_size(raw.get("hs"))}
+            "uhd": raw.get("uhd") is True, "hs": _host_size(raw.get("hs"))}
 
 
 def _host_size(raw):

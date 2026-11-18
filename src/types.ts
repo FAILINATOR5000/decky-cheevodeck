@@ -3159,6 +3159,7 @@ export type MultiplayerHostedRoom = {
     adapterShown: boolean;
     checkFrames: number;
     bitrate: number;
+    uhd: boolean;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
@@ -3189,6 +3190,7 @@ type MultiplayerGuestStatus = {
     ids: { ulid: string; pic: string; rank?: MilestoneRankBadge | null }[];
     vote: MultiplayerVote | null;
     lounge: MultiplayerLounge;
+    uhd?: boolean;
 };
 
 export type MultiplayerRoomStatus =
@@ -3209,6 +3211,7 @@ export type MultiplayerRoomStatus =
         streamBusy?: boolean;
         notice: string;
         hardcore: boolean;
+        acceptUhd?: boolean;
         local: MultiplayerLocal | null;
         can: boolean;
         reason: string;

@@ -38,9 +38,12 @@ SPEED_CHUNK = 64 * 1024
 SPEED_TIMEOUT = 30
 SPEED_SHARE = 0.8
 
-TIERS = ((800, 10000, 6000), (1080, 20000, 12000))
+TIERS = ((800, 10000, 6000), (1080, 20000, 12000), (1440, 30000, None), (2160, 40000, None))
 FLOOR_KBPS = TIERS[0][2]
 CEILING_KBPS = TIERS[-1][1]
+SPEED_CHECK_KBPS = TIERS[1][1]
+UHD_STEPS = (2160, 1440, 1080)
+UHD_MIN_KBPS = {2160: 30000, 1440: 22000}
 LAN_FULL_GUESTS = 3
 SPEED_CONNECTIONS = 4
 STREAM_HEIGHT_MAX = 1080
@@ -71,20 +74,26 @@ def parse_screen(text: str):
     return (width, height) if 0 < width <= 8192 and 0 < height <= 8192 else None
 
 
-def stream_size(width: int, height: int):
+def stream_size(width: int, height: int, top: int = STREAM_HEIGHT_MAX):
     if width <= 0 or height <= 0:
         return 1280, 800
-    if height > STREAM_HEIGHT_MAX:
-        width = round(width * STREAM_HEIGHT_MAX / height)
-        height = STREAM_HEIGHT_MAX
+    if height > top:
+        width = round(width * top / height)
+        height = top
     return width - width % 2, height - height % 2
 
 
+def uhd_top(height: int, host_size) -> int:
+    tallest = min(height, host_size[1]) if host_size is not None else height
+    return next((step for step in UHD_STEPS if step <= tallest), STREAM_HEIGHT_MAX)
+
+
 def tier_kbps(height: int, relayed: bool) -> int:
-    for top, direct, relay in TIERS:
+    rows = [row for row in TIERS if not relayed or row[2] is not None]
+    for top, direct, relay in rows:
         if height <= top:
             return relay if relayed else direct
-    return TIERS[-1][2] if relayed else TIERS[-1][1]
+    return rows[-1][2] if relayed else rows[-1][1]
 
 
 def _bare(address: str) -> str:
@@ -92,13 +101,14 @@ def _bare(address: str) -> str:
 
 
 class HostStreams:
-    def __init__(self, *, sunshine, room_id: str, online: bool, meet, digest: bytes, ceiling, debug):
+    def __init__(self, *, sunshine, room_id: str, online: bool, meet, digest: bytes, ceiling, uhd, debug):
         self._sunshine = sunshine
         self._room_id = room_id
         self._online = online
         self._meet = meet
         self._digest = digest
         self._ceiling = ceiling
+        self._uhd = uhd
         self._debug = debug
         self._seats = {}
         self._pairing = None
@@ -106,6 +116,8 @@ class HostStreams:
         self._stale = None
         self.host_size = None
         self.speed_mbit = 0.0
+        self._measured_for = 0
+        self._wanted = 0
         self.checking = False
 
     def seat_taken(self, index: int, ip: str, piped: bool) -> None:
@@ -126,6 +138,7 @@ class HostStreams:
             "path": "",
             "reported": "",
             "kb": 0,
+            "consent": False,
         }
         self._seats[index] = entry
         if entry["piped"] and self._meet is not None:
@@ -162,11 +175,12 @@ class HostStreams:
             asyncio.ensure_future(asyncio.to_thread(self._sunshine.unpair_name, _client_name(entry))) \
                 .add_done_callback(_report_crash)
 
-    def report(self, index: int, state: str, kb: int = 0) -> None:
+    def report(self, index: int, state: str, kb: int = 0, consent: bool = False) -> None:
         entry = self._seats.get(index)
         if entry is None:
             return
         entry["kb"] = kb
+        entry["consent"] = consent
         if entry["paired"] and state in ("", "connecting", "streaming", "relay"):
             entry["confirmed"] = True
         lost = state == "pairing" and entry["paired"] and entry["confirmed"]
@@ -204,8 +218,9 @@ class HostStreams:
         entry = self._seats.get(index)
         if entry is None:
             return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": "",
-                    "low": False, "max": 0}
+                    "low": False, "max": 0, "uhd": False}
         label = f"{index}|{entry['occ']}"
+        low = not entry["piped"] and self._lan_order(index) > LAN_FULL_GUESTS
         token = proto.wrap(key, "stoken", entry["n"], bytes.fromhex(stream_token(self._digest, label))) \
             if entry["piped"] else ""
         body = {
@@ -214,8 +229,9 @@ class HostStreams:
             "n": entry["n"],
             **self._share(index),
             "occ": entry["occ"],
-            "low": not entry["piped"] and self._lan_order(index) > LAN_FULL_GUESTS,
+            "low": low,
             "max": self._ceiling(),
+            "uhd": bool(self._uhd()) and entry["consent"] and (not entry["piped"] or entry["path"] == "direct"),
         }
         if self.host_size is not None:
             body["hs"] = list(self.host_size)
@@ -305,10 +321,16 @@ class HostStreams:
                                       "the pipe" if entry["piped"] else address)
             await asyncio.sleep(PAIR_POLL_SECONDS)
 
-    async def measure(self, server) -> None:
-        if server is None:
+    async def measure(self, server, kbps: int = SPEED_CHECK_KBPS) -> None:
+        self._wanted = max(self._wanted, kbps)
+        if server is None or self.checking:
             return
-        size = int(CEILING_KBPS * 1000 / 8 * SPEED_SECONDS * 4) // SPEED_CONNECTIONS
+        while self._wanted > self._measured_for and not self._closed:
+            await self._measure_once(server, self._wanted)
+
+    async def _measure_once(self, server, kbps: int) -> None:
+        self._measured_for = kbps
+        size = int(kbps * 1000 / 8 * SPEED_SECONDS * 4) // SPEED_CONNECTIONS
         self.checking = True
         try:
             results = await asyncio.wait_for(asyncio.gather(
@@ -399,6 +421,7 @@ class GuestStream:
         self.cap = 0
         self.low = False
         self.max = 0
+        self.uhd = False
         self.host_size = None
         self.kbps = 0
         self._pin = ""
@@ -423,6 +446,7 @@ class GuestStream:
         self.full = stream["full"]
         self.low = stream["low"]
         self.max = stream["max"]
+        self.uhd = stream["uhd"]
         self.host_size = stream["hs"]
         if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet \
                 and time.monotonic() - self._pipe_failed_at >= PIPE_RETRY_SECONDS:
@@ -616,18 +640,31 @@ class GuestStream:
     def kill_moonlight(self) -> None:
         end_moonlight(self._config)
 
-    def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
-        width, height = stream_size(width, height)
+    def _picture(self, width: int, height: int, top: int):
+        width, height = stream_size(width, height, top)
         if self.host_size is not None and self.host_size[1] < height:
-            width, height = stream_size(*self.host_size)
+            width, height = stream_size(*self.host_size, top)
             self._debug("stream: capped at the host's %sx%s", width, height)
-        kbps = tier_kbps(height, self.path != "direct" or self.low)
+        return width, height
+
+    def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
+        screen = (width, height)
+        top = uhd_top(height, self.host_size) if self.uhd else STREAM_HEIGHT_MAX
+        width, height = self._picture(*screen, top)
+        relayed = self.path != "direct" or (self.low and not self.uhd)
+        kbps = tier_kbps(height, relayed)
         if self.max:
             kbps = min(kbps, self.max)
         if slow:
             kbps //= 2
         if self.cap:
             kbps = min(kbps, self.cap)
+        if height > STREAM_HEIGHT_MAX and kbps < UHD_MIN_KBPS.get(height, 0):
+            top = next((step for step in UHD_STEPS if step <= height and kbps >= UHD_MIN_KBPS.get(step, 0)),
+                       STREAM_HEIGHT_MAX)
+            width, height = self._picture(*screen, top)
+            kbps = min(kbps, tier_kbps(height, relayed))
+            self._debug("stream: %s kbps is too little above 1080p, %sx%s instead", kbps, width, height)
         self.kbps = kbps
         parts = ["stream", self.address, "Game", "--resolution", f"{width}x{height}", "--fps", "60",
                  "--bitrate", str(kbps), "--video-codec", "H.264", "--display-mode", "fullscreen",

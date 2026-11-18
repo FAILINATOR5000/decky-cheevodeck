@@ -9,6 +9,7 @@ import { FocusTarget } from "../ui/FocusTarget";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const BITRATES = [0, 3000, 6000, 10000, 15000, 20000];
+const BITRATES_4K = [30000, 40000, 50000];
 
 export function bitrateLabel(language: LanguageCode, kbps: number) {
     return kbps ? t(language, "{{count}} Mbit/s", { count: kbps / 1000 }) : t(language, "Auto");
@@ -17,12 +18,13 @@ export function bitrateLabel(language: LanguageCode, kbps: number) {
 type StreamBitrateProps = {
     language: LanguageCode;
     chosen: number;
+    fourK: boolean;
     onPick: (kbps: number) => void;
     close: () => void;
 };
 
 function StreamBitrateModal(props: StreamBitrateProps) {
-    const { language, chosen, onPick, close } = props;
+    const { language, chosen, fourK, onPick, close } = props;
 
     function pick(kbps: number) {
         if (kbps !== chosen) {
@@ -38,7 +40,7 @@ function StreamBitrateModal(props: StreamBitrateProps) {
                 {t(language, "Stream Bitrate")}
             </div>
             <Focusable flow-children="column" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {BITRATES.map((kbps) => {
+                {(fourK ? [...BITRATES, ...BITRATES_4K] : BITRATES).map((kbps) => {
                     const active = kbps === chosen;
                     return (
                         <FocusableItem

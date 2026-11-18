@@ -701,6 +701,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function setStreamUhd(next: boolean) {
+        if (hosted || joined) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, null, null, null, null, next));
+        }
+    }
+
     function setAdapter(next: MultiplayerAdapter) {
         if (hosted) {
             void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, next));
@@ -824,6 +830,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setWatch,
             setSyncCheck,
             setStreamBitrate,
+            setStreamUhd,
             setAdapter,
             setVoice,
             setSteadyWifi,
