@@ -144,6 +144,7 @@ class EmulatorService:
         self._emit = emit
         self._lock = threading.Lock()
         self._inventory = None
+        self._cores_dir = None
         self._inventory_stamp = ()
         self._versions = {}
         self._games = (None, frozenset())
@@ -604,6 +605,8 @@ class EmulatorService:
                 if self._stamp(cached["emulators"]) == self._inventory_stamp:
                     return cached
                 self.changed += 1
+            ra = session.RetroArch(self._user_home)
+            self._cores_dir = ra.cores_dir if ra.found else None
             head = self._head_stamp()
             self._forget_gone_backups()
             record = self._store.get()
@@ -626,7 +629,10 @@ class EmulatorService:
         return self._head_stamp() + self._row_stamp(emulators)
 
     def _head_stamp(self) -> tuple:
-        return self._stat_all([self._user_home / "Applications", self._runtime_dir / emulators_store.FILENAME])
+        paths = [self._user_home / "Applications", self._runtime_dir / emulators_store.FILENAME]
+        if self._cores_dir is not None:
+            paths.append(self._cores_dir)
+        return self._stat_all(paths)
 
     def _row_stamp(self, emulators) -> tuple:
         paths = []
@@ -1999,7 +2005,7 @@ class EmulatorService:
         if gate == "link_needs_gambatte_both":
             return None
         if inventory is None:
-            inventory = self._inventory if self._inventory is not None else self.inventory(network=False)
+            inventory = self.inventory(network=False)
         host = context.get("hostVersion", "")
         if gate in LINK_GATES:
             return self._core_plan(inventory, LINK_GATES[gate])
