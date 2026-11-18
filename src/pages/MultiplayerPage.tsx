@@ -919,7 +919,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 : t(language, "Runs with: {{core}}", { core: local.coreName })
         : "";
     const showCores = !joined && (mp.mode === "link"
-        ? local?.emulator === "retroarch" && choices.length > 0
+        ? local?.emulator === "retroarch" && local.core === "gpsp"
         : mp.mode === "couch" && ((local?.emulator === "retroarch" && choices.length > 0)
             || ((local?.emulator === "dolphin" || local?.emulator === "rmg") && (local.vehicles ?? 0) > 1)));
     const showRunsWith = Boolean(mp.mode === "stream" && !joined && local?.coreName);
@@ -946,11 +946,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const coreRows = showCores && (
         <>
-            {mp.mode === "link" ? (
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>{coreLabel}</div>
-                </PanelSectionRow>
-            ) : (
+            {mp.mode !== "link" && (
                 <PanelSectionRow>
                     <FocusableItem
                         bottomSeparator="none"
@@ -971,7 +967,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         bottomSeparator="none"
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:linkgames"
-                        focusFallback={["multiplayer:core", "multiplayer:back"]}
+                        focusFallback={["multiplayer:host", "multiplayer:back"]}
                         onClick={openLinkGames}
                     >
                         {t(language, "Games that can link")}
