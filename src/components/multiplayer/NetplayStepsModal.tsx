@@ -1,7 +1,7 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 
 import { t, type LanguageCode } from "../../locales";
-import { cancelQuickAccessReturn, showManagedModal } from "../../utils/modalRegistry";
+import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 
 export type NetplaySteps = "dolphin" | "rmg";
@@ -47,10 +47,8 @@ export function showNetplaySteps(language: LanguageCode, emulator: NetplaySteps,
         showManagedModal((close) => (
             <NetplayStepsModal language={language} emulator={emulator} host={host} game={game} close={close} />
         ), {
-            onClose: () => {
-                cancelQuickAccessReturn();
-                resolve();
-            }
+            onClose: resolve,
+            returnToQam: false
         });
     });
 }

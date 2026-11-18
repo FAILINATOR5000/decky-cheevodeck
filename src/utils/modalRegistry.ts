@@ -68,6 +68,16 @@ function takeOverQuickAccessReopen(): boolean {
     }
 }
 
+function keepQuickAccessShut(opts?: { returnToQam?: boolean | (() => boolean) }): boolean {
+    const returnToQam = typeof opts?.returnToQam === "function" ? opts.returnToQam() : opts?.returnToQam;
+    if (returnToQam !== false) {
+        return false;
+    }
+    cancelQuickAccessReturn();
+    forgetQuickAccessRequest();
+    return true;
+}
+
 function reopenQuickAccessSoon(): void {
     window.clearTimeout(qamReopenTimer);
     qamReopenTimer = window.setTimeout(() => {
@@ -177,7 +187,7 @@ export function drainOpenModals(): OpenModal[] {
 
 export function showManagedModal(
     render: (close: () => void) => ReactElement,
-    opts?: { needsMarkSeen?: boolean; onClose?: () => void }
+    opts?: { needsMarkSeen?: boolean; onClose?: () => void; returnToQam?: boolean | (() => boolean) }
 ): { Close: () => void } {
     let closeModal = function () { };
 
@@ -187,7 +197,7 @@ export function showManagedModal(
             if (opts?.onClose) {
                 opts.onClose();
             }
-            const handOff = takeOverQuickAccessReopen();
+            const handOff = keepQuickAccessShut(opts) ? false : takeOverQuickAccessReopen();
             closeModal();
             if (handOff) {
                 reopenQuickAccessSoon();
@@ -205,7 +215,7 @@ export function showManagedModal(
         if (opts?.onClose) {
             opts.onClose();
         }
-        const handOff = takeOverQuickAccessReopen();
+        const handOff = keepQuickAccessShut(opts) ? false : takeOverQuickAccessReopen();
         closeModal();
         if (entry) {
             unregisterModal(entry);
