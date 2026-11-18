@@ -79,8 +79,9 @@ function rowsOf(language: LanguageCode, choices: PlayChoices): Row[] {
         }));
         const first = (row: Row) => row.key === `core:${recommended}`;
         rows.push({ kind: "heading", key: "heading:retroarch", label: "RetroArch" });
-        rows.push(...installed.filter(first), ...missing.filter(first),
-            ...installed.filter((row) => !first(row)), ...missing.filter((row) => !first(row)));
+        const rest = [...installed, ...missing].filter((row) => !first(row))
+            .sort((a, b) => a.label.localeCompare(b.label));
+        rows.push(...installed.filter(first), ...missing.filter(first), ...rest);
     }
     if (choices.standalones.length > 0) {
         rows.push({ kind: "heading", key: "heading:standalone", label: t(language, "Standalone") });
