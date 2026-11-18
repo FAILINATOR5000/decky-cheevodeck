@@ -1201,7 +1201,6 @@ export const saveBackupsSetConsole = callable<[number, boolean], { ok: boolean; 
 export const multiplayerCouchChoices = callable<[number], CouchChoices>("multiplayer_couch_choices");
 export const multiplayerSavePlayPick = callable<[number, "play" | "couch", PlayPick | null], { ok: boolean }>("multiplayer_save_play_pick");
 export const multiplayerSetStreamPick = callable<[number, PlayPick | null, boolean], { ok: boolean }>("multiplayer_set_stream_pick");
-export const multiplayerSetPlayRemember = callable<[number, boolean, PlayPick | null], { ok: boolean }>("multiplayer_set_play_remember");
 export const multiplayerOpenInDesktop = callable<[string], { ok: boolean; error?: string }>("multiplayer_open_in_desktop");
 export const multiplayerPreparePlay = callable<
     [number, string, string, PlayPick | Record<string, never> | null],

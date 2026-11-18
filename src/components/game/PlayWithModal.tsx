@@ -1,19 +1,21 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useMemo, useState } from "react";
 
-import { multiplayerPlayChoices, multiplayerSetPlayRemember } from "../../api";
+import { multiplayerPlayChoices, multiplayerSavePlayPick } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { PlayChoices, PlayPick } from "../../types";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { getCurrentControllerGlyphStyle } from "../../utils/controllerGlyphs";
+import { BUTTON_SECONDARY } from "../../utils/gamepadButtons";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, modalBodyStyle, warnAmber } from "../../utils/style";
 import { CoreInstallLine, useCoreInstalls } from "../emulators/CoreInstall";
+import { ButtonHints, type ButtonHint } from "../ui/ButtonHints";
 import { FocusableItem } from "../ui/FocusableItem";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
-import { ToggleRow } from "../ui/ToggleRow";
 
 const ROWS_INITIAL = 30;
 const ROWS_STEP = 30;
@@ -100,27 +102,7 @@ function rowsOf(language: LanguageCode, choices: PlayChoices): Row[] {
 function PlayWithModal(props: PlayWithProps) {
     const { language, gameId, purpose, close } = props;
     const [choices, setChoices] = useState(props.choices);
-    const sessionOnly = purpose === "set" && choices.session !== null;
-    const [remember, setRemember] = useState(choices.remember && !sessionOnly);
-    const current = sessionOnly ? choices.session : choices.saved;
-    const checked = current && "kind" in current ? current as PlayPick : null;
-
-    function reload() {
-        multiplayerPlayChoices(gameId)
-            .then((found) => {
-                if (found.ok) {
-                    setChoices(found);
-                }
-            })
-            .catch((e) => logError("play: listing what can play this game again", e));
-    }
-
-    function changeRemember(on: boolean) {
-        setRemember(on);
-        multiplayerSetPlayRemember(gameId, on, on ? checked : null)
-            .then(reload)
-            .catch((e) => logError("play: saving Remember for this game", e));
-    }
+    const current = purpose === "set" && choices.session !== null ? choices.session : choices.saved;
     const installs = useCoreInstalls(() => {
         multiplayerPlayChoices(gameId)
             .then((found) => {
@@ -147,35 +129,35 @@ function PlayWithModal(props: PlayWithProps) {
         resetKey: String(gameId)
     });
 
-    function press(pick: PlayPick | null) {
-        if (purpose === "set") {
-            void Promise.resolve(props.onPick(pick, remember)).finally(close);
-            return;
-        }
-        close();
-        void props.onPick(pick, remember);
+    function makeDefault(pick: PlayPick | null) {
+        const saving = purpose === "set"
+            ? Promise.resolve(props.onPick(pick, true))
+            : multiplayerSavePlayPick(gameId, "play", pick).then(() => undefined);
+        setChoices((was) => ({ ...was, saved: pick, session: null, savedMissing: false }));
+        saving.catch((e) => logError("play: making the default", e));
     }
+
+    function launchOnce(pick: PlayPick | null) {
+        close();
+        void props.onPick(pick, false);
+    }
+
+    const hints: ButtonHint[] = purpose === "launch"
+        ? [{ button: "a", label: t(language, "Make Default") }, { button: "x", label: t(language, "Launch As (Temporarily)") }]
+        : [{ button: "a", label: t(language, "Make Default") }];
+    const glyphs = getCurrentControllerGlyphStyle();
 
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "4px" }}>
+            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: purpose === "set" ? "4px" : "8px" }}>
                 {t(language, "Play With…")}
             </div>
-            <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
-                {purpose === "launch"
-                    ? t(language, "Select an emulator/core to temporarily launch your game with immediately upon selecting it.")
-                    : t(language, "Stream Play launches your game the same way the Play button does. Turn on Remember for this game to make your choice the default for both.")}
-            </div>
-            <ToggleRow
-                label={t(language, "Remember for this game")}
-                value={remember}
-                onChange={changeRemember}
-                bottomSeparator="none"
-                focusKey="playwith:remember"
-                help={t(language, "When enabled, the checked emulator/core will be the new default launch method for the Play button.")}
-                modalHelp
-            />
+            {purpose === "set" && (
+                <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
+                    {t(language, "Stream Play launches your game the same way the Play button does, so the default you make here is the Play button's default too.")}
+                </div>
+            )}
             {choices.savedMissing && (
                 <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginBottom: "6px" }}>
                     {t(language, "Your saved pick is missing, so the usual choice runs.")}
@@ -203,7 +185,12 @@ function PlayWithModal(props: PlayWithProps) {
                                 key={row.key}
                                 outerStyle={{ width: "100%", minWidth: 0 }}
                                 focusKey={`playwith:${row.key}`}
-                                onClick={() => (row.kind === "choice" ? press(row.pick) : void installs.install(row.core))}
+                                onClick={() => (row.kind === "choice" ? makeDefault(row.pick) : void installs.install(row.core))}
+                                onButtonDown={row.kind === "choice" && purpose === "launch" ? (evt) => {
+                                    if (evt?.detail?.button === BUTTON_SECONDARY) {
+                                        launchOnce(row.pick);
+                                    }
+                                } : undefined}
                                 onGamepadFocus={() => list.onItemFocus(at)}
                                 onGamepadDirection={list.guardTopRow(at)}
                                 autoFocus={chosen}
@@ -217,6 +204,11 @@ function PlayWithModal(props: PlayWithProps) {
                                         {row.mark && <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>{row.mark}</span>}
                                         {chosen && <span style={{ color: achievementGreen, flexShrink: 0 }}>{"✔"}</span>}
                                     </div>
+                                    {row.kind === "choice" && (
+                                        <div style={{ marginTop: "4px" }}>
+                                            <ButtonHints style={glyphs} hints={hints} dense />
+                                        </div>
+                                    )}
                                     {row.kind === "missing" && (
                                         <CoreInstallLine language={language} state={installs.states[row.core]} fontSize={modalSize(12)} />
                                     )}

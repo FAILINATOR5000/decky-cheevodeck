@@ -3307,7 +3307,6 @@ export type PlayChoices = {
     recommendedCore: string;
     standalones: PlayChoiceEntry[];
     saved: PlayPick | null;
-    remember: boolean;
     savedMissing: boolean;
     session: PlayPick | Record<string, never> | null;
     clockSwitchSafe: boolean;

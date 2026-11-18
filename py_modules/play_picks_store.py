@@ -53,8 +53,6 @@ class PlayPicksStore:
                 continue
             picks = {use: clean_pick(row.get(use)) for use in USES}
             picks = {use: pick for use, pick in picks.items() if pick is not None}
-            if type(row.get("remember")) is bool:
-                picks["remember"] = row["remember"]
             if picks:
                 kept[key] = picks
         return kept
@@ -79,27 +77,6 @@ class PlayPicksStore:
                 row.pop(use)
             else:
                 row[use] = pick
-            return self._save_row(games, game_id, row)
-
-    def remembers(self, game_id: int) -> bool:
-        if game_id <= 0:
-            return False
-        with self._lock:
-            row = self._games().get(str(game_id)) or {}
-        return row["remember"] if "remember" in row else "play" in row
-
-    def set_remember(self, game_id: int, on: bool, pick=None) -> bool:
-        if game_id <= 0:
-            return False
-        pick = clean_pick(pick) if pick is not None else None
-        with self._lock:
-            games = self._games()
-            row = games.get(str(game_id), {})
-            row["remember"] = bool(on)
-            if not on:
-                row.pop("play", None)
-            elif pick is not None:
-                row["play"] = pick
             return self._save_row(games, game_id, row)
 
     def _save_row(self, games: dict, game_id: int, row: dict) -> bool:
