@@ -1881,7 +1881,7 @@ class MultiplayerService:
             name = STREAM_EMULATOR_NAMES.get(kind, kind)
             label = f"{name} ({INSTALL_NAMES[install]})" if install in INSTALL_NAMES \
                 else shortcut["name"] or name
-            entries.append({"appid": shortcut["appid"], "kind": kind, "core": "", "label": label,
+            entries.append({"appid": shortcut["appid"], "kind": kind, "core": "", "label": label, "install": install,
                             "noAchievements": kind in ("rmg", "melonds")})
         return entries
 
@@ -1895,10 +1895,8 @@ class MultiplayerService:
         own = linked["shortcuts"] if linked is not None else []
         default = self._pick_shortcut(own, "play", system_id) if own else None
         shortcuts = [{**self._shortcut_entry(row, ra), "default": row is default} for row in own]
-        recommended, route = "", None
-        if not own:
-            route, _gate, _detail = self._play_route(game_id, choice={})
-            recommended = self._route_name(route, ra) if route is not None else ""
+        route, _gate, _detail = self._play_route(game_id, choice={})
+        recommended = self._route_name(route, ra) if route is not None and not own else ""
         vehicle = next((row for row in own if self._shortcut_entry(row, ra)["kind"] == "retroarch"), None) \
             or self._emulator_shortcut("retroarch", None)
         cores, missing = [], []
@@ -1907,11 +1905,25 @@ class MultiplayerService:
                      for core in self._compatible(ra, "", system_id)]
             missing = self._missing_cores(system_id, False)
         saved = self._picks.get(game_id, "play")
+        saved_missing = saved is not None and self._choice_route(game, saved) is None
         table = catalog.RECOMMENDED_CORES.get(system_id, "")
+        standalones = self._standalone_entries(self._play_kinds(system_id))
         if route is not None:
             emulator, core = _route_emulator(route)
+            shortcut = self._route_shortcut(route)
             if emulator == "retroarch" and core:
-                table = core
+                if not own:
+                    table = core
+                cores = [row for row in cores if row["core"] != core]
+                missing = [row for row in missing if row["core"] != core]
+                if saved is not None and saved["kind"] == "retroarch" and saved["core"] == core:
+                    saved = None
+            elif emulator and shortcut is not None:
+                install = session.install_type(emulator, shortcut["exe"], shortcut["launchOptions"], self._user_home)
+                same = {row["appid"] for row in standalones if row["kind"] == emulator and row["install"] == install}
+                standalones = [row for row in standalones if row["appid"] not in same]
+                if saved is not None and saved["appid"] in same:
+                    saved = None
         return {
             "ok": True,
             "shortcuts": shortcuts,
@@ -1919,10 +1931,10 @@ class MultiplayerService:
             "cores": cores,
             "missing": missing,
             "recommendedCore": table if any(row["core"] == table for row in cores + missing) else "",
-            "standalones": self._standalone_entries(self._play_kinds(system_id)),
+            "standalones": standalones,
             "saved": saved,
             "remember": self._picks.remembers(game_id),
-            "savedMissing": saved is not None and self._choice_route(game, saved) is None,
+            "savedMissing": saved_missing,
             "session": self._session_picks.get(game_id),
             "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
         }
