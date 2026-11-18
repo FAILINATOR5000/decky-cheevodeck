@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { emulatorsInstallCores } from "../../api";
 import { t, type LanguageCode } from "../../locales";
-import { jobErrorText, watchEmulatorJob } from "../../utils/emulatorJobs";
+import { jobErrorText, useEmulatorJobProgress, useEmulatorJobsFinished, watchEmulatorJob } from "../../utils/emulatorJobs";
 import { logError } from "../../utils/errors";
 import { modalBodyStyle, warnAmber } from "../../utils/style";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
@@ -12,8 +12,31 @@ type CoreInstallState = { running: boolean; progress: number; failed: boolean; e
 
 const JOB_TARGET = "core-list";
 
+const startedJobs = new Map<string, string>();
+
 export function useCoreInstalls(onInstalled: (core: string) => void) {
-    const [states, setStates] = useState<Record<string, CoreInstallState>>({});
+    const [own, setStates] = useState<Record<string, CoreInstallState>>({});
+    const tracked = [...startedJobs];
+    const progress = useEmulatorJobProgress(tracked.map(([, job]) => job)).split(",");
+    const finished = useEmulatorJobsFinished();
+
+    const states: Record<string, CoreInstallState> = { ...own };
+    tracked.forEach(([core], at) => {
+        if (progress[at] && !own[core]) {
+            states[core] = { running: true, progress: Number(progress[at]), failed: false, error: "" };
+        }
+    });
+
+    useEffect(() => {
+        tracked.forEach(([core], at) => {
+            if (!progress[at]) {
+                startedJobs.delete(core);
+                if (!own[core]) {
+                    onInstalled(core);
+                }
+            }
+        });
+    }, [finished]);
 
     function set(core: string, state: CoreInstallState) {
         setStates((was) => ({ ...was, [core]: state }));
@@ -30,6 +53,7 @@ export function useCoreInstalls(onInstalled: (core: string) => void) {
                 set(core, { running: false, progress: -1, failed: true, error: started.error ?? "" });
                 return;
             }
+            startedJobs.set(core, started.job);
             const ended = await watchEmulatorJob(started.job, (state) => {
                 set(core, { running: true, progress: state.progress, failed: false, error: "" });
             });

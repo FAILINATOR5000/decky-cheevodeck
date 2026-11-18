@@ -137,6 +137,13 @@ export function useEmulatorJobsFinished(): number {
     return useSyncExternalStore(subscribe, () => jobs.finished);
 }
 
+export function useEmulatorJobProgress(ids: string[]): string {
+    return useSyncExternalStore(subscribe, () => ids.map((id) => {
+        const state = active.get(id);
+        return state ? String(state.progress) : "";
+    }).join(","));
+}
+
 export function registerEmulatorJobs() {
     addEventListener(JOB_EVENT, onJobEvent);
     void refreshEmulatorJobs();

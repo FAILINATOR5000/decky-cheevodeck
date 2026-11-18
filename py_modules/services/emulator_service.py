@@ -1287,6 +1287,11 @@ class EmulatorService:
             return {"ok": False, "error": "no_network"}
         if any(core not in packed for core in cores):
             return {"ok": False, "error": "not_found"}
+        with self._job_lock:
+            for job in [self._job, *self._jobs]:
+                if job is not None and job["kind"] == "install_cores" and not job["plan"] and job["target"] == target \
+                        and set(cores) <= {step.get("core") for step in job["steps"]}:
+                    return {"ok": True, "job": job["id"]}
         return self._submit("install_cores", [{"do": "install_core", "core": core} for core in cores],
                             target=target, names=self._core_names(cores))
 
