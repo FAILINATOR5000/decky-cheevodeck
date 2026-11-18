@@ -3270,6 +3270,7 @@ type MultiplayerLocal = {
     choices: MultiplayerCoreChoice[];
     fallback?: boolean;
     picked?: boolean;
+    recommended?: boolean;
     vehicles?: number;
     dolphinMappings?: boolean;
 };
@@ -3320,6 +3321,7 @@ export type CouchChoices = {
     cores: MultiplayerCoreChoice[];
     missing: MissingCore[];
     recommendedCore: string;
+    overrides: boolean;
     saved: PlayPick | null;
     clockSwitchSafe: boolean;
 };

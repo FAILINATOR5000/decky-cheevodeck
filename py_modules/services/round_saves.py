@@ -38,7 +38,7 @@ SAVE_RAM_CORES = {
     "mesen": (7,),
     "snes9x": (3,),
     "genesis_plus_gx": (1, 11, 15, 33),
-    "picodrive": (1, 10, 11),
+    "picodrive": (1, 10, 11, 15, 33),
     "mednafen_pce": (8, 76),
     "mednafen_wswan": (53,),
     "mednafen_vb": (28,),
@@ -115,7 +115,7 @@ class RoundSaves:
             return None
 
     def begin(self, sid: str, game_id: int, title: str, pairs: list, probe=None, clock=None,
-              keep_clock: bool = False) -> bool:
+              keep_clock: bool = False, fill: int = 0) -> bool:
         with self._lock:
             if not self._clear_earlier_locked():
                 decky.logger.info("saves: %s's round saves go straight to the save (an earlier round's emulator "
@@ -124,14 +124,14 @@ class RoundSaves:
             root = self.root(sid)
             ram = self._mount_locked()
             try:
-                files = self._seed(root, pairs, clock, keep_clock)
+                files = self._seed(root, pairs, clock, keep_clock, fill)
                 seen = probe is None or probe(root)
                 if not seen and ram:
                     self._debug("RetroArch can't see the memory folder, trying the disk")
                     _remove_tree(root)
                     self._unmount_locked()
                     ram = False
-                    files = self._seed(root, pairs, clock, keep_clock)
+                    files = self._seed(root, pairs, clock, keep_clock, fill)
                     seen = probe(root)
                 if not seen:
                     raise _Fallback("RetroArch can't see the round folder")
@@ -156,7 +156,7 @@ class RoundSaves:
         decky.logger.info("saves: %s's round saves go through CheevoDeck (%s)", title, state["tier"])
         return True
 
-    def _seed(self, root: Path, pairs: list, clock=None, keep_clock: bool = False) -> dict:
+    def _seed(self, root: Path, pairs: list, clock=None, keep_clock: bool = False, fill: int = 0) -> dict:
         _remove_tree(root)
         ensure_dir(root)
         os.chmod(root, 0o700)
@@ -176,6 +176,8 @@ class RoundSaves:
                 if entry.get("clock"):
                     seed = rtc_formats.convert(data, clock[1], clock[0], int(time.time()))
                     entry["lastRound"] = _sha1(seed)
+                elif not index and len(data) < fill:
+                    seed = data + b"\xff" * (fill - len(data))
                 with atomic_file(copy) as out:
                     out.write(seed)
                 entry["baseline"] = _sha1(data)

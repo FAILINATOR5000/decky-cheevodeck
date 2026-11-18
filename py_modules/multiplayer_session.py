@@ -74,6 +74,18 @@ COUCH_CORES = {
 COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY, 1: "picodrive", 11: "picodrive", 15: "picodrive",
                      33: "picodrive"}
 
+SAVE_PAIRS = {
+    frozenset((GAMBATTE, SAMEBOY)): GB_SYSTEMS,
+    frozenset(("genesis_plus_gx", "picodrive")): (1, 11, 15, 33),
+}
+
+
+SAVE_FILL = {"picodrive": 0x10000}
+
+
+def shares_saves(core: str, other: str, system_id: int) -> bool:
+    return core != other and system_id in SAVE_PAIRS.get(frozenset((core, other)), ())
+
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
     "AXVD", "AXVE", "AXVF", "AXVI", "AXVJ", "AXVS", "B2WE", "B3AE", "B4UE", "B4UP",
@@ -1071,9 +1083,9 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
 
 
 def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path, adapter: str = "",
-                        taps: bool = True, shaders_off: bool = False):
+                        taps: bool = True, shaders_off: bool = False, save_dir=None):
     taps = multitap(core, adapter) if taps else {}
-    if not taps and not shaders_off:
+    if not taps and not shaders_off and save_dir is None:
         return None
     cfg = [
         ("config_save_on_exit", "false"),
@@ -1081,6 +1093,7 @@ def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: 
     ]
     if shaders_off:
         cfg.append(("video_shader_enable", "false"))
+    cfg += save_folder_lines(save_dir)
     remap = None
     if taps.get("devices"):
         cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]
@@ -1095,6 +1108,21 @@ def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: 
     options = dict(ra.effective_options(core, rom))
     options.update(taps["options"])
     return write_cfg(cfg), write_cfg(options.items()), remap
+
+
+SAVE_FOLDER_KEYS = ("savefile_directory", "savefiles_in_content_dir", "sort_savefiles_enable",
+                    "sort_savefiles_by_content_enable")
+
+
+def save_folder_lines(save_dir) -> list:
+    if save_dir is None:
+        return []
+    return [("savefile_directory", str(save_dir)), ("savefiles_in_content_dir", "false"),
+            ("sort_savefiles_enable", "false"), ("sort_savefiles_by_content_enable", "false")]
+
+
+def save_folder_session(save_dir) -> str:
+    return write_cfg([("config_save_on_exit", "false"), ("remap_save_on_exit", "false"), *save_folder_lines(save_dir)])
 
 
 def session_remap(ra, *, core: str, rom: Path, devices: dict):

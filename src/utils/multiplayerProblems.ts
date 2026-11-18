@@ -19,6 +19,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     unsupported_emulator: "This emulator isn't supported",
     core_cant_couch: "{{core}} can't do Couch Play. Works with: {{works}}",
     no_couch_core: "No installed core for this system can do Couch Play",
+    couch_core_missing: "Couch Play runs {{core}} for this game, and it isn't installed",
     link_needs_gambatte: "Link Play needs Gambatte",
     link_needs_ppsspp: "Link Play needs PPSSPP",
     link_needs_gpsp: "Link Play needs gpSP. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",

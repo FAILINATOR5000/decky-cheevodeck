@@ -27,43 +27,46 @@ type CorePickerModalProps = {
 
 type Row =
     | { kind: "heading"; key: string; label: string }
-    | { kind: "choice"; key: string; label: string; pick: PlayPick | null; mark?: string }
-    | { kind: "missing"; key: string; label: string; core: string; mark?: string };
+    | { kind: "choice"; key: string; label: string; pick: PlayPick | null; marks: string[] }
+    | { kind: "missing"; key: string; label: string; core: string; marks: string[] };
 
 function rowsOf(language: LanguageCode, choices: CouchChoices): Row[] {
     const rows: Row[] = [];
+    const overrides = choices.overrides;
     if (choices.shortcuts.length > 0) {
         rows.push({ kind: "heading", key: "heading:shortcuts", label: t(language, "Your shortcuts") });
         for (const row of choices.shortcuts) {
+            const isDefault = row.default && !overrides;
             rows.push({
                 kind: "choice",
                 key: `own:${row.appid}`,
                 label: `${row.name} (${row.detail})`,
-                pick: row.default ? null : { appid: row.appid, kind: row.kind, core: "" },
-                mark: row.default ? t(language, "Default") : undefined
+                pick: isDefault ? null : { appid: row.appid, kind: row.kind, core: "" },
+                marks: isDefault ? [t(language, "Default")] : []
             });
         }
     }
     else if (choices.defaultCore) {
-        rows.push({ kind: "choice", key: "default", pick: null,
+        rows.push({ kind: "choice", key: "default", pick: null, marks: [],
             label: t(language, "Default ({{core}})", { core: choices.defaultCore }) });
     }
     for (const row of choices.emulators) {
-        rows.push({ kind: "choice", key: `emulator:${row.appid}`, label: row.label,
+        rows.push({ kind: "choice", key: `emulator:${row.appid}`, label: row.label, marks: [],
             pick: { appid: row.appid, kind: row.kind, core: "" } });
     }
     if (choices.cores.length > 0 || choices.missing.length > 0) {
         const recommended = choices.recommendedCore;
-        const mark = (core: string) => (core === recommended ? t(language, "Recommended") : undefined);
+        const marks = (core: string) => (core !== recommended ? []
+            : overrides ? [t(language, "Recommended"), t(language, "Default")] : [t(language, "Recommended")]);
         const installed: Row[] = choices.cores.map((row) => ({
             kind: "choice",
             key: `core:${row.core}`,
             label: row.name,
-            pick: { appid: 0, kind: "retroarch", core: row.core },
-            mark: mark(row.core)
+            pick: overrides && row.core === recommended ? null : { appid: 0, kind: "retroarch", core: row.core },
+            marks: marks(row.core)
         }));
         const missing: Row[] = choices.missing.map((row) => ({
-            kind: "missing", key: `core:${row.core}`, label: row.name, core: row.core, mark: mark(row.core)
+            kind: "missing", key: `core:${row.core}`, label: row.name, core: row.core, marks: marks(row.core)
         }));
         const first = (row: Row) => row.key === `core:${recommended}`;
         rows.push({ kind: "heading", key: "heading:retroarch", label: "RetroArch" });
@@ -156,7 +159,9 @@ function CorePickerModal(props: CorePickerModalProps) {
                                         <span style={{ fontSize: `${modalSize(15)}px`, fontWeight: active ? 700 : 500, minWidth: 0, flex: 1 }}>
                                             {row.label}
                                         </span>
-                                        {row.mark && <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>{row.mark}</span>}
+                                        {row.marks.map((mark) => (
+                                            <span key={mark} style={{ ...modalBodyStyle(), flexShrink: 0 }}>{mark}</span>
+                                        ))}
                                         {active && <span style={{ color: achievementGreen, flexShrink: 0 }}>{"✔"}</span>}
                                     </div>
                                     {row.kind === "missing" && (

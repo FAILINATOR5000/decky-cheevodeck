@@ -913,6 +913,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const coreLabel = local
         ? local.picked && !joined
             ? t(language, "Core: {{core}} (your pick)", { core: local.coreName })
+            : local.recommended && !joined
+            ? t(language, "Core: {{core}} (recommended)", { core: local.coreName })
             : local.core === local.shortcutCore
             ? t(language, "Core: {{core}} (from your shortcut)", { core: local.coreName })
             : joined

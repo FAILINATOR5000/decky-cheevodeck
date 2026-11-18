@@ -2000,7 +2000,7 @@ class EmulatorService:
         host = context.get("hostVersion", "")
         if gate in LINK_GATES:
             return self._core_plan(inventory, LINK_GATES[gate])
-        if gate == "host_core_missing":
+        if gate in ("host_core_missing", "couch_core_missing"):
             return self._core_plan(inventory, str(detail.get("coreId") or ""))
         if gate == "no_couch_core":
             return self._system_core_plan(inventory, context.get("systemId"))

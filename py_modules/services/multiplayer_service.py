@@ -262,7 +262,7 @@ STREAM_EMULATOR_NAMES = {
 }
 SETUP_GATES = {
     "stream_not_set_up", "stream_needs_update", "no_play_core", "emulator_missing", "retroarch_first_run", "needs_dolphin",
-    "host_core_missing", "no_couch_core", "core_cant_couch", "match_host_core",
+    "host_core_missing", "couch_core_missing", "no_couch_core", "core_cant_couch", "match_host_core",
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old",
     "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
@@ -276,7 +276,7 @@ STEP_ORDER = {"enable_shortcut_fallback": 0, "enable_play_shortcut_fallback": 0,
               "install_emulator": 1, "update_emulator": 1, "add_to_steam": 2, "install_core": 3, "update_core": 3,
               "add_dolphin_folder": 3, "pick_game_file": 4}
 PLANNED_GATES = {
-    "stream_not_set_up", "no_shortcut", "host_core_missing", "no_couch_core",
+    "stream_not_set_up", "no_shortcut", "host_core_missing", "couch_core_missing", "no_couch_core",
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old", "no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut",
     "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
@@ -1288,6 +1288,27 @@ class MultiplayerService:
                 return core
         return table_core
 
+    def _couch_override(self, ra, local: dict, compatible: list, usual: str) -> str:
+        system_id, shortcut_core = local["systemId"], local["shortcutCore"]
+        table = session.COUCH_RECOMMENDED.get(system_id, "")
+        if not table or table == session.COUCH_CORES.get(system_id) or (ra.installed(table) and table not in compatible):
+            return ""
+        if local["fallback"]:
+            return table if usual == table else ""
+        if not session.shares_saves(table, shortcut_core, system_id):
+            return ""
+        rom = Path(local["path"])
+        if ra.save_paths(table, rom) != ra.save_paths(shortcut_core, rom) and not self._owner_save_ok(ra, local, table):
+            return ""
+        return table
+
+    def _owner_save_ok(self, ra, local: dict, core: str) -> bool:
+        if self._round_saves is None or not self._round_saves.takes(core, local["systemId"]) \
+                or self._retroarch_saves_netplay() or not local.get("opensRom"):
+            return False
+        found = ra.save_settings(core, Path(local["path"]))
+        return not found["overrideFolder"] and not found["overrideContentDir"]
+
     def _default_core(self, ra, compatible: list, shortcut_core: str, room_core: str) -> str:
         if room_core and ra.installed(room_core):
             return room_core
@@ -1554,15 +1575,24 @@ class MultiplayerService:
         room_core = room["core"] if room is not None else ""
         usual = detected["core"]
         if local["fallback"]:
-            table = session.COUCH_RECOMMENDED.get(system_id, "") if mode == "couch" else ""
-            if table not in compatible:
-                table = session.COUCH_CORES.get(system_id, "")
+            table = session.COUCH_RECOMMENDED.get(system_id, "") if mode == "couch" \
+                else session.COUCH_CORES.get(system_id, "")
             usual = self._core_with_save(ra, compatible, Path(pick["path"]), table)
-        chosen = core or self._default_core(ra, compatible, usual, room_core)
+        local["opensRom"] = local["fallback"] or str(pick["path"]) in pick["shortcut"]["launchOptions"]
+        recommended = self._couch_override(ra, local, compatible, usual) \
+            if mode == "couch" and room is None and not core and not saved_core and own_pick is None else ""
+        chosen = core or recommended or self._default_core(ra, compatible, usual, room_core)
         if not core and mode == "couch" and saved_core in compatible:
             chosen = saved_core
+        missing = ""
+        if mode == "couch" and room is None and not core:
+            wanted = saved_core or recommended or (usual if not local["fallback"] else "")
+            if wanted and not ra.installed(wanted):
+                missing = chosen = wanted
         if mode == "couch" and saved_core and chosen == saved_core:
             local["picked"] = True
+        local["recommended"] = bool(recommended) and chosen == recommended
+        local["missingCore"] = bool(missing)
 
         if mode == "link":
             needed = session.LINK_CORES[system_id]
@@ -1580,14 +1610,14 @@ class MultiplayerService:
                     return None, "melondsds_too_old", {}
                 if dict(ra.effective_options(needed, Path(pick["path"]))).get("melonds_console_mode") == "dsi":
                     return None, "melondsds_dsi_mode", {}
-        elif chosen not in compatible:
+        elif chosen not in compatible and not missing:
             if room is not None and room_core and not ra.installed(room_core):
                 return None, "host_core_missing", {"core": room["coreName"] or room_core, "coreId": room_core}
             works = [ra.core_name(name) for name in compatible]
             if not works:
                 return None, "no_couch_core", {}
             return None, "core_cant_couch", {"core": ra.core_name(chosen) if chosen else "", "works": ", ".join(works)}
-        if not ra.installed(chosen):
+        if not ra.installed(chosen) and not missing:
             return None, "host_core_missing", {"core": ra.core_name(chosen), "coreId": chosen}
 
         local.update(core=chosen, coreName=ra.core_name(chosen),
@@ -1904,6 +1934,7 @@ class MultiplayerService:
             "cores": cores,
             "missing": missing,
             "recommendedCore": recommended if any(row["core"] == recommended for row in cores + missing) else "",
+            "overrides": local is not None and bool(local.get("recommended")),
             "saved": self._game_options.get(game_id)["pick"],
             "clockSwitchSafe": self._clock_switch_safe(game, [row["core"] for row in cores]),
         }
@@ -2133,20 +2164,42 @@ class MultiplayerService:
         if not ra.found:
             return False
         rom = Path(route["rom"])
-        path = ra.save_paths(core, rom)[1]
-        owner = ""
-        if not route["fallback"]:
-            detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
-            owner = detected["core"] if detected and detected["emulator"] == "retroarch" else ""
-        if owner not in rtc_formats.SIZES:
+        owner, folder = self._launch_save(game, route, ra)
+        path = folder / f"{rom.stem}.rtc" if folder is not None else ra.save_paths(owner, rom)[1]
+        if owner == core and route["fallback"]:
             owner = _clock_format(_read_quietly(path)) or core
-        if ra.save_paths(owner, rom)[1] != path:
+        if owner not in rtc_formats.SIZES or (folder is None and ra.save_paths(owner, rom)[1] != path):
             owner = core
         self._clock.check(path, core, game["title"], self._clock_backup(self._route_target(game_id, route), trigger))
         if owner == core:
             return False
         self._clock.hold(path, core, owner, game["title"])
         return True
+
+    def _launch_save(self, game: dict, route: dict, ra) -> tuple:
+        emulator, core = _route_emulator(route)
+        if emulator != "retroarch" or not core or not ra.found:
+            return core, None
+        system_id, rom = game["systemId"], Path(route["rom"])
+        if route["fallback"]:
+            partner = next((other for pair in session.SAVE_PAIRS for other in pair
+                            if core in pair and other != core and session.shares_saves(core, other, system_id)), "")
+            lone = partner and ra.save_paths(partner, rom) != ra.save_paths(core, rom) \
+                and ra.save_paths(partner, rom)[0].is_file() and not ra.save_paths(core, rom)[0].is_file()
+            owner = partner if lone else core
+        else:
+            detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
+            owner = detected["core"] if detected and detected["emulator"] == "retroarch" else ""
+        if not session.shares_saves(core, owner, system_id):
+            return core, None
+        paths = ra.save_paths(owner, rom)
+        if paths == ra.save_paths(core, rom):
+            return owner, None
+        if ra.overriding_key(core, rom, session.SAVE_FOLDER_KEYS):
+            decky.logger.info("saves: an override sets where %s's saves go, so it plays its own save of %s",
+                              ra.core_name(core), game["title"])
+            return core, None
+        return owner, paths[0].parent
 
     def _clock_backup(self, target, trigger: str):
         if self._backups is None or target is None:
@@ -2162,8 +2215,10 @@ class MultiplayerService:
         if game is None:
             return None
         emulator, core = _route_emulator(route)
+        owner = self._launch_save(game, route, self._retroarch())[0] if emulator == "retroarch" else ""
         return self._backup_target({"gameId": game_id, "systemId": game["systemId"], "emulator": emulator,
-                                    "core": core, "path": route["rom"], "route": route})
+                                    "core": core, "path": route["rom"], "route": route},
+                                   owner if owner != core else "")
 
     def _backup_target(self, local: dict, owner: str = ""):
         system_id, emulator = local["systemId"], local["emulator"]
@@ -2334,6 +2389,14 @@ class MultiplayerService:
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
+            folder = self._launch_save(game, route, self._retroarch())[1] if game is not None else None
+            if folder is not None:
+                cfg_path = self._session_dir / f"session-{sid}.cfg"
+                self._write(cfg_path, session.save_folder_session(folder))
+                if not self._readable_by_owner([cfg_path]):
+                    raise OSError("session files are not the home owner's")
+                args = f"--appendconfig {session.quote(str(cfg_path))} {args}"
+                decky.logger.info("play: %s plays its own shortcut core's save from %s", game["title"], folder)
             self._write_restore(route["appid"], original, sid, play_game=game_id, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("play: couldn't write the restore record (%s)", type(e).__name__)
@@ -2510,6 +2573,8 @@ class MultiplayerService:
             return ("rom_missing", {}), warnings
         if room is None and mode == "couch" and self._hash_needs_dolphin(local, system_id):
             return ("needs_dolphin", {}), warnings
+        if local.get("missingCore"):
+            return ("couch_core_missing", {"core": local["coreName"], "coreId": local["core"]}), warnings
 
         if room is not None:
             if room.get("where") == "online" and _lan_only(mode, local):
@@ -2590,14 +2655,17 @@ class MultiplayerService:
                                             and self._emulator_shortcut("duckstation") is not None):
                 warnings.append({"code": "duckstation_switch", "detail": {"core": local["coreName"]}})
             elif local["core"] != local["shortcutCore"] and not local["fallback"]:
-                if ra.sorts_saves_by_core(local["core"], rom):
+                carried = session.shares_saves(local["core"], local["shortcutCore"], system_id) and (
+                    (mode == "couch" and room is not None) or self._owner_save_ok(ra, local, local["core"]))
+                if ra.sorts_saves_by_core(local["core"], rom) and not carried:
                     detail = {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}
                     if mode == "link":
                         return ("saves_by_core", detail), warnings
                     warnings.append({"code": "saves_by_core", "detail": detail})
                 swapped = mode == "couch" and local["shortcutCore"] not in self._compatible(ra, "couch", system_id)
-                warnings.append({"code": "core_swap_couch" if swapped else "core_override",
-                                 "detail": {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}})
+                if not local.get("recommended"):
+                    warnings.append({"code": "core_swap_couch" if swapped else "core_override",
+                                     "detail": {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}})
             if session.emudeck_netplay_on(self._user_home):
                 return ("emudeck_netplay", {}), warnings
             if not self._flatpak_reads_home(session.RETROARCH_FLATPAK):
@@ -5909,6 +5977,8 @@ class MultiplayerService:
                 if not guest:
                     self._check_round_clock(local, ra, rom)
                 owner, keep = self._clock_owner(local, ra, rom) if not guest else ("", False)
+                if not guest and not owner and not keep:
+                    owner = self._save_owner(local)
                 if ((mode == "couch" and role == "host") or local["core"] in proto.NETPACKET_CORES or owner or keep) \
                         and not self._retroarch_saves_netplay():
                     save_port = _command_port()
@@ -5916,6 +5986,13 @@ class MultiplayerService:
                     save_dir = self._round_folder(sid, local, ra, rom, original, owner, keep)
                     if save_dir is not None:
                         save_files = []
+                if save_dir is None and owner and ra.save_paths(owner, rom) != ra.save_paths(local["core"], rom):
+                    decky.logger.info("saves: %s's round can't reach %s's save, not starting it", local["title"],
+                                      ra.core_name(owner))
+                    if relayed:
+                        self._close_guest_tunnels_soon()
+                    return {"ok": False, "error": ERROR_GATE, "gate": "saves_by_core",
+                            "detail": {"core": local["coreName"], "shortcutCore": ra.core_name(owner)}}
                 if save_dir is None and not guest:
                     clock_held = self._hold_round_clock(local, ra, rom)
                 guest_dir = self._guest_save_folder(sid, local, ra, rom) if guest else None
@@ -6100,7 +6177,9 @@ class MultiplayerService:
             taps = local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
                 and room is not None and room["max"] > 2
             shaders_off = local["emulator"] == "retroarch" and self._stream_shaders_off()
-            if taps or shaders_off:
+            game = (self._library() or {}).get(local["gameId"])
+            owner, folder = self._launch_save(game, route, self._retroarch()) if game is not None else ("", None)
+            if taps or shaders_off or folder is not None:
                 ra = self._retroarch()
                 rom = Path(local["path"])
                 adapter = self._room_tap(room) if taps else ""
@@ -6110,14 +6189,14 @@ class MultiplayerService:
                     decky.logger.info("stream: %s's own remap or override sets its controller ports, no multiplayer "
                                       "adapter", local["core"])
                     taps = False
-                if taps or shaders_off:
+                if taps or shaders_off or folder is not None:
                     cfg_path = self._session_dir / f"session-{sid}.cfg"
                     opt_path = self._session_dir / f"session-{sid}.opt"
                     remap_dir = self._session_dir / f"session-{sid}.remaps"
                     cfg_text, opt_text, remap = session.stream_host_session(ra, core=local["core"], rom=rom,
                                                                             opt_path=opt_path, remap_dir=remap_dir,
                                                                             adapter=adapter, taps=taps,
-                                                                            shaders_off=shaders_off)
+                                                                            shaders_off=shaders_off, save_dir=folder)
                     files = [cfg_path]
                     if opt_text is not None:
                         self._write(opt_path, opt_text)
@@ -6134,7 +6213,8 @@ class MultiplayerService:
                     if shaders_off:
                         decky.logger.info("stream: RetroArch starts with its shaders off for this session")
             clock_held = self._check_launch_clock(local["gameId"], route, "together")
-            backup = self._backup_target(local) if self._backups is not None else None
+            backup = self._backup_target(local, owner if owner != local["core"] else "") \
+                if self._backups is not None else None
             if backup is not None:
                 self._backups.back_up(backup, "stream", "together")
             rename = _status_title(local["title"], name) if route["fallback"] else ""
@@ -6314,13 +6394,25 @@ class MultiplayerService:
         pairs = list(zip(real, ra.save_paths(local["core"], rom, root=root), strict=True))
         flatpak = ra.cfg_path is not None and session.RETROARCH_FLATPAK in ra.cfg_path.parts
         probe = self._probe_round_folder if flatpak else None
-        clock = (local["core"], owner) if owner else None
-        if not self._round_saves.begin(sid, local["gameId"], local["title"], pairs, probe, clock, keep):
+        clock = (local["core"], owner) if owner in rtc_formats.SIZES and local["core"] in rtc_formats.SIZES else None
+        fill = session.SAVE_FILL.get(local["core"], 0) \
+            if session.shares_saves("genesis_plus_gx", local["core"], local["systemId"]) else 0
+        if not self._round_saves.begin(sid, local["gameId"], local["title"], pairs, probe, clock, keep, fill):
             return None
-        if owner:
+        if clock:
             decky.logger.info("saves: %s's clock goes into the round as %s's and comes back as %s's",
                               local["title"], local["coreName"], ra.core_name(owner))
+        elif owner:
+            decky.logger.info("saves: %s's round plays %s's save on %s", local["title"], ra.core_name(owner),
+                              local["coreName"])
         return root
+
+    def _save_owner(self, local: dict) -> str:
+        owner = local.get("shortcutCore", "")
+        if local["emulator"] != "retroarch" or local["fallback"] \
+                or not session.shares_saves(local["core"], owner, local["systemId"]):
+            return ""
+        return owner
 
     def _clock_owner(self, local: dict, ra, rom: Path) -> tuple:
         core = local.get("core", "")
@@ -7512,6 +7604,7 @@ def _local_view(local: dict) -> dict:
         "choices": local["choices"],
         "fallback": local["fallback"],
         "picked": bool(local.get("picked")),
+        "recommended": bool(local.get("recommended")),
         "vehicles": local.get("vehicles", 0),
         "dolphinMappings": dolphin_game_mappings.takes_mappings(local["systemId"], local["emulator"],
                                                                 local.get("install", "")),
