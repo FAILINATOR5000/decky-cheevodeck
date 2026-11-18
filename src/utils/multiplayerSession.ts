@@ -236,7 +236,22 @@ async function showTitle(record: MultiplayerRestoreRecord) {
     }
 }
 
+const restoring = new Set<string>();
+
 async function restore(record: MultiplayerRestoreRecord) {
+    if (restoring.has(record.session)) {
+        return;
+    }
+    restoring.add(record.session);
+    try {
+        await restoreOnce(record);
+    }
+    finally {
+        restoring.delete(record.session);
+    }
+}
+
+async function restoreOnce(record: MultiplayerRestoreRecord) {
     const written = await writeLaunchOptions(record.appid, record.original);
     const gone = !written && shortcutName(record.appid) === null;
     if (!written && !gone) {
@@ -647,6 +662,7 @@ function onSessionEvent(payload: {
     game?: string;
     emulator?: string;
     mode?: string;
+    session?: string;
 }) {
     if (payload?.state === "starting") {
         playFanfare(`${payload.room ?? ""}:${Number(payload.round) || 0}`);
@@ -671,6 +687,15 @@ function onSessionEvent(payload: {
         const language = getCurrentLanguage();
         showMultiplayerProblem(language, "Sunshine Didn't Restart", t(language,
             "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Stream Options tab, then Set Up Streaming to reinstall it."));
+        return;
+    }
+    if (payload?.state === "ended") {
+        const record = launched;
+        if (record && record.session === payload.session && Number(Router.MainRunningApp?.appid ?? 0) !== record.appid) {
+            publish({ appid: 0, running: false });
+            forgetRound();
+            void restore(record);
+        }
         return;
     }
     if (payload?.state !== "failed") {
