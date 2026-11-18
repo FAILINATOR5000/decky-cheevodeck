@@ -46,7 +46,7 @@ function rowsOf(language: LanguageCode, choices: CouchChoices): Row[] {
             });
         }
     }
-    else if (choices.defaultCore) {
+    else if (choices.defaultCore && !(overrides && choices.cores.some((row) => row.core === choices.recommendedCore))) {
         rows.push({ kind: "choice", key: "default", pick: null, marks: [],
             label: t(language, "Default ({{core}})", { core: choices.defaultCore }) });
     }
