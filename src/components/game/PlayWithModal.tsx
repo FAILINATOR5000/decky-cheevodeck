@@ -27,6 +27,7 @@ type PlayWithProps = {
     gameId: number;
     purpose: "launch" | "set";
     onPick: (pick: PlayPick | null, remember: boolean) => void | Promise<void>;
+    launching: () => void;
     close: () => void;
 };
 
@@ -163,6 +164,7 @@ function PlayWithModal(props: PlayWithProps) {
     }
 
     function launchOnce(pick: PlayPick | null) {
+        props.launching();
         close();
         void props.onPick(pick, false);
     }
@@ -267,6 +269,8 @@ function PlayWithModal(props: PlayWithProps) {
     );
 }
 
-export function showPlayWith(options: Omit<PlayWithProps, "close">) {
-    showManagedModal((close) => <PlayWithModal {...options} close={close} />);
+export function showPlayWith(options: Omit<PlayWithProps, "close" | "launching">) {
+    let launching = false;
+    showManagedModal((close) => <PlayWithModal {...options} launching={() => { launching = true; }} close={close} />,
+        { returnToQam: () => !launching });
 }
