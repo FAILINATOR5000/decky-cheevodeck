@@ -3644,9 +3644,13 @@ class MultiplayerService:
         else:
             failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
             if failed:
+                if sink:
+                    self._release_game_sink()
                 return failed
         if self._room is not room:
             await asyncio.to_thread(self._stream_host.stop)
+            if sink:
+                self._release_game_sink()
             return ERROR_NO_ROOM
         online = room["where"] == "online"
         room["streams"] = stream_room.HostStreams(
