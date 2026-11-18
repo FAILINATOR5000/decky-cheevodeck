@@ -269,6 +269,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                                         focusKey={row.key}
                                         onGamepadFocus={() => list.onItemFocus(at)}
                                         onGamepadDirection={list.guardTopRow(at)}
+                                        outerStyle={{ padding: "6px 0" }}
                                         style={{ ...modalBodyStyle(), fontWeight: 700, opacity: 1 }}
                                     >
                                         {row.label}
