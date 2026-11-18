@@ -3,6 +3,7 @@ import json
 import os
 import re
 import shlex
+import time
 import zipfile
 import zlib
 from pathlib import Path, PurePosixPath
@@ -304,6 +305,33 @@ def _expand(value: str, home: Path, base: Path):
     return Path(value)
 
 
+_retroarchs = {}
+RETROARCH_KEPT_SECONDS = 60
+
+
+def _stat_key(path):
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
+def retroarch(home):
+    key = str(home)
+    configs = tuple(_stat_key(Path(home) / relative) for relative in RETROARCH_CONFIGS)
+    held = _retroarchs.get(key)
+    now = time.monotonic()
+    if held is not None:
+        stamp, made, ra = held
+        if now - made < RETROARCH_KEPT_SECONDS and stamp == (configs, _stat_key(ra.info_dir), _stat_key(ra.cores_dir)):
+            return ra
+    ra = RetroArch(home)
+    if ra.cfg_path is None or ra.cfg:
+        _retroarchs[key] = ((configs, _stat_key(ra.info_dir), _stat_key(ra.cores_dir)), now, ra)
+    return ra
+
+
 class RetroArch:
     def __init__(self, home):
         self.home = Path(home)
@@ -481,7 +509,24 @@ def _program_names(tokens) -> list:
     return names
 
 
+_detected = {}
+_kinds = {}
+_KEPT_MAX = 50000
+_UNSEEN = object()
+
+
 def detect(exe, launch_options):
+    key = (exe, launch_options)
+    found = _detected.get(key, _UNSEEN)
+    if found is _UNSEEN:
+        found = _detect(exe, launch_options)
+        if len(_detected) >= _KEPT_MAX:
+            _detected.clear()
+        _detected[key] = found
+    return dict(found) if found is not None else None
+
+
+def _detect(exe, launch_options):
     tokens = []
     for field in (exe, launch_options):
         if field:
@@ -646,6 +691,17 @@ _RETROARCH_NAMES = ("retroarch", "retroarch.sh", "org.libretro.retroarch")
 
 
 def emulator_kind(exe, launch_options) -> str:
+    key = (exe, launch_options)
+    kind = _kinds.get(key)
+    if kind is None:
+        kind = _emulator_kind(exe, launch_options)
+        if len(_kinds) >= _KEPT_MAX:
+            _kinds.clear()
+        _kinds[key] = kind
+    return kind
+
+
+def _emulator_kind(exe, launch_options) -> str:
     found = detect(exe, launch_options)
     if found is not None:
         return found["emulator"]
@@ -995,7 +1051,20 @@ def emudeck_automap(exe, launch_options, home) -> bool:
     return product not in STEAM_DECK_PRODUCTS
 
 
+_netplay_flags = {}
+
+
 def emudeck_netplay_on(home) -> bool:
+    stamp = tuple(_stat_key(Path(home) / relative) for relative in EMUDECK_SETTINGS)
+    held = _netplay_flags.get(str(home))
+    if held is not None and held[0] == stamp:
+        return held[1]
+    found = _read_emudeck_netplay(home)
+    _netplay_flags[str(home)] = (stamp, found)
+    return found
+
+
+def _read_emudeck_netplay(home) -> bool:
     for relative in EMUDECK_SETTINGS:
         try:
             with open(Path(home) / relative, "r", encoding="utf-8", errors="replace") as handle:

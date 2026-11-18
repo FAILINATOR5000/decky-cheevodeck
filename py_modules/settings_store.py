@@ -810,6 +810,7 @@ class SettingsStore:
         self._config_lock = threading.RLock()
 
         self._tracked_master_lock = threading.Lock()
+        self._tracked_summaries = {}
         self._milestone_event = None
         self._tracked_game_locks: dict[str, threading.Lock] = {}
 
@@ -4239,11 +4240,38 @@ class SettingsStore:
         with self._tracked_master_lock:
             tracked_dir = self._tracked_dir
             total = 0
-            for stem in self._iter_all_tracked_keys(tracked_dir):
-                entry = self._load_tracked_for_game_key(stem, tracked_dir)
-                if isinstance(entry, dict):
-                    total += len(entry.get("achievementIds", []) or [])
+            stems = list(self._iter_all_tracked_keys(tracked_dir))
+            for stem in stems:
+                summary = self._tracked_summary(stem, tracked_dir)
+                if summary is not None:
+                    total += summary["count"]
+            self._prune_tracked_summaries(tracked_dir, stems)
         return total
+
+    def _tracked_summary(self, key: str, tracked_dir: Path):
+        path = self._path_for_game_key(key, tracked_dir)
+        try:
+            st = path.stat()
+        except OSError:
+            return None
+        stamp = (st.st_mtime_ns, st.st_size, st.st_ino)
+        held = self._tracked_summaries.get(path)
+        if held is not None and held[0] == stamp:
+            return held[1]
+        entry = self._load_tracked_for_game_key(key, tracked_dir)
+        summary = {
+            "count": len(entry.get("achievementIds", []) or []),
+            "title": self._coerce_optional_str(entry.get("title")),
+            "consoleName": self._coerce_optional_str(entry.get("consoleName")),
+            "imageIcon": self._coerce_optional_str(entry.get("imageIcon")),
+        }
+        if entry:
+            self._tracked_summaries[path] = (stamp, summary)
+        return summary
+
+    def _prune_tracked_summaries(self, tracked_dir: Path, stems) -> None:
+        listed = {self._path_for_game_key(stem, tracked_dir) for stem in stems}
+        self._tracked_summaries = {path: held for path, held in self._tracked_summaries.items() if path in listed}
 
     def get_recent_tags_for_game(self, game_id) -> list:
         """Every tag on a tracked note for this game, most recently edited first.
@@ -4278,23 +4306,18 @@ class SettingsStore:
         games = []
         with self._tracked_master_lock:
             tracked_dir = self._tracked_dir
-            for stem in self._iter_all_tracked_keys(tracked_dir):
-                entry = self._load_tracked_for_game_key(stem, tracked_dir)
-                if not isinstance(entry, dict):
+            stems = list(self._iter_all_tracked_keys(tracked_dir))
+            for stem in stems:
+                summary = self._tracked_summary(stem, tracked_dir)
+                if summary is None:
                     continue
                 game_id = norm_game_id(stem)
                 if game_id is None:
                     continue
-                count = len(entry.get("achievementIds", []) or [])
-                if count <= 0:
+                if summary["count"] <= 0:
                     continue
-                games.append({
-                    "gameId": game_id,
-                    "count": count,
-                    "title": self._coerce_optional_str(entry.get("title")),
-                    "consoleName": self._coerce_optional_str(entry.get("consoleName")),
-                    "imageIcon": self._coerce_optional_str(entry.get("imageIcon")),
-                })
+                games.append({"gameId": game_id, **summary})
+            self._prune_tracked_summaries(tracked_dir, stems)
         return games
 
     def cleanup_tracked_against_payload(self, payload, *, tracked_dir: Path) -> dict:

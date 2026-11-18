@@ -6,6 +6,8 @@ from pathlib import Path
 
 from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
 
+GAME_ICONS_KEPT = 512
+
 _SAFE_CACHE_NAME_CHARS = frozenset(string.ascii_lowercase + string.digits + "_-")
 
 
@@ -66,6 +68,9 @@ class CacheStore:
 
         self._game_bundle_locks: dict = {}
         self._game_bundle_locks_mutex = threading.Lock()
+        self._game_icon_entries = {}
+        self._game_icon_lock = threading.Lock()
+        self._sets_list = (None, None)
         self._game_bundle_fallback_lock = threading.Lock()
 
         self._user_avatar_locks: dict = {}
@@ -219,6 +224,27 @@ class CacheStore:
             return {}
         raw = load_json_file(path, {})
         return raw if isinstance(raw, dict) else {}
+
+    def game_icon_entry(self, game_id):
+        path = self._game_bundle_path(game_id)
+        if path is None:
+            return None
+        try:
+            st = path.stat()
+        except OSError:
+            return None
+        stamp = (st.st_mtime_ns, st.st_size, st.st_ino)
+        held = self._game_icon_entries.get(path)
+        if held is not None and held[0] == stamp:
+            return held[1]
+        raw = load_json_file(path, {})
+        entry = raw.get("gameIcon") if isinstance(raw, dict) else None
+        with self._game_icon_lock:
+            self._game_icon_entries.pop(path, None)
+            while len(self._game_icon_entries) >= GAME_ICONS_KEPT:
+                self._game_icon_entries.pop(next(iter(self._game_icon_entries)))
+            self._game_icon_entries[path] = (stamp, entry)
+        return entry
 
     def save_game_bundle(self, game_id, payload):
         path = self._game_bundle_path(game_id)
@@ -420,6 +446,30 @@ class CacheStore:
         )
 
     def load_sets_list(self) -> dict:
+        path = self._sets_list_cache_file
+        try:
+            st = path.stat()
+            stamp = (str(path), st.st_mtime_ns, st.st_size, st.st_ino)
+        except OSError:
+            return {"consoles": [], "gameLists": {}}
+        held = self._sets_list
+        if held[0] == stamp:
+            return held[1]
+        data = self._read_sets_list()
+        self._sets_list = (stamp, data)
+        return data
+
+    def _write_sets_list(self, data: dict) -> None:
+        path = self._sets_list_cache_file
+        save_json_file(path, data)
+        try:
+            st = path.stat()
+        except OSError:
+            self._sets_list = (None, None)
+            return
+        self._sets_list = ((str(path), st.st_mtime_ns, st.st_size, st.st_ino), data)
+
+    def _read_sets_list(self) -> dict:
         raw = load_json_file(self._sets_list_cache_file, {})
         if not isinstance(raw, dict):
             return {"consoles": [], "gameLists": {}}
@@ -437,9 +487,9 @@ class CacheStore:
 
     def save_consoles(self, consoles):
         with self._sets_list_lock:
-            data = self.load_sets_list()
+            data = dict(self.load_sets_list())
             data["consoles"] = consoles if isinstance(consoles, list) else []
-            save_json_file(self._sets_list_cache_file, data)
+            self._write_sets_list(data)
 
     def get_cached_game_list(self, console_id):
         data = self.load_sets_list()
@@ -447,9 +497,9 @@ class CacheStore:
 
     def save_game_list(self, console_id, games):
         with self._sets_list_lock:
-            data = self.load_sets_list()
-            data["gameLists"][str(console_id)] = games if isinstance(games, list) else []
-            save_json_file(self._sets_list_cache_file, data)
+            data = dict(self.load_sets_list())
+            data["gameLists"] = {**data["gameLists"], str(console_id): games if isinstance(games, list) else []}
+            self._write_sets_list(data)
 
     def load_card_collage(self):
         raw = load_json_file(self._card_collage_cache_file, None)

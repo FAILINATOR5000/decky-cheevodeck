@@ -386,8 +386,7 @@ class IconService:
             return {"dataUri": None}
 
         url = self.game_icon_url(image_icon)
-        bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-        cached = self._get_cached_game_icon(bundle_snapshot, url)
+        cached = self._get_cached_game_icon({"gameIcon": self._cache_store.game_icon_entry(game_id_int)}, url)
         if cached:
             return {"dataUri": cached}
 
@@ -448,8 +447,7 @@ class IconService:
         icons = {}
         missing = []
         for game_id_int, url in cleaned:
-            bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-            cached = self._get_cached_game_icon(bundle_snapshot, url)
+            cached = self._get_cached_game_icon({"gameIcon": self._cache_store.game_icon_entry(game_id_int)}, url)
             if cached:
                 icons[game_id_int] = cached
                 continue
@@ -628,8 +626,7 @@ class IconService:
         icons = {}
         missing = []
         for game_id_int, url in cleaned:
-            bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-            cached = self._get_cached_game_icon(bundle_snapshot, url)
+            cached = self._get_cached_game_icon({"gameIcon": self._cache_store.game_icon_entry(game_id_int)}, url)
             if cached:
                 icons[game_id_int] = cached
                 continue

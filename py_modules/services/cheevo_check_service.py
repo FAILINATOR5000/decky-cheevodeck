@@ -1793,7 +1793,7 @@ class CheevoCheckService:
         if system is None:
             return ""
         rom = Path(path)
-        cached = self._cached_hash(self._store.load_hash_cache(), self._cache_key(console_id, rom), rom)
+        cached = self._cached_hash(self._store.hash_cache_view(), self._cache_key(console_id, rom), rom)
         if cached is not None:
             return cached
         with self._lock:
@@ -1826,17 +1826,18 @@ class CheevoCheckService:
             return ""
         if self._cache_hashes_enabled():
             with self._room_cache_lock:
-                cache = self._store.load_hash_cache()
-                self._remember(cache, console_id, rom, digest)
+                found = {}
+                self._remember(found, console_id, rom, digest)
                 try:
-                    self._store.save_hash_cache(cache)
+                    if found and not self._store.add_hashes(found):
+                        decky.logger.info("cheevocheck: couldn't keep %s's hash (the hash cache didn't read)", rom.name)
                 except OSError as e:
                     decky.logger.info("cheevocheck: couldn't keep %s's hash (%s)", rom.name, type(e).__name__)
         return digest
 
     def cached_room_hash(self, path, console_id: int) -> str:
         rom = Path(path)
-        return self._cached_hash(self._store.load_hash_cache(), self._cache_key(console_id, rom), rom) or ""
+        return self._cached_hash(self._store.hash_cache_view(), self._cache_key(console_id, rom), rom) or ""
 
     def _cache_key(self, console_id: int, path: Path) -> str:
         return f"{console_id}|{os.path.realpath(path)}"

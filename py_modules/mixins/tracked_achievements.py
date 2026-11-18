@@ -1,3 +1,5 @@
+import asyncio
+
 from utils import norm_game_id
 
 from mixins._context import PluginContext
@@ -93,7 +95,7 @@ class TrackedAchievementsMixin(PluginContext):
     async def clear_tracked_achievements(self, game_id=None):
         game_id_int = norm_game_id(game_id)
         cleared = self.settings_store.clear_tracked_for_game(game_id_int)
-        total = self.settings_store.get_total_tracked_count()
+        total = await asyncio.to_thread(self.settings_store.get_total_tracked_count)
         return {
             "ok": bool(cleared.get("ok", False)),
             "gameId": game_id_int,
@@ -110,14 +112,14 @@ class TrackedAchievementsMixin(PluginContext):
         }
 
     async def get_total_tracked_count(self):
-        total = self.settings_store.get_total_tracked_count()
+        total = await asyncio.to_thread(self.settings_store.get_total_tracked_count)
         return {
             "ok": True,
             "totalTrackedCount": total,
         }
 
     async def get_all_tracked_games(self):
-        games = self.settings_store.get_all_tracked_games()
+        games = await asyncio.to_thread(self.settings_store.get_all_tracked_games)
         return {
             "ok": True,
             "games": games,

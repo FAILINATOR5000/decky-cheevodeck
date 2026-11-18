@@ -110,7 +110,7 @@ class TrackedSetsMixin(PluginContext):
         return self.tracked_sets_store.clear_all_tracked_sets()
 
     async def get_set_console_list(self):
-        cached = self.cache_store.get_cached_consoles()
+        cached = await asyncio.to_thread(self.cache_store.get_cached_consoles)
         if cached is not None:
             return {"ok": True, "consoles": cached, "cached": True}
 
@@ -129,7 +129,7 @@ class TrackedSetsMixin(PluginContext):
 
         consoles = self._shape_console_list(raw)
         try:
-            self.cache_store.save_consoles(consoles)
+            await asyncio.to_thread(self.cache_store.save_consoles, consoles)
         except Exception as e:
             decky.logger.warning("get_console_ids: cache save failed: %s", type(e).__name__)
         return {"ok": True, "consoles": consoles, "cached": False}
@@ -140,7 +140,7 @@ class TrackedSetsMixin(PluginContext):
             return {"ok": False, "error": "invalid_console_id", "games": []}
 
         if not refresh:
-            cached = self.cache_store.get_cached_game_list(normalized)
+            cached = await asyncio.to_thread(self.cache_store.get_cached_game_list, normalized)
             if cached is not None:
                 return {"ok": True, "games": cached, "cached": True}
 
@@ -159,7 +159,7 @@ class TrackedSetsMixin(PluginContext):
 
         games = self._shape_game_list(raw)
         try:
-            self.cache_store.save_game_list(normalized, games)
+            await asyncio.to_thread(self.cache_store.save_game_list, normalized, games)
         except Exception as e:
             decky.logger.warning("get_set_game_list: cache save failed: %s", type(e).__name__)
         return {"ok": True, "games": games, "cached": False}

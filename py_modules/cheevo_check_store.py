@@ -3,6 +3,7 @@ from pathlib import Path
 
 import threading
 import time
+from types import MappingProxyType
 
 import decky
 
@@ -88,6 +89,12 @@ class CheevoCheckStore:
     def __init__(self, *, base_dir: Path):
         self._base_dir = base_dir
         self._lock = threading.Lock()
+        self._read_lock = threading.Lock()
+        self._results_cache = (None, None)
+        self._verify_cache = (None, None)
+        self._summary_cache = (None, None)
+        self._hash_cache = (None, {})
+        self._hash_lock = threading.Lock()
 
     def _dir(self) -> Path:
         return self._base_dir / "cheevo_check"
@@ -141,6 +148,21 @@ class CheevoCheckStore:
         down with it. Sections get added; a read of an older file has to heal
         rather than half-answer.
         """
+        stamp = self.results_fingerprint()
+        if stamp is None:
+            return None
+        cached = self._results_cache
+        if cached[0] == stamp:
+            return cached[1]
+        with self._read_lock:
+            if self._results_cache[0] != stamp:
+                found = self._read_results()
+                if found is None:
+                    return None
+                self._results_cache = (stamp, found)
+            return self._results_cache[1]
+
+    def _read_results(self):
         raw = load_json_file(self._results_path(), None)
         if not isinstance(raw, dict):
             return None
@@ -231,6 +253,23 @@ class CheevoCheckStore:
     )
 
     def load_verify_results(self):
+        try:
+            st = self._verify_results_path().stat()
+        except OSError:
+            return None
+        stamp = (st.st_mtime_ns, st.st_size)
+        cached = self._verify_cache
+        if cached[0] == stamp:
+            return cached[1]
+        with self._read_lock:
+            if self._verify_cache[0] != stamp:
+                found = self._read_verify_results()
+                if found is None:
+                    return None
+                self._verify_cache = (stamp, found)
+            return self._verify_cache[1]
+
+    def _read_verify_results(self):
         raw = load_json_file(self._verify_results_path(), None)
         if not isinstance(raw, dict):
             return None
@@ -271,14 +310,23 @@ class CheevoCheckStore:
         Two questions, and both come off the same read: is Offline Scan allowed
         (does any data exist), and how old is what it would use.
         """
-        data = self.load_ra_data()
-        if data is None:
+        try:
+            st = self._ra_data_path().stat()
+        except OSError:
             return {"available": False, "builtAt": 0, "consoles": 0}
-        return {
-            "available": True,
-            "builtAt": to_int(data.get("builtAt", 0), 0),
-            "consoles": len(data.get("consoles") or {}),
-        }
+        stamp = (st.st_mtime_ns, st.st_size)
+        cached = self._summary_cache
+        if cached[0] != stamp:
+            data = self.load_ra_data()
+            if data is None:
+                return {"available": False, "builtAt": 0, "consoles": 0}
+            summary = {
+                "available": True,
+                "builtAt": to_int(data.get("builtAt", 0), 0),
+                "consoles": len(data.get("consoles") or {}),
+            }
+            cached = self._summary_cache = (stamp, summary)
+        return dict(cached[1])
 
     def save_ra_data(self, consoles: dict) -> None:
         """Replace the whole database with what this fetch produced.
@@ -306,15 +354,58 @@ class CheevoCheckStore:
         return self._unlink(self._ra_data_path())
 
     def load_hash_cache(self) -> dict:
+        return dict(self._hash_entries())
+
+    def hash_cache_view(self):
+        return MappingProxyType(self._hash_entries())
+
+    def _hash_entries(self) -> dict:
+        try:
+            st = self._hash_cache_path().stat()
+        except OSError:
+            return {}
+        stamp = (st.st_mtime_ns, st.st_size)
+        if self._hash_cache[0] != stamp:
+            with self._hash_lock:
+                if self._hash_cache[0] != stamp:
+                    found = self._read_hash_cache()
+                    if found is None:
+                        return {}
+                    self._hash_cache = (stamp, found)
+        return self._hash_cache[1]
+
+    def _read_hash_cache(self):
         raw = load_json_file(self._hash_cache_path(), None)
         if not isinstance(raw, dict):
-            return {}
+            return None
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
-            return {}
+            return None
         entries = raw.get("entries")
-        return entries if isinstance(entries, dict) else {}
+        return entries if isinstance(entries, dict) else None
 
     def save_hash_cache(self, entries: dict) -> None:
+        with self._hash_lock:
+            self._write_hash_cache(entries)
+
+    def add_hashes(self, entries: dict) -> bool:
+        with self._hash_lock:
+            try:
+                st = self._hash_cache_path().stat()
+                stamp = (st.st_mtime_ns, st.st_size)
+            except OSError:
+                stamp = None
+            if stamp is None:
+                current = {}
+            elif self._hash_cache[0] == stamp:
+                current = self._hash_cache[1]
+            else:
+                current = self._read_hash_cache()
+                if current is None:
+                    return False
+            self._write_hash_cache({**current, **entries})
+        return True
+
+    def _write_hash_cache(self, entries: dict) -> None:
         ensure_dir(self._dir())
         save_json_file(
             self._hash_cache_path(),
@@ -324,6 +415,11 @@ class CheevoCheckStore:
             },
             compact=True,
         )
+        try:
+            st = self._hash_cache_path().stat()
+        except OSError:
+            return
+        self._hash_cache = ((st.st_mtime_ns, st.st_size), dict(entries))
 
     def has_hash_cache(self) -> bool:
         return self._hash_cache_path().exists()

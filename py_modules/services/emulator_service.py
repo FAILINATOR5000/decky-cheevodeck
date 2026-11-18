@@ -372,7 +372,7 @@ class EmulatorService:
         checks = {}
         if flatpaks is not None and (refresh or self._flathub[1] is None):
             checks["flathub"] = lambda: self._read_flathub(flatpaks, CHECK_SECONDS)
-        if session.RetroArch(self._user_home).found:
+        if session.retroarch(self._user_home).found:
             checks["nightly"] = lambda: self._nightly(True, refresh, CHECK_SECONDS)
         age = RECHECK_SECONDS if refresh else RELEASE_SECONDS
         for kind, images in rows.items():
@@ -544,7 +544,7 @@ class EmulatorService:
 
     def _retroarch(self, record: dict, flatpaks) -> dict:
         entry = catalog.BY_KIND[catalog.RETROARCH]
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         flatpak = self._flatpak_row(entry, flatpaks)
         flatpak["steam"] = self._steam(f"{catalog.RETROARCH}:flatpak", self._shortcuts_by_install(), record)
         index = self._nightly(False) if ra.found else {}
@@ -553,6 +553,7 @@ class EmulatorService:
         ours = record["installed"]["cores"]
         games = self._systems_with_games()
         states = {}
+        backups = {}
         systems = []
         for system_id in catalog.SYSTEM_DATABASES:
             cores = []
@@ -561,6 +562,8 @@ class EmulatorService:
                     continue
                 if core not in states:
                     states[core] = self._core_state(ra, core, packed, ours)
+                    backups[core] = self._backups_of(str(ra.core_path(core)), record) \
+                        if states[core]["installed"] else []
                 if packed and core not in packed and not states[core]["installed"]:
                     continue
                 cores.append({
@@ -569,7 +572,7 @@ class EmulatorService:
                     "version": ra.version(core) if states[core]["installed"] else "",
                     "size": (packed.get(core) or {}).get("size", 0),
                     "path": str(ra.core_path(core)),
-                    "backups": self._backups_of(str(ra.core_path(core)), record) if states[core]["installed"] else [],
+                    "backups": backups[core],
                     **states[core],
                 })
             if not cores:
@@ -605,10 +608,10 @@ class EmulatorService:
                 if self._stamp(cached["emulators"]) == self._inventory_stamp:
                     return cached
                 self.changed += 1
-            ra = session.RetroArch(self._user_home)
+            ra = session.retroarch(self._user_home)
             self._cores_dir = ra.cores_dir if ra.found else None
-            head = self._head_stamp()
             self._forget_gone_backups()
+            head = self._head_stamp()
             record = self._store.get()
             flatpaks = self._flatpaks()
             rows = self._appimage_rows(record)
@@ -693,7 +696,7 @@ class EmulatorService:
         return urllib.request.urlopen(request, timeout=timeout, context=self._ssl_context)
 
     def _cores_url(self) -> str:
-        url = session.RetroArch(self._user_home).cfg.get("core_updater_buildbot_cores_url", "").strip()
+        url = session.retroarch(self._user_home).cfg.get("core_updater_buildbot_cores_url", "").strip()
         if not url.startswith(NIGHTLY_HOST) or any(char in url for char in "\\?#\" ") or ".." in url:
             return NIGHTLY_URL
         return url if url.endswith("/") else url + "/"
@@ -918,7 +921,7 @@ class EmulatorService:
             pass
 
     def _cores_retroarch(self):
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         return ra if ra.found else None
 
     def _allowed_roots(self) -> list:
@@ -1270,7 +1273,7 @@ class EmulatorService:
         self._record_core(core, latest["crc"], latest["date"])
 
     def _core_names(self, cores) -> list:
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         infos = self._info_cores(ra) if ra.found else {}
         return [(infos.get(core) or {}).get("corename") or core for core in cores]
 
@@ -1298,7 +1301,7 @@ class EmulatorService:
 
     def install_cores(self, cores, target: str = "") -> dict:
         cores = [core for core in dict.fromkeys(cores or []) if isinstance(core, str) and _CORE.match(core)]
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         if not cores or not ra.found:
             return {"ok": False, "error": "not_found"}
         if running(catalog.RETROARCH):
@@ -1318,7 +1321,7 @@ class EmulatorService:
 
     def update_cores(self, cores, target: str = "") -> dict:
         cores = [core for core in dict.fromkeys(cores or []) if isinstance(core, str) and _CORE.match(core)]
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         if not cores or not ra.found:
             return {"ok": False, "error": "not_found"}
         if running(catalog.RETROARCH):
@@ -1778,7 +1781,7 @@ class EmulatorService:
         system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
         if system is None:
             return []
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         infos = self._info_cores(ra) if ra.found and couch else {}
         return [{"core": core["core"], "name": core["name"], "size": packed[core["core"]]["size"]}
                 for core in system["cores"]
@@ -1790,7 +1793,7 @@ class EmulatorService:
         system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
         if system is None:
             return None
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         infos = self._info_cores(ra) if ra.found and couch else {}
         packed = (self._store.get()["nightly"].get("cores") or {})
         fits = [core for core in system["cores"]
@@ -1951,7 +1954,7 @@ class EmulatorService:
     def _duckstation_plan(self, inventory: dict, context: dict):
         steps = []
         ps1 = next((row for row in inventory["retroarch"]["systems"] if row["id"] == session.PS1_SYSTEM), None)
-        ra = session.RetroArch(self._user_home)
+        ra = session.retroarch(self._user_home)
         infos = self._info_cores(ra) if ra.found else {}
         couch_installed = ps1 is not None and any(
             core["installed"] and ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip()

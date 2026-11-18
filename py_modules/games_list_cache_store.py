@@ -35,6 +35,17 @@ def _raise_row(row: dict, entry: dict) -> None:
         row["highestAwardDate"] = entry.get("highestAwardDate")
 
 
+LOADED_KEPT = 4
+
+
+def _stat_key(path: Path):
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
 class GamesListCacheStore:
     """Global cache of friend All-Games payloads, one JSON file per ULID.
 
@@ -61,6 +72,7 @@ class GamesListCacheStore:
 
         self._master_lock = threading.Lock()
         self._key_locks: dict[str, threading.Lock] = {}
+        self._loaded: dict[str, tuple] = {}
 
         self._generation = 0
 
@@ -114,21 +126,43 @@ class GamesListCacheStore:
         if not key:
             return {"hit": False}
         with self._lock_for_key(key):
-            data = load_json_file(self._path_for_key(key), {})
-            if not isinstance(data, dict) or "payload" not in data:
-                if self._patch_path_for_key(key).exists():
-                    self._save_patches(key, {})
-                return {"hit": False}
-            cached_at = to_int(data.get("cachedAt", 0), 0)
-            if max_age_seconds is not None and (
-                cached_at <= 0 or (int(time.time()) - cached_at) > max(1, int(max_age_seconds))
-            ):
-                return {"hit": False}
+            found = self._read(key)
+        if found is None:
+            return {"hit": False}
+        payload, cached_at = found
+        if max_age_seconds is not None and (
+            cached_at <= 0 or (int(time.time()) - cached_at) > max(1, int(max_age_seconds))
+        ):
+            return {"hit": False}
+        return {"hit": True, "payload": payload, "cachedAt": cached_at}
+
+    def _stamp(self, key: str) -> tuple:
+        return (_stat_key(self._path_for_key(key)), _stat_key(self._patch_path_for_key(key)))
+
+    def _read(self, key: str):
+        stamp = self._stamp(key)
+        held = self._loaded.get(key)
+        if held is not None and held[0] == stamp:
+            return held[1]
+        data = load_json_file(self._path_for_key(key), {})
+        if not isinstance(data, dict) or "payload" not in data:
+            if self._patch_path_for_key(key).exists():
+                self._save_patches(key, {})
+            found = None
+        else:
             payload = data["payload"]
             patches = self._load_patches(key)
             if patches and isinstance(payload, dict) and isinstance(payload.get("results"), list):
                 self._merge_patches(key, payload, patches)
-        return {"hit": True, "payload": payload, "cachedAt": cached_at}
+            found = (payload, to_int(data.get("cachedAt", 0), 0))
+        with self._master_lock:
+            self._loaded.pop(key, None)
+            if found is None:
+                return None
+            while len(self._loaded) >= LOADED_KEPT:
+                self._loaded.pop(next(iter(self._loaded)))
+            self._loaded[key] = (stamp, found)
+        return found
 
     def _merge_patches(self, key: str, payload: dict, patches: dict) -> None:
         rows = {}
@@ -235,6 +269,7 @@ class GamesListCacheStore:
                 except FileNotFoundError:
                     pass
             self._last_patched.clear()
+            self._loaded.clear()
 
             self._key_locks.clear()
 
