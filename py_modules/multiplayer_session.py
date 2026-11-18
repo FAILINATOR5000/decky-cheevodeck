@@ -71,12 +71,11 @@ COUCH_CORES = {
     51: "prosystem", 29: "bluemsx", 2: "mupen64plus_next", 40: "flycast",
 }
 
-COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY, 1: "picodrive", 11: "picodrive", 15: "picodrive",
-                     33: "picodrive"}
+COUCH_RECOMMENDED = {**COUCH_CORES, 4: SAMEBOY, 6: SAMEBOY, 1: "picodrive", 11: "picodrive", 15: "picodrive"}
 
 SAVE_PAIRS = {
     frozenset((GAMBATTE, SAMEBOY)): GB_SYSTEMS,
-    frozenset(("genesis_plus_gx", "picodrive")): (1, 11, 15, 33),
+    frozenset(("genesis_plus_gx", "picodrive")): (1, 11, 15),
 }
 
 

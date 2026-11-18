@@ -1293,6 +1293,8 @@ class MultiplayerService:
         table = session.COUCH_RECOMMENDED.get(system_id, "")
         if not table or table == session.COUCH_CORES.get(system_id) or (ra.installed(table) and table not in compatible):
             return ""
+        if ra.info(table) is not None and not ra.runs_system(table, system_id):
+            return ""
         if local["fallback"]:
             return table if usual == table else ""
         if not session.shares_saves(table, shortcut_core, system_id):

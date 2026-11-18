@@ -38,7 +38,7 @@ SAVE_RAM_CORES = {
     "mesen": (7,),
     "snes9x": (3,),
     "genesis_plus_gx": (1, 11, 15, 33),
-    "picodrive": (1, 10, 11, 15, 33),
+    "picodrive": (1, 10, 11, 15),
     "mednafen_pce": (8, 76),
     "mednafen_wswan": (53,),
     "mednafen_vb": (28,),
