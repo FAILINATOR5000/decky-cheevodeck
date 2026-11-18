@@ -6631,6 +6631,7 @@ class MultiplayerService:
         elif current is not None and current["id"] == sid and current["exited"]:
             self._remove_files(current)
         elif sid and sid not in _running_sessions(str(self._session_dir)):
+            self._late_wii_copy_back(sid)
             self._remove_session_files(sid)
         return {"ok": True}
 
@@ -6822,7 +6823,7 @@ class MultiplayerService:
         if current.pop("backup", None) is not None:
             await self._backups.end(current["id"])
 
-    def _put_wii_saves_back(self, current: dict) -> None:
+    def _put_wii_saves_back(self, current: dict, late: bool = False) -> None:
         nand = current["wiiNand"]
         own = wii_saves.title_data(nand["user"], nand["code"])
 
@@ -6839,7 +6840,7 @@ class MultiplayerService:
                 self._debug("Wii saves: the host's Write Save Data is off")
                 return
             outcome = wii_saves.put_back(nand["user"], since=current["startedAt"], back_up=back_up,
-                                         before=nand["before"])
+                                         before=nand["before"], late=late)
             self._debug("Wii saves: %s", outcome)
         except Exception as e:
             decky.logger.warning("multiplayer: the Wii save copy-back failed (%s)", type(e).__name__)
@@ -7288,6 +7289,8 @@ class MultiplayerService:
                 if entry.is_dir() and not entry.is_symlink():
                     _remove_system_folder(entry)
                     continue
+                if entry.name.endswith(ROUND_STATE):
+                    self._late_wii_copy_back(found.group(1))
                 try:
                     entry.unlink()
                 except OSError as e:
@@ -7347,6 +7350,13 @@ class MultiplayerService:
             self._write(self._session_dir / f"session-{current['id']}{ROUND_STATE}", json.dumps(state))
         except (OSError, TypeError, ValueError) as e:
             decky.logger.warning("multiplayer: couldn't keep the round's state for a restart (%s)", type(e).__name__)
+
+    def _late_wii_copy_back(self, sid: str) -> None:
+        state = self._read_round_state(sid)
+        if state.get("wiiNand"):
+            decky.logger.info("multiplayer: a Dolphin round ended while CheevoDeck wasn't running, checking its "
+                              "Wii save")
+            self._put_wii_saves_back(state, late=True)
 
     def _read_round_state(self, sid: str) -> dict:
         raw = load_json_file(self._session_dir / f"session-{sid}{ROUND_STATE}", None)

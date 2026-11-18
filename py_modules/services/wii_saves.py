@@ -53,7 +53,7 @@ def session_data(user_dir: Path, game_code: str, since: float):
     return found if found.is_dir() and not found.is_symlink() else None
 
 
-def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
+def put_back(user_dir: Path, *, since: float, back_up, before=None, late: bool = False) -> str:
     session = user_dir / SESSION
     if session.is_symlink() or not session.is_dir():
         return "no session left, Dolphin put it back itself or there was nothing to"
@@ -80,7 +80,7 @@ def put_back(user_dir: Path, *, since: float, back_up, before=None) -> str:
     refused = False
     for kind, title in _game_titles(session):
         try:
-            count = _put_title_back(user_dir, session, kind, title, back_up)
+            count = _put_title_back(user_dir, session, kind, title, back_up, since if late else None)
         except (OSError, Refused) as e:
             decky.logger.warning("multiplayer: couldn't put the Wii save for %s/%s back (%s: %s)", kind, title,
                                  type(e).__name__, e)
@@ -137,8 +137,11 @@ def _game_titles(session: Path) -> list:
     return found
 
 
-def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, back_up) -> int:
+def _put_title_back(user_dir: Path, session: Path, kind: str, title: str, back_up, untouched_since=None) -> int:
     linked = user_dir / "Wii" / "title" / kind / title / "data"
+    if untouched_since is not None and os.path.lexists(linked) \
+            and _changed_since(user_file_target(linked, child_owner()), untouched_since):
+        raise Refused("the real save changed after the round started")
     if not os.path.lexists(linked):
         ensure_dir(linked, trusted=user_dir / "Wii" / "title" / kind)
 
@@ -245,6 +248,19 @@ def _no_links(folder: Path) -> None:
         for name in dirs + files:
             if os.path.islink(os.path.join(top, name)):
                 raise Refused(f"{name} is a link")
+
+
+def _changed_since(real: Path, since: float) -> bool:
+    try:
+        if os.lstat(real).st_mtime > since:
+            return True
+        for folder, dirs, names in os.walk(real, onerror=_raise):
+            for name in dirs + names:
+                if os.lstat(os.path.join(folder, name)).st_mtime > since:
+                    return True
+    except OSError:
+        return True
+    return False
 
 
 def _retire(user_dir: Path) -> None:
