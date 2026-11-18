@@ -912,14 +912,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const buttonStyle = regularButtonSpacingStyle(state.buttonSpacing);
     const coreLabel = local
         ? local.picked && !joined
-            ? t(language, "Core: {{core}} (your pick)", { core: local.coreName })
+            ? t(language, "Runs with: {{core}} (your pick)", { core: local.coreName })
             : local.recommended && !joined
-            ? t(language, "Core: {{core}} (recommended)", { core: local.coreName })
+            ? t(language, "Runs with: {{core}} (recommended)", { core: local.coreName })
             : local.core === local.shortcutCore
-            ? t(language, "Core: {{core}} (from your shortcut)", { core: local.coreName })
+            ? t(language, "Runs with: {{core}} (from your shortcut)", { core: local.coreName })
             : joined
-                ? t(language, "Core: {{core}} (matches the host)", { core: local.coreName })
-                : t(language, "Core: {{core}}", { core: local.coreName })
+                ? t(language, "Runs with: {{core}} (matches the host)", { core: local.coreName })
+                : t(language, "Runs with: {{core}}", { core: local.coreName })
         : "";
     const showCores = !joined && (mp.mode === "link"
         ? local?.emulator === "retroarch" && choices.length > 0
