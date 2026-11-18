@@ -2582,7 +2582,8 @@ class MultiplayerService:
             if mode == "couch":
                 if local["core"] != room["core"]:
                     if not ra or not ra.installed(room["core"]):
-                        return ("host_core_missing", {"core": room["coreName"] or room["core"]}), warnings
+                        return ("host_core_missing", {"core": room["coreName"] or room["core"], "coreId": room["core"]}), \
+                            warnings
                     return ("match_host_core", {"core": room["coreName"] or room["core"]}), warnings
                 check_crc = local["emulator"] == "retroarch" and (warn_crc or system_id == session.NES_SYSTEM)
                 crc = self._crc_of(local["real"]) if check_crc else ""
