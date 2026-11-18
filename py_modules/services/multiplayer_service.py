@@ -82,6 +82,7 @@ LAUNCH_START_SECONDS = 60
 SLEEP_JUMP_SECONDS = 60
 
 HOUSEKEEPING_SECONDS = 5
+LIBRARY_WARM_SECONDS = 5
 
 DOLPHIN_TUNNEL_PORT = 2627
 
@@ -479,6 +480,7 @@ class MultiplayerService:
         self._stopping = False
         self._goodbye = None
         self._library_cache = (None, None)
+        self._library_lock = threading.RLock()
         self._picked_cache = (None, {})
         self._picked_watch = ()
         self._verdict_memo = {}
@@ -932,6 +934,10 @@ class MultiplayerService:
         return True
 
     def _library(self):
+        with self._library_lock:
+            return self._library_unlocked()
+
+    def _library_unlocked(self):
         results_stamp = self._cheevo_check_store.results_fingerprint()
         picked_stamp = self._cheevo_check_store.picked_fingerprint()
         if results_stamp is None and picked_stamp is None:
@@ -6690,6 +6696,16 @@ class MultiplayerService:
                                        "play": raw.get("play") is True,
                                        "gameId": game_id if type(game_id) is int else 0,
                                        "name": name, "renamed": renamed}}
+
+    def warm_library_soon(self) -> None:
+        async def warm():
+            await asyncio.sleep(LIBRARY_WARM_SECONDS)
+            try:
+                await asyncio.to_thread(self._library)
+            except Exception as e:
+                decky.logger.warning("multiplayer: couldn't rebuild the game list after a launch (%s)", type(e).__name__)
+
+        self._spawn(warm())
 
     def clear_restore(self, sid: str) -> dict:
         path = self._session_dir / RESTORE_RECORD

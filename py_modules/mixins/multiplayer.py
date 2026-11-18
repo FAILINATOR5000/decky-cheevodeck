@@ -211,7 +211,10 @@ class MultiplayerMixin(PluginContext):
         return await asyncio.to_thread(self.multiplayer_service.restore_record)
 
     async def multiplayer_clear_restore(self, session: str = ""):
-        return await asyncio.to_thread(self.multiplayer_service.clear_restore, str(session or ""))
+        result = await asyncio.to_thread(self.multiplayer_service.clear_restore, str(session or ""))
+        if result.get("ok"):
+            self.multiplayer_service.warm_library_soon()
+        return result
 
     async def multiplayer_voice_join(self, on: bool = False):
         return self.multiplayer_service.voice_join(on is True)

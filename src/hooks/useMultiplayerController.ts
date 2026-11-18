@@ -82,6 +82,8 @@ function rememberCheck(key: string, result: MultiplayerCheck) {
 
 const modesCache = new Map<string, MultiplayerModes>();
 
+let gamesCache: { games: MultiplayerGame[]; scanned: boolean; installedCores: string[] } | null = null;
+
 function rememberModes(key: string, answer: MultiplayerModes) {
     if (modesCache.size >= CHECK_CACHE_MAX && !modesCache.has(key)) {
         modesCache.clear();
@@ -184,9 +186,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [status, setStatus] = useState<MultiplayerRoomStatus | null>(null);
     const [check, setCheck] = useState<MultiplayerCheck | null>(null);
     const [checkedFor, setCheckedFor] = useState("");
-    const [games, setGames] = useState<MultiplayerGame[] | null>(null);
-    const [scanned, setScanned] = useState(true);
-    const [installedCores, setInstalledCores] = useState<string[]>([]);
+    const [games, setGames] = useState<MultiplayerGame[] | null>(() => gamesCache?.games ?? null);
+    const [scanned, setScanned] = useState(() => gamesCache?.scanned ?? true);
+    const [installedCores, setInstalledCores] = useState<string[]>(() => gamesCache?.installedCores ?? []);
     const [busy, setBusy] = useState(false);
     const [missed, setMissedState] = useState<MultiplayerProblem | null>(() => missedProblem);
     const [headerPayload, setHeaderPayload] = useState<Payload | null>(null);
@@ -308,13 +310,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         void (async () => {
             try {
                 const listed = await multiplayerGames();
-                setGames(listed.games ?? []);
-                setScanned(listed.scanned !== false);
-                setInstalledCores(listed.installedCores ?? []);
+                gamesCache = { games: listed.games ?? [], scanned: listed.scanned !== false, installedCores: listed.installedCores ?? [] };
+                setGames(gamesCache.games);
+                setScanned(gamesCache.scanned);
+                setInstalledCores(gamesCache.installedCores);
             }
             catch (e) {
                 logError("multiplayerGames", e);
-                setGames([]);
+                setGames(gamesCache?.games ?? []);
             }
         })();
     }, [isActive, reloadStatus]);
@@ -805,6 +808,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             closedReason: status?.role === null ? status.closedReason : "",
             lobby: status?.role === null ? Boolean(status.lobby) : false,
             check: checkedFor === checkKey ? check : checkCache.get(checkKey) ?? check,
+            checkKnown: checkedFor === checkKey || checkCache.has(checkKey),
             checkCurrent: checkedFor === checkKey,
             modes: modes?.key === modesKey ? modes.answer : modesCache.get(modesKey) ?? null,
             games,

@@ -338,7 +338,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const choices = mp.check?.local?.choices ?? NO_CORES;
 
-    const checkAnswered = mp.loaded && (mp.gameId === null || mp.checkCurrent);
+    const checkAnswered = mp.loaded && (mp.gameId === null || mp.checkKnown);
     const [lowerDrawn, setLowerDrawn] = useState(false);
     useEffect(() => {
         if (checkAnswered) {
