@@ -3963,7 +3963,7 @@ class MultiplayerService:
                 self._steady_sweep()
                 self._round_saves_sweep()
         finally:
-            self._stop_rmg_server(room["id"])
+            self._stop_rmg_server(room["id"], wait=False)
 
     def _free_seat(self, room: dict, index: int, seat: dict) -> None:
         room["freed"][index] = seat["key"]
@@ -6384,7 +6384,7 @@ class MultiplayerService:
         self._stop_rmg_server()
         return False
 
-    def _stop_rmg_server(self, room_id: str = "") -> None:
+    def _stop_rmg_server(self, room_id: str = "", wait: bool = True) -> None:
         current = self._rmg_server
         if current is None or (room_id and current["room"] != room_id):
             return
@@ -6392,12 +6392,11 @@ class MultiplayerService:
         proc = current["proc"]
         if proc.poll() is None:
             proc.terminate()
-            try:
-                proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
-            decky.logger.info("multiplayer: RMG netplay server stopped")
+            if wait:
+                _reap_rmg_server(proc)
+            else:
+                threading.Thread(target=_reap_rmg_server, args=(proc,), name="rmg-server-stop", daemon=True).start()
+
 
     def _end_stray_rmg_servers(self) -> None:
         path = self._rmg_server_path()
@@ -7427,6 +7426,15 @@ class MultiplayerService:
             return set()
         session_id = raw.get("session")
         return {session_id} if isinstance(session_id, str) else set()
+
+
+def _reap_rmg_server(proc) -> None:
+    try:
+        proc.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+    decky.logger.info("multiplayer: RMG netplay server stopped")
 
 
 def _remove_system_folder(folder: Path) -> None:
