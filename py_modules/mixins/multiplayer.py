@@ -23,6 +23,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_games(self):
         return await asyncio.to_thread(self.multiplayer_service.games)
 
+    async def multiplayer_installed_cores(self):
+        return {"ok": True, "cores": await asyncio.to_thread(self.multiplayer_service.installed_cores)}
+
     async def multiplayer_cores(self, mode: str = "", game_id: int = 0, room_id: str = ""):
         return await asyncio.to_thread(
             self.multiplayer_service.cores, str(mode or ""), to_int(game_id, 0), str(room_id or "")
@@ -292,6 +295,9 @@ class MultiplayerMixin(PluginContext):
 
     async def multiplayer_debug_proc(self):
         return await asyncio.to_thread(self.multiplayer_service.debug_processes)
+
+    async def multiplayer_debug_shortcut_index(self, check: bool = False):
+        return await asyncio.to_thread(self.multiplayer_service.shortcut_index_info, check is True)
 
     async def multiplayer_friends(self):
         return self.multiplayer_friends_service.state()

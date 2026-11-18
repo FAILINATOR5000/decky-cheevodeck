@@ -852,6 +852,7 @@ export const multiplayerDiscover = callable<[], MultiplayerRoomsReply>("multipla
 export const multiplayerRoomsPage = callable<[MultiplayerRoomsPage, boolean], MultiplayerRoomsReply>("multiplayer_rooms_page");
 export const multiplayerLookup = callable<[string], { ok: boolean; error?: string; room?: MultiplayerRoomRow }>("multiplayer_lookup");
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
+export const multiplayerInstalledCores = callable<[], { ok: boolean; cores: string[] }>("multiplayer_installed_cores");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerModes = callable<[number, string], MultiplayerModes>("multiplayer_modes");
 export type GameFilePickResult = { ok: boolean; error?: string; title?: string; label?: string };

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaDoorOpen, FaSearch, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
 
-import { multiplayerFriends, multiplayerGames } from "../../api";
+import { multiplayerFriends, multiplayerInstalledCores } from "../../api";
 import { useFocusClaim } from "../../hooks/useFocusClaim";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
@@ -306,7 +306,7 @@ export function MultiplayerNotificationRow(props: FocusProps & {
         finding.current = true;
         let cores: string[] = [];
         try {
-            cores = (await multiplayerGames()).installedCores ?? [];
+            cores = (await multiplayerInstalledCores()).cores ?? [];
         }
         catch (e) {
             logError("notifications: Find a Room's installed cores", e);

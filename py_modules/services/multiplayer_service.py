@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+import functools
 import hashlib
 import hmac
 import json
@@ -35,6 +37,7 @@ from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
+from services.file_watcher_service import steam_game_running
 from services.round_saves import _write_real
 from services.update_checker_service import parse_version
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
@@ -83,6 +86,10 @@ SLEEP_JUMP_SECONDS = 60
 
 HOUSEKEEPING_SECONDS = 5
 LIBRARY_WARM_SECONDS = 5
+INDEX_START_SECONDS = 8
+INDEX_TICK_SECONDS = 60
+INDEX_SETTLE_SECONDS = 30
+INDEX_CHECK_SECONDS = 3600
 
 DOLPHIN_TUNNEL_PORT = 2627
 
@@ -396,6 +403,14 @@ def _wire_page(page: dict, games) -> dict:
     return wire
 
 
+def _in_one_pass(method):
+    @functools.wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._one_pass():
+            return method(self, *args, **kwargs)
+    return wrapped
+
+
 class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
@@ -483,6 +498,13 @@ class MultiplayerService:
         self._library_lock = threading.RLock()
         self._picked_cache = (None, {})
         self._picked_watch = ()
+        self._scanned_real = (None, {})
+        self._picked_real = (None, {})
+        self._restore_cache = (None, None)
+        self._index_check = None
+        steam_shortcuts.configure(decky.logger, lambda: self._settings_store.get_debug_logging(
+            self._settings_store.load_config()))
+        self._pass = threading.local()
         self._verdict_memo = {}
         self._verdict_lock = threading.Lock()
         self._hash_memo = {}
@@ -576,6 +598,89 @@ class MultiplayerService:
         if not self._swept:
             self._swept = True
             loop.run_in_executor(None, self._startup_sweep)
+            self._spawn(self._shortcut_upkeep())
+
+    async def _shortcut_upkeep(self) -> None:
+        await asyncio.sleep(INDEX_START_SECONDS)
+        seen = None
+        try:
+            await asyncio.to_thread(steam_shortcuts.current, self._user_home)
+            seen = await asyncio.to_thread(self._index_marks)
+            await asyncio.to_thread(self.games)
+        except Exception as e:
+            decky.logger.warning("multiplayer: couldn't build the shortcut index (%s)", type(e).__name__)
+        checked_at, changed_at = time.monotonic(), None
+        while True:
+            await asyncio.sleep(INDEX_TICK_SECONDS)
+            try:
+                if not self._game_mode():
+                    continue
+                marks = await asyncio.to_thread(self._index_marks)
+                if seen is None:
+                    seen = marks
+                if marks != seen:
+                    seen, changed_at = marks, time.monotonic()
+                now = time.monotonic()
+                due = (changed_at is not None and now - changed_at >= INDEX_SETTLE_SECONDS) \
+                    or now - checked_at >= INDEX_CHECK_SECONDS
+                if not due or not await asyncio.to_thread(self._idle):
+                    continue
+                await asyncio.to_thread(self.check_shortcut_index)
+                checked_at, changed_at = time.monotonic(), None
+                seen = await asyncio.to_thread(self._index_marks)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                decky.logger.warning("multiplayer: the shortcut index check failed (%s)", type(e).__name__)
+                checked_at, changed_at = time.monotonic(), None
+
+    def _index_marks(self) -> tuple:
+        return steam_shortcuts.stamps(self._user_home), hashlib.sha1(steam_shortcuts.mounts()).hexdigest()
+
+    def _idle(self) -> bool:
+        if not self._game_mode():
+            return False
+        current = self._session
+        if current is not None and not current["exited"]:
+            return False
+        if self.restore_record()["record"] is not None:
+            return False
+        room = self._room
+        if room is not None and room["state"] != "lobby":
+            return False
+        joined = self._joined
+        if joined is not None and (joined["status"] or {}).get("state", "lobby") != "lobby":
+            return False
+        return not steam_game_running()
+
+    def check_shortcut_index(self) -> dict:
+        index = steam_shortcuts.verify(self._user_home) or {}
+        moved = []
+        for known in (self._scanned_real[1], self._picked_real[1]):
+            for path, real in list(known.items()):
+                now = os.path.realpath(path)
+                if now != real:
+                    moved.append(path)
+                    known[path] = now
+        if moved:
+            with self._library_lock:
+                self._library_cache = (None, None)
+        stale = index.get("stale", 0)
+        if stale or moved:
+            decky.logger.warning("multiplayer: shortcut index: %d stale matches, %d stale paths, rebuilt (%s)",
+                                 stale, len(moved), ", ".join((index.get("examples") or []) + moved[:3]))
+        else:
+            self._debug("shortcut index checked, nothing stale (%s ms)", index.get("ms", 0))
+        self._index_check = {"at": int(time.time()), "stale": stale, "movedPaths": len(moved)}
+        return self._index_check
+
+    def shortcut_index_info(self, check: bool) -> dict:
+        if check:
+            self.check_shortcut_index()
+        return {"ok": True, **steam_shortcuts.describe(self._user_home),
+                "scannedPaths": len(self._scanned_real[1]), "pickedPaths": len(self._picked_real[1]),
+                "libraryGeneration": self._library_cache[0][3] if self._library_cache[0] else 0,
+                "libraryCheck": self._index_check}
 
     def _live(self) -> bool:
         return time.monotonic() < self._visible_until
@@ -686,6 +791,7 @@ class MultiplayerService:
         self._stopping = True
         for task in list(self._tasks):
             task.cancel()
+        steam_shortcuts.stop()
         if self._round_saves is not None:
             self._round_saves.flush()
         self._stop_rmg_server()
@@ -934,21 +1040,51 @@ class MultiplayerService:
         return True
 
     def _library(self):
+        held = self._held("library")
+        if held is not None:
+            return held[0]
         with self._library_lock:
-            return self._library_unlocked()
+            library = self._library_unlocked()
+        self._hold("library", library)
+        return library
+
+    @contextlib.contextmanager
+    def _one_pass(self):
+        if getattr(self._pass, "memo", None) is not None:
+            yield
+            return
+        self._pass.memo = {}
+        try:
+            yield
+        finally:
+            self._pass.memo = None
+
+    def _held(self, name):
+        memo = getattr(self._pass, "memo", None)
+        return memo.get(name) if memo is not None else None
+
+    def _hold(self, name, value):
+        memo = getattr(self._pass, "memo", None)
+        if memo is not None:
+            memo[name] = (value,)
 
     def _library_unlocked(self):
         results_stamp = self._cheevo_check_store.results_fingerprint()
         picked_stamp = self._cheevo_check_store.picked_fingerprint()
         if results_stamp is None and picked_stamp is None:
             return None
-        by_rom = steam_shortcuts.shortcuts_by_rom(self._user_home)
+        shortcuts = steam_shortcuts.current(self._user_home)
+        by_rom = shortcuts.by_rom
         held = self.restore_record()["record"]
         if self._picked_cache[0] != picked_stamp:
             self._picked_cache = (picked_stamp, self._cheevo_check_store.load_picked() if picked_stamp is not None else {})
         picked = self._picked_cache[1]
         unchanged = {key: self._picked_unchanged(row) for key, row in picked.items()}
-        stamp = (results_stamp, picked_stamp, tuple(unchanged.items()), id(by_rom), held and (held["appid"], held["original"]),
+        mounted = hashlib.sha1(shortcuts.mounts).hexdigest()
+        if steam_shortcuts.mounts() != shortcuts.mounts:
+            steam_shortcuts.rebuild_soon(self._user_home)
+        stamp = (results_stamp, picked_stamp, tuple(unchanged.items()), shortcuts.generation,
+                 held and (held["appid"], held["original"]), mounted,
                  tuple(os.path.isfile(path) for path in self._picked_watch))
         if self._library_cache[0] == stamp:
             return self._library_cache[1]
@@ -957,6 +1093,11 @@ class MultiplayerService:
             return None
         results = results or {}
         self._dolphin_skipped = bool(results.get("skippedDolphin"))
+        if self._scanned_real[0] != (results_stamp, mounted):
+            self._scanned_real = ((results_stamp, mounted), {})
+        if self._picked_real[0] != (picked_stamp, mounted):
+            self._picked_real = ((picked_stamp, mounted), {})
+        scanned_real = self._scanned_real[1]
         library = {}
         games = list(results.get("supportedGames") or [])
         for row in results.get("noAchievements") or []:
@@ -986,7 +1127,9 @@ class MultiplayerService:
                 path = str(raw or "")
                 if not path:
                     continue
-                real = os.path.realpath(path)
+                real = scanned_real.get(path)
+                if real is None:
+                    real = scanned_real[path] = os.path.realpath(path)
                 found = []
                 for shortcut in by_rom.get(real) or by_rom.get(path) or []:
                     if held is not None and shortcut["appid"] == held["appid"]:
@@ -1031,7 +1174,10 @@ class MultiplayerService:
 
     def _picked_path(self, row: dict, by_rom: dict, held) -> dict:
         path = row["path"]
-        real = os.path.realpath(path)
+        known = self._picked_real[1]
+        real = known.get(path)
+        if real is None:
+            real = known[path] = os.path.realpath(path)
         found = [shortcut for shortcut in by_rom.get(real) or by_rom.get(path) or []
                  if held is None or shortcut["appid"] != held["appid"]]
         return {"path": path, "real": real, "hash": row["raHash"], "shortcut": found[0] if found else None,
@@ -1276,7 +1422,7 @@ class MultiplayerService:
         if overlay is not None and overlay.cores:
             listed = self._emulators.listed_core_info if self._emulators is not None else None
             return _RetroArchAfter(self._user_home, overlay.cores, listed)
-        return session.RetroArch(self._user_home)
+        return session.retroarch(self._user_home)
 
     def _compatible(self, ra, mode: str, system_id: int) -> list:
         cores = []
@@ -1353,6 +1499,11 @@ class MultiplayerService:
             for entry in library.values()
         ]
 
+    def installed_cores(self) -> list:
+        ra = self._retroarch()
+        return ra.installed_cores() if ra.found else []
+
+    @_in_one_pass
     def games(self) -> dict:
         ra = self._retroarch()
         installed = ra.installed_cores() if ra.found else []
@@ -1404,11 +1555,11 @@ class MultiplayerService:
 
     def _can_couch(self, ra, by_system: dict, system_id: int, emulator: str) -> bool:
         if system_id == session.N64_SYSTEM:
-            return self._emulator_shortcut("rmg") is not None
+            return self._has_emulator_shortcut(by_system, "rmg")
         if emulator == "dolphin":
             return system_id in session.DOLPHIN_SYSTEMS
         if emulator == "duckstation":
-            if self._emulator_shortcut("retroarch") is None:
+            if not self._has_emulator_shortcut(by_system, "retroarch"):
                 return False
             system_id = session.PS1_SYSTEM
         elif emulator != "retroarch" or system_id == session.DS_SYSTEM:
@@ -1418,6 +1569,11 @@ class MultiplayerService:
         if system_id not in by_system:
             by_system[system_id] = bool(self._compatible(ra, "couch", system_id))
         return by_system[system_id]
+
+    def _has_emulator_shortcut(self, by_system: dict, kind: str) -> bool:
+        if kind not in by_system:
+            by_system[kind] = self._emulator_shortcut(kind) is not None
+        return by_system[kind]
 
     def cores(self, mode: str, game_id: int, room_id: str = "") -> dict:
         local, gate, detail = self._local(mode, game_id, "", self._room_row(room_id))
@@ -1438,6 +1594,29 @@ class MultiplayerService:
             return self._joined["row"]
         seen = self._rooms.get(room_id) if room_id else None
         return seen[0] if seen else None
+
+    def _launch_local(self, mode: str, game_id: int, core: str, room):
+        self._fresh_shortcuts()
+        found = self._local(mode, game_id, core, room)
+        if found[0] is not None and self._rom_moved(found[0]["gameId"], found[0].get("path")):
+            found = self._local(mode, game_id, core, room)
+        return found
+
+    def _fresh_shortcuts(self) -> None:
+        steam_shortcuts.current(self._user_home, fresh=True)
+
+    def _rom_moved(self, game_id: int, path) -> bool:
+        game = (self._library() or {}).get(game_id)
+        entry = next((row for row in game["paths"] if row["path"] == path), None) if game is not None and path else None
+        if entry is None or os.path.exists(entry["real"]) or not os.path.exists(path):
+            return False
+        decky.logger.info("multiplayer: %s isn't where it was last found, matching it again", path)
+        self._scanned_real[1].pop(path, None)
+        self._picked_real[1].pop(path, None)
+        steam_shortcuts.forget_matches([entry["real"]], self._user_home)
+        with self._library_lock:
+            self._library_cache = (None, None)
+        return True
 
     def _local(self, mode: str, game_id: int, core: str, room):
         local, gate, detail = self._route(mode, game_id, core, room)
@@ -1752,7 +1931,15 @@ class MultiplayerService:
         overlay = self._overlay()
         if overlay is not None and overlay.mp_fallback is not None:
             return overlay.mp_fallback
-        return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
+        return bool(self._pass_config().get("mpShortcutFallback", True))
+
+    def _pass_config(self) -> dict:
+        held = self._held("config")
+        if held is not None:
+            return held[0]
+        cfg = self._settings_store.load_config()
+        self._hold("config", cfg)
+        return cfg
 
     def _stream_shaders_off(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamShadersOff", True))
@@ -1761,7 +1948,7 @@ class MultiplayerService:
         overlay = self._overlay()
         if overlay is not None and overlay.play_fallback is not None:
             return overlay.play_fallback
-        return bool(self._settings_store.load_config().get("playShortcutFallback", True))
+        return bool(self._pass_config().get("playShortcutFallback", True))
 
     def _play_route(self, game_id: int, fallback_on=None, choice=None, session_pick: bool = False):
         library = self._library()
@@ -2446,7 +2633,10 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_BUSY}
         if self.restore_record()["record"] is not None:
             return {"ok": False, "error": ERROR_BUSY}
+        self._fresh_shortcuts()
         route, gate, detail = self._play_route(game_id, choice=choice)
+        if route is not None and self._rom_moved(game_id, route.get("rom")):
+            route, gate, detail = self._play_route(game_id, choice=choice)
         if route is None:
             return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
         args = _route_args(route)
@@ -3171,7 +3361,10 @@ class MultiplayerService:
         return {"ok": False, "error": error if error and proto.is_reason(error) else ERROR_UNAVAILABLE}
 
     def _verdict(self, joined: dict):
+        self._fresh_shortcuts()
         local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
+        if local is not None and self._rom_moved(local["gameId"], local.get("path")):
+            local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
         if local is not None:
             return local, reason, detail, ""
         row = joined["row"]
@@ -3200,7 +3393,7 @@ class MultiplayerService:
             server = self._lobby_server() if online else None
             if online and server is None:
                 return {"ok": False, "error": ERROR_NO_LOBBY}
-            local, gate, detail = await asyncio.to_thread(self._local, mode, game_id, core, None)
+            local, gate, detail = await asyncio.to_thread(self._launch_local, mode, game_id, core, None)
             if local is not None:
                 found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2)
                 if found:
@@ -3566,7 +3759,7 @@ class MultiplayerService:
                     or room["hostState"]:
                 return
             mode = room["mode"]
-            local, gate, _detail = await asyncio.to_thread(self._local, mode, game_id, "", None)
+            local, gate, _detail = await asyncio.to_thread(self._launch_local, mode, game_id, "", None)
             if local is not None:
                 found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2)
                 gate = found[0] if found else None
@@ -3591,7 +3784,7 @@ class MultiplayerService:
             if room["hostState"]:
                 await self._settle_host(room)
                 return
-            local, gate, _detail = await asyncio.to_thread(self._local, mode, room["gameId"], room["core"], None)
+            local, gate, _detail = await asyncio.to_thread(self._launch_local, mode, room["gameId"], room["core"], None)
             if local is not None:
                 found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2, False)
                 gate = found[0] if found else None
@@ -5283,6 +5476,7 @@ class MultiplayerService:
         with self._verdict_lock:
             return self._verdicts_held(rows)
 
+    @_in_one_pass
     def _verdicts_held(self, rows: list) -> dict:
         self._library()
         stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint(),
@@ -5791,6 +5985,7 @@ class MultiplayerService:
             uhd=joined["uhd"] and joined["row"]["mode"] == "stream",
         )
 
+    @_in_one_pass
     def guest_games(self) -> dict:
         joined = self._joined
         if joined is None or joined["row"]["mode"] != "link":
@@ -5998,6 +6193,7 @@ class MultiplayerService:
         if unlaunched:
             self._drop_unlaunched(stale)
             self._close_guest_tunnels_soon()
+        self._fresh_shortcuts()
         room = self._room
         joined = self._joined
         if room is not None:
@@ -6045,6 +6241,11 @@ class MultiplayerService:
         else:
             return {"ok": False, "error": ERROR_NO_ROOM}
 
+        if self._rom_moved(local["gameId"], local.get("path")):
+            game = (self._library() or {}).get(local["gameId"])
+            entry = next((row for row in game["paths"] if row["path"] == local["path"]), None) if game else None
+            if entry is not None:
+                local["real"] = entry["real"]
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
@@ -6680,7 +6881,27 @@ class MultiplayerService:
         self._write(self._session_dir / RESTORE_RECORD, json.dumps(record))
 
     def restore_record(self) -> dict:
-        raw = load_json_file(self._session_dir / RESTORE_RECORD, None)
+        held = self._held("restore")
+        if held is not None:
+            return held[0]
+        found = self._read_restore()
+        self._hold("restore", found)
+        return found
+
+    def _read_restore(self) -> dict:
+        path = self._session_dir / RESTORE_RECORD
+        try:
+            st = os.stat(path)
+            key = (st.st_mtime_ns, st.st_size, st.st_ino)
+        except OSError:
+            key = None
+        if key is None:
+            raw = None
+        elif self._restore_cache[0] == key:
+            raw = self._restore_cache[1]
+        else:
+            raw = load_json_file(path, None)
+            self._restore_cache = (key, raw)
         if (
             not isinstance(raw, dict)
             or type(raw.get("appid")) is not int
@@ -6701,11 +6922,15 @@ class MultiplayerService:
         async def warm():
             await asyncio.sleep(LIBRARY_WARM_SECONDS)
             try:
-                await asyncio.to_thread(self._library)
+                await asyncio.to_thread(self._warm_library)
             except Exception as e:
                 decky.logger.warning("multiplayer: couldn't rebuild the game list after a launch (%s)", type(e).__name__)
 
         self._spawn(warm())
+
+    def _warm_library(self) -> None:
+        self._fresh_shortcuts()
+        self._library()
 
     def clear_restore(self, sid: str) -> dict:
         path = self._session_dir / RESTORE_RECORD

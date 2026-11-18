@@ -31,8 +31,12 @@ Stdlib only and no decky import, the same as the other readers here, so it
 stays drivable from a terminal against a real device.
 """
 
+import collections
+import logging
 import os
 import shlex
+import threading
+import time
 
 from pathlib import Path, PurePosixPath
 
@@ -145,16 +149,27 @@ def find_shortcut(app_id, home=None):
     hold two shortcuts under one id; the first found wins, which is the same
     arbitrary answer as asking any other way.
     """
+    index = _index_for(home)
+    if index.snapshot is None:
+        index.rebuild_soon()
+        return _scan_for_app(app_id, home)
+    row = _row_for_app(app_id, home)
+    return row["entry"] if row is not None else None
+
+
+def _scan_for_app(app_id, home):
     try:
         wanted = int(app_id)
     except (TypeError, ValueError):
         return None
     signed = wanted - (1 << 32) if wanted >= (1 << 31) else wanted
-
     for path in iter_shortcuts_files(home):
+        stamp = _file_stamp(path)
+        if stamp is None:
+            continue
         try:
-            entries = parse_shortcuts(path.read_bytes())
-        except (OSError, ValueError):
+            entries = _read_entries(path, stamp)
+        except _Unreadable:
             continue
         for shortcut in entries.values():
             if not isinstance(shortcut, dict):
@@ -259,7 +274,7 @@ def expand_playlist(path):
 def _real(path):
     try:
         return os.path.realpath(path)
-    except OSError:
+    except (OSError, ValueError):
         return path
 
 
@@ -271,89 +286,28 @@ def rom_candidates(exe, launch_options=None, start_dir=None):
     path is a real one and the lookup has to match on real paths too. A bare
     filename is passed through untouched for the caller's name tier.
     """
+    return _match(exe, launch_options, start_dir)[0]
+
+
+def _match(exe, launch_options=None, start_dir=None):
     resolved = resolve_rom_path(exe, launch_options, start_dir)
     if not resolved:
-        return []
+        return [], False, None
 
     if PurePosixPath(resolved).suffix.lower() in _PLAYLIST_EXTENSIONS:
-        return [_real(entry) for entry in expand_playlist(_real(resolved))]
+        playlist = _real(resolved)
+        stamp = _file_stamp(playlist)
+        return [_real(entry) for entry in expand_playlist(playlist)], True, (playlist, stamp)
 
     if os.path.isabs(resolved):
-        return [_real(resolved)]
-    return [resolved]
+        return [_real(resolved)], True, None
+    return [resolved], True, None
 
 
 def rom_candidates_for_app(app_id, home=None):
     """The same, starting from a Steam appid."""
-    shortcut = find_shortcut(app_id, home)
-    if not shortcut:
-        return []
-    return rom_candidates(
-        _field(shortcut, "exe"),
-        _field(shortcut, "LaunchOptions"),
-        _field(shortcut, "StartDir"),
-    )
-
-
-_parsed_cache = (None, [])
-_by_rom_cache = (None, {})
-_emulators_cache = (None, [])
-
-
-def _shortcuts(home=None):
-    global _parsed_cache
-    files = list(iter_shortcuts_files(home))
-    stamp = []
-    for path in files:
-        try:
-            st = path.stat()
-        except OSError:
-            continue
-        stamp.append((str(path), st.st_mtime_ns, st.st_size))
-    stamp = tuple(stamp)
-    if _parsed_cache[0] == stamp:
-        return _parsed_cache
-    shortcuts = []
-    for path in files:
-        try:
-            entries = parse_shortcuts(path.read_bytes())
-        except (OSError, ValueError):
-            continue
-        for shortcut in entries.values():
-            if not isinstance(shortcut, dict):
-                continue
-            app_id = _app_id(shortcut)
-            exe = _field(shortcut, "exe")
-            if app_id is None:
-                continue
-            launch_options = _field(shortcut, "LaunchOptions")
-            start_dir = _field(shortcut, "StartDir")
-            shortcuts.append({
-                "appid": app_id & 0xFFFFFFFF,
-                "name": _field(shortcut, "AppName") or "",
-                "exe": exe or "",
-                "launchOptions": launch_options or "",
-                "roms": rom_candidates(exe, launch_options, start_dir),
-            })
-    _parsed_cache = (stamp, shortcuts)
-    return _parsed_cache
-
-
-def shortcuts_by_rom(home=None):
-    global _by_rom_cache
-    stamp, shortcuts = _shortcuts(home)
-    if _by_rom_cache[0] == stamp:
-        return _by_rom_cache[1]
-    found = {}
-    for shortcut in shortcuts:
-        for candidate in shortcut["roms"]:
-            if not os.path.isabs(candidate):
-                continue
-            listed = found.setdefault(candidate, [])
-            if all(row["appid"] != shortcut["appid"] for row in listed):
-                listed.append({key: shortcut[key] for key in ("appid", "name", "exe", "launchOptions")})
-    _by_rom_cache = (stamp, found)
-    return found
+    row = _row_for_app(app_id, home)
+    return list(row["roms"]) if row is not None else []
 
 
 def _passes_path(exe, launch_options) -> bool:
@@ -374,19 +328,500 @@ def _passes_path(exe, launch_options) -> bool:
     return False
 
 
-def emulator_shortcuts(home=None, held=None):
-    global _emulators_cache
-    stamp, shortcuts = _shortcuts(home)
-    if _emulators_cache[0] == (stamp, held):
-        return _emulators_cache[1]
-    found = []
-    for shortcut in shortcuts:
-        exe, options, roms = shortcut["exe"], shortcut["launchOptions"], shortcut["roms"]
-        if held is not None and shortcut["appid"] == held[0]:
-            options = held[1]
-            roms = rom_candidates(exe, options or None)
-        if not exe or roms or resolve_rom_path(exe, options or None) is not None or _passes_path(exe, options):
+_MAX_FILE_BYTES = 64 * 1024 * 1024
+_RETRY_SECONDS = (1.0, 5.0)
+_MISSING_GRACE_SECONDS = 1.0
+
+_log = logging.getLogger("steam_shortcuts")
+_debug_on = None
+
+
+def configure(logger, debug=None):
+    global _log, _debug_on
+    _log = logger
+    _debug_on = debug
+
+
+def _debug(message, *args):
+    try:
+        on = _debug_on is not None and _debug_on()
+    except Exception:
+        on = False
+    if on:
+        _log.info("shortcuts: " + message, *args)
+
+
+_DRIVE_TYPES = frozenset((b"ext2", b"ext3", b"ext4", b"btrfs", b"xfs", b"f2fs", b"vfat", b"exfat", b"ntfs", b"ntfs3",
+                          b"fuseblk"))
+_SKIPPED_MOUNTS = (b"/efi", b"/esp", b"/boot")
+
+
+def mounts():
+    try:
+        with open("/proc/self/mountinfo", "rb") as handle:
+            text = handle.read()
+    except OSError:
+        return b""
+    drives = []
+    for line in text.splitlines():
+        head, _, tail = line.partition(b" - ")
+        fields, kind = head.split(b" "), tail.split(b" ")
+        if len(fields) < 5 or len(kind) < 2 or kind[0] not in _DRIVE_TYPES:
             continue
-        found.append({"appid": shortcut["appid"], "name": shortcut["name"], "exe": exe, "launchOptions": options})
-    _emulators_cache = ((stamp, held), found)
+        point = fields[4]
+        if any(point == skipped or point.startswith(skipped + b"/") for skipped in _SKIPPED_MOUNTS):
+            continue
+        drives.append(b" ".join((fields[0], point, kind[0], kind[1])))
+    return b"\n".join(sorted(drives))
+
+
+def _file_stamp(path):
+    try:
+        st = os.stat(path)
+    except (OSError, ValueError):
+        return None
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
+class _Unreadable(Exception):
+    pass
+
+
+def _read_entries(path, stamp):
+    if stamp[1] > _MAX_FILE_BYTES:
+        raise _Unreadable(f"{stamp[1]} bytes, too large to read")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(_MAX_FILE_BYTES + 1)
+    except OSError as e:
+        raise _Unreadable(type(e).__name__) from e
+    if len(data) != stamp[1] or _file_stamp(path) != stamp:
+        raise _Unreadable("changed while it was read")
+    if not data:
+        raise _Unreadable("empty")
+    try:
+        return parse_shortcuts(data)
+    except Exception as e:
+        raise _Unreadable(type(e).__name__) from e
+
+
+def _match_row(exe, options, start_dir):
+    roms, named, playlist = _match(exe, options, start_dir)
+    emulator = bool(exe) and not named and not _passes_path(exe, options or "")
+    return roms, emulator, playlist
+
+
+def _make_row(entry, key, match):
+    app_id = _app_id(entry)
+    return {
+        "appid": app_id & 0xFFFFFFFF,
+        "raw": app_id,
+        "name": _field(entry, "AppName") or "",
+        "exe": key[0] or "",
+        "launchOptions": key[1] or "",
+        "roms": match[0],
+        "emulator": match[1],
+        "key": key,
+        "entry": entry,
+    }
+
+
+_OWN = object()
+
+
+def _public(row, options=_OWN):
+    return {"appid": row["appid"], "name": row["name"], "exe": row["exe"],
+            "launchOptions": row["launchOptions"] if options is _OWN else options}
+
+
+class _Snapshot:
+    def __init__(self, generation, stamps, rows, behind, mounted=b""):
+        self.generation = generation
+        self.stamps = stamps
+        self.rows = rows
+        self.behind = behind
+        self.mounts = mounted
+        self.by_appid = {}
+        for row in rows:
+            self.by_appid.setdefault(row["raw"], row)
+        by_rom = {}
+        for row in rows:
+            for candidate in row["roms"]:
+                if not os.path.isabs(candidate):
+                    continue
+                listed = by_rom.setdefault(candidate, [])
+                if all(item["appid"] != row["appid"] for item in listed):
+                    listed.append(_public(row))
+        self.by_rom = by_rom
+        self._views = {None: [_public(row) for row in rows if row["emulator"]]}
+
+    def emulators(self, held):
+        view = self._views.get(held)
+        if view is not None:
+            return view
+        found = []
+        for row in self.rows:
+            if row["appid"] != held[0]:
+                if row["emulator"]:
+                    found.append(_public(row))
+                continue
+            exe, options = row["exe"], held[1]
+            if not exe or rom_candidates(exe, options or None) or resolve_rom_path(exe, options or None) is not None \
+                    or _passes_path(exe, options):
+                continue
+            found.append(_public(row, options))
+        if len(self._views) > 8:
+            self._views = {None: self._views[None]}
+        self._views[held] = found
+        return found
+
+
+class _FileState:
+    def __init__(self):
+        self.rows = []
+        self.good = None
+        self.bad = None
+        self.failures = 0
+        self.missing_since = None
+        self.recheck = False
+
+    def copy(self):
+        state = _FileState()
+        state.__dict__.update(self.__dict__)
+        return state
+
+
+def _projection(rows):
+    return [(row["appid"], row["name"], row["exe"], row["launchOptions"], row["roms"], row["emulator"]) for row in rows]
+
+
+class _Index:
+    def __init__(self, home):
+        self.home = home
+        self.lock = threading.Lock()
+        self._flags = threading.Lock()
+        self.snapshot = None
+        self._files = {}
+        self._memo = {}
+        self._running = False
+        self._again = False
+        self._force = False
+        self._timer = None
+        self._timer_due = 0.0
+        self._stopped = False
+        self.builds = 0
+        self.matched = 0
+        self.threads = collections.deque(maxlen=32)
+        self.last_verify = None
+        self.mounts = None
+
+    def _stamps(self):
+        return tuple((str(path), _file_stamp(path)) for path in iter_shortcuts_files(self.home))
+
+    def _stale(self, snap, fresh=False):
+        return snap is None or self._stamps() != snap.stamps or (fresh and mounts() != self.mounts)
+
+    def stale(self):
+        return self._stale(self.snapshot)
+
+    def current(self, fresh=False):
+        snap = self.snapshot
+        if snap is not None and not self._stale(snap, fresh):
+            return snap
+        if snap is not None and not fresh:
+            self.rebuild_soon()
+            return snap
+        with self.lock:
+            if self._stale(self.snapshot, fresh):
+                self._build()
+            return self.snapshot
+
+    def rebuild_soon(self, force=False):
+        with self._flags:
+            self._force = self._force or force
+            if self._running:
+                self._again = True
+                return
+            self._running = True
+        threading.Thread(target=self._builder, name="shortcut-index", daemon=True).start()
+
+    def _builder(self):
+        while True:
+            with self._flags:
+                force, self._force = self._force, False
+                self._again = False
+            try:
+                with self.lock:
+                    if force or self._stale(self.snapshot):
+                        self._build()
+            except Exception as e:
+                _log.warning("shortcuts: the index rebuild failed (%s)", type(e).__name__)
+            with self._flags:
+                if not self._again:
+                    self._running = False
+                    return
+
+    def _retry_in(self, seconds):
+        due = time.monotonic() + seconds
+        with self._flags:
+            if self._stopped:
+                return
+            if self._timer is not None:
+                if self._timer_due <= due:
+                    return
+                self._timer.cancel()
+            self._timer = threading.Timer(seconds, self._retry)
+            self._timer.daemon = True
+            self._timer_due = due
+            self._timer.start()
+
+    def _retry(self):
+        with self._flags:
+            self._timer = None
+        self.rebuild_soon(force=True)
+
+    def stop(self):
+        with self._flags:
+            self._stopped = True
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
+
+    def _rows(self, entries, memo, verify, live, stale):
+        rows = []
+        for entry in entries.values():
+            if not isinstance(entry, dict) or _app_id(entry) is None:
+                continue
+            key = (_field(entry, "exe"), _field(entry, "LaunchOptions"), _field(entry, "StartDir"))
+            match = memo.get(key)
+            playlist = match[2] if match is not None else None
+            if playlist is not None and _file_stamp(playlist[0]) != playlist[1]:
+                match = None
+            if match is None:
+                self.matched += 1
+                match = _match_row(*key)
+                memo[key] = match
+                if verify:
+                    remembered = self._memo.get(key)
+                    before = [old for old in (live.get(key), remembered and remembered[:2]) if old]
+                    if any(old != match[:2] for old in before):
+                        stale.append(_field(entry, "AppName") or str(_app_id(entry)))
+            rows.append(_make_row(entry, key, match))
+        return rows
+
+    def _build(self, verify=False):
+        self.threads.append(threading.get_ident())
+        self.builds += 1
+        now = time.monotonic()
+        mounted = mounts()
+        if self.mounts is not None and mounted != self.mounts:
+            _log.info("shortcuts: the mounted drives changed, matching every shortcut again")
+            self._memo = {}
+            for state in self._files.values():
+                state.good = None
+                state.bad = None
+                state.failures = 0
+        found = [str(path) for path in iter_shortcuts_files(self.home)]
+        order = found + [path for path in self._files if path not in found]
+        live = {}
+        if verify and self.snapshot is not None:
+            for row in self.snapshot.rows:
+                live.setdefault(row["key"], (row["roms"], row["emulator"]))
+        memo = {} if verify else self._memo
+        stale = []
+        stamps, files, retry, behind = [], {}, None, False
+        for path in order:
+            state = self._files[path].copy() if path in self._files else _FileState()
+            stamp = _file_stamp(path) if path in found else None
+            if path in found:
+                stamps.append((path, stamp))
+            if stamp is None:
+                if not state.rows:
+                    continue
+                if state.missing_since is None:
+                    state.missing_since = now
+                    _debug("%s is missing, keeping its %d shortcuts for now", path, len(state.rows))
+                left = _MISSING_GRACE_SECONDS - (now - state.missing_since)
+                if left > 0:
+                    files[path] = state
+                    behind = True
+                    retry = left if retry is None else min(retry, left)
+                    continue
+                _log.info("shortcuts: %s is gone, dropping its %d shortcuts", path, len(state.rows))
+                continue
+            state.missing_since = None
+            if stamp == state.good and not verify and not state.recheck:
+                files[path] = state
+                continue
+            if stamp == state.bad and state.failures > len(_RETRY_SECONDS) and not verify:
+                files[path] = state
+                behind = True
+                continue
+            try:
+                rows = self._rows(_read_entries(path, stamp), memo, verify, live, stale)
+            except Exception as e:
+                reason = e if isinstance(e, _Unreadable) else type(e).__name__
+                if stamp != state.good and stamp != state.bad:
+                    state.failures = 0
+                state.failures += 1
+                if stamp == state.good:
+                    state.recheck = state.failures <= len(_RETRY_SECONDS)
+                else:
+                    state.bad = stamp
+                files[path] = state
+                behind = True
+                if state.failures == 1 and state.rows:
+                    _log.warning("shortcuts: couldn't read %s (%s), keeping the %d shortcuts from its last good read",
+                                 path, reason, len(state.rows))
+                elif state.failures == 1:
+                    _log.warning("shortcuts: couldn't read %s (%s)", path, reason)
+                elif state.failures == len(_RETRY_SECONDS) + 1:
+                    _debug("%s still doesn't read (%s), keeping its last good read", path, reason)
+                else:
+                    _debug("%s still doesn't read (%s), try %d", path, reason, state.failures)
+                if state.failures <= len(_RETRY_SECONDS):
+                    wait = _RETRY_SECONDS[state.failures - 1]
+                    retry = wait if retry is None else min(retry, wait)
+                continue
+            if state.failures:
+                _log.info("shortcuts: %s reads again", path)
+            state.failures = 0
+            state.bad = None
+            state.recheck = False
+            state.good = stamp
+            state.rows = rows
+            files[path] = state
+
+        rows = [row for state in files.values() for row in state.rows]
+        old = self.snapshot
+        if old is None:
+            generation = 1
+        elif _projection(old.rows) == _projection(rows):
+            generation = old.generation
+        else:
+            generation = old.generation + 1
+        snapshot = _Snapshot(generation, tuple(stamps), rows, behind, mounted)
+        self._memo = {row["key"]: memo[row["key"]] for state in files.values() for row in state.rows
+                      if row["key"] in memo}
+        self._files = files
+        self.mounts = mounted
+        self.snapshot = snapshot
+        if retry is not None:
+            self._retry_in(retry)
+        return stale
+
+    def verify(self):
+        started = time.monotonic()
+        with self.lock:
+            before = self.snapshot
+            stale = self._build(verify=True)
+            after = self.snapshot
+        changed = before is not None and _projection(before.rows) != _projection(after.rows)
+        self.last_verify = {"at": int(time.time()), "stale": len(stale), "examples": stale[:5],
+                            "changed": changed, "ms": round((time.monotonic() - started) * 1000)}
+        return self.last_verify
+
+    def forget(self, real_paths):
+        wanted = set(real_paths)
+        with self.lock:
+            self._memo = {key: match for key, match in self._memo.items() if not wanted & set(match[0])}
+            for state in self._files.values():
+                state.good = None
+            self._build()
+            return self.snapshot
+
+    def describe(self):
+        snap = self.snapshot
+        return {
+            "generation": snap.generation if snap is not None else 0,
+            "shortcuts": len(snap.rows) if snap is not None else 0,
+            "romPaths": len(snap.by_rom) if snap is not None else 0,
+            "emulators": len(snap.emulators(None)) if snap is not None else 0,
+            "behind": bool(snap.behind) if snap is not None else False,
+            "memo": len(self._memo),
+            "files": [{"path": path, "shortcuts": len(state.rows), "failures": state.failures,
+                       "missing": state.missing_since is not None} for path, state in self._files.items()],
+            "builds": self.builds,
+            "matched": self.matched,
+            "lastVerify": self.last_verify,
+        }
+
+
+_indexes = {}
+_indexes_lock = threading.Lock()
+_EMPTY = _Snapshot(0, (), [], True)
+
+
+def _index_for(home):
+    base = Path(home) if home else Path.home()
+    key = str(base)
+    index = _indexes.get(key)
+    if index is None:
+        with _indexes_lock:
+            index = _indexes.setdefault(key, _Index(base))
+    return index
+
+
+def current(home=None, fresh=False):
+    index = _index_for(home)
+    try:
+        return index.current(fresh)
+    except Exception as e:
+        _log.warning("shortcuts: couldn't read the shortcut files (%s)", type(e).__name__)
+        return index.snapshot or _EMPTY
+
+
+def rebuild_soon(home=None):
+    _index_for(home).rebuild_soon(force=True)
+
+
+def verify(home=None):
+    try:
+        return _index_for(home).verify()
+    except Exception as e:
+        _log.warning("shortcuts: the index check failed (%s)", type(e).__name__)
+        return None
+
+
+def forget_matches(real_paths, home=None):
+    index = _index_for(home)
+    try:
+        return index.forget(real_paths)
+    except Exception as e:
+        _log.warning("shortcuts: couldn't match those shortcuts again (%s)", type(e).__name__)
+        return index.snapshot or _EMPTY
+
+
+def stamps(home=None):
+    return _index_for(home)._stamps()
+
+
+def describe(home=None):
+    return _index_for(home).describe()
+
+
+def stop():
+    for index in list(_indexes.values()):
+        index.stop()
+
+
+def _row_for_app(app_id, home):
+    try:
+        wanted = int(app_id)
+    except (TypeError, ValueError):
+        return None
+    signed = wanted - (1 << 32) if wanted >= (1 << 31) else wanted
+    by_appid = current(home).by_appid
+    found = by_appid.get(wanted) or by_appid.get(signed)
+    if found is None and _index_for(home).stale():
+        by_appid = current(home, fresh=True).by_appid
+        found = by_appid.get(wanted) or by_appid.get(signed)
     return found
+
+
+def shortcuts_by_rom(home=None):
+    return current(home).by_rom
+
+
+def emulator_shortcuts(home=None, held=None):
+    return current(home).emulators(held)
