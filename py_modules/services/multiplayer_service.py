@@ -3965,6 +3965,16 @@ class MultiplayerService:
         finally:
             self._stop_rmg_server(room["id"])
 
+    def _free_seat(self, room: dict, index: int, seat: dict) -> None:
+        room["freed"][index] = seat["key"]
+        room["seats"][index] = None
+        self._host_tunnels.close_seat(index)
+        self._pipes_seat_gone(room, index)
+        self._voice_forget(room, index)
+        self._turn_forget(room, index, seat.get("ulid", ""))
+        self._games_seat_left(room, index)
+        self._roster_left(room, index)
+
     def _tidy(self, room: dict) -> None:
         now = time.monotonic()
         for index, seat in enumerate(room["seats"]):
@@ -3972,15 +3982,8 @@ class MultiplayerService:
                 continue
             if _boot_clock() - seat["last"] > SEAT_FREE_SECONDS:
                 decky.logger.info("multiplayer: seat %s went quiet, freed", index)
-                room["freed"][index] = seat["key"]
-                room["seats"][index] = None
-                self._host_tunnels.close_seat(index)
-                self._pipes_seat_gone(room, index)
-                self._voice_forget(room, index)
-                self._turn_forget(room, index, seat.get("ulid", ""))
+                self._free_seat(room, index, seat)
                 self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
-                self._games_seat_left(room, index)
-                self._roster_left(room, index)
 
         addresses = set()
         if room["where"] == "local":
@@ -4220,6 +4223,11 @@ class MultiplayerService:
         ):
             await conversation.say({"ok": False, "error": "dropped"})
             return
+        for index, taken in enumerate(room["seats"]):
+            if index > 0 and taken is not None and taken["device"] == params["device"] \
+                    and taken["ulid"] == params["ulid"] and taken["name"].lower() == params["user"].lower():
+                decky.logger.info("multiplayer: seat %s joined again from the same device, its old seat freed", index)
+                self._free_seat(room, index, taken)
         seat = next((index for index, taken in enumerate(room["seats"]) if taken is None), None)
         if seat is None:
             await conversation.say({"ok": False, "error": "full"})
