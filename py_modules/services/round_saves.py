@@ -178,6 +178,7 @@ class RoundSaves:
                     entry["lastRound"] = _sha1(seed)
                 elif not index and len(data) < fill:
                     seed = data + b"\xff" * (fill - len(data))
+                    entry["padded"] = _sha1(seed)
                 with atomic_file(copy) as out:
                     out.write(seed)
                 entry["baseline"] = _sha1(data)
@@ -375,6 +376,8 @@ class RoundSaves:
             data = _read(copy, follow=False)
             if not data or entry.get("keep") or (entry.get("clock") and _sha1(data) == entry["lastRound"]):
                 continue
+            if entry.get("padded") and not entry["lastWritten"] and _sha1(data) == entry["padded"]:
+                continue
             data = _as_real(entry, data)
             if data is None or _sha1(data) != (entry["lastWritten"] or entry["baseline"]):
                 return "not all of it was copied"
@@ -542,7 +545,7 @@ def _valid(raw, roots: Path) -> bool:
             return False
         if not isinstance(entry.get("real"), str) or not os.path.isabs(entry["real"]):
             return False
-        for key in ("baseline", "lastWritten"):
+        for key in ("baseline", "lastWritten", "padded"):
             if entry.get(key) is not None and not (isinstance(entry[key], str) and _SHA1.match(entry[key])):
                 return False
         for key in ("size", "seeded"):
