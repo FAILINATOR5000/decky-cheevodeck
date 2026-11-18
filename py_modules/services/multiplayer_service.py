@@ -4049,7 +4049,19 @@ class MultiplayerService:
             room["lastStart"] = {"round": room["round"], "ok": False, "error": error}
         decky.logger.info("multiplayer: the room is back in the lobby%s", f" ({error})" if error else "")
         self._cut_streams(room)
+        self._close_host_tunnels()
         self._announce()
+
+    def _close_host_tunnels(self) -> None:
+        loop = self._loop
+        try:
+            on_loop = asyncio.get_running_loop() is loop
+        except RuntimeError:
+            on_loop = False
+        if on_loop:
+            self._host_tunnels.close()
+        elif loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(self._host_tunnels.close)
 
     def launch_started(self) -> dict:
         current = self._session
