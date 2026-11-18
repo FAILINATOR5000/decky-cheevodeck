@@ -43,9 +43,12 @@ const RESTORE_ERRORS: Record<string, string> = {
     missing_folder: "This backup's save folder isn't there anymore, so it can't be restored."
 };
 
+const CLOCK_NAMES: Record<string, string> = { gambatte: "Gambatte", sameboy: "SameBoy" };
+const OTHER_CLOCK: Record<string, string> = { gambatte: "sameboy", sameboy: "gambatte" };
+
 type Row =
     | { kind: "group"; key: string; label: string }
-    | { kind: "backup"; key: string; id: string; at: number; reason: SaveBackupReason };
+    | { kind: "backup"; key: string; id: string; at: number; reason: SaveBackupReason; clock: string };
 
 const NO_ROWS: Row[] = [];
 
@@ -60,7 +63,9 @@ function rowsOf(info: SaveBackupsInfo | null): Row[] {
             rows.push({ kind: "group", key: `savebackups:group:${group.group}`, label: group.label });
         }
         for (const backup of group.backups) {
-            rows.push({ kind: "backup", key: `savebackups:backup:${backup.id}`, id: backup.id, at: backup.at, reason: backup.reason });
+            const clock = backup.clock && backup.clock !== group.core && CLOCK_NAMES[backup.clock] ? backup.clock : "";
+            rows.push({ kind: "backup", key: `savebackups:backup:${backup.id}`, id: backup.id, at: backup.at, reason: backup.reason,
+                clock });
         }
     }
     return rows;
@@ -271,6 +276,13 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                                 );
                             }
                             const isArmed = armed === row.id;
+                            const reason = t(language, REASON_LABELS[row.reason]);
+                            const clockName = CLOCK_NAMES[row.clock];
+                            const clockLine = !row.clock ? undefined : row.reason === "rtc"
+                                ? t(language, "CheevoDeck converted this game's clock from {{from}}'s format to {{to}}'s here. Restoring this puts back the {{from}} clock, and CheevoDeck converts it again the next time it launches the game.",
+                                    { from: clockName, to: CLOCK_NAMES[OTHER_CLOCK[row.clock]] })
+                                : t(language, "This backup's game clock is in {{core}}'s format. Restoring it puts that clock back, and CheevoDeck converts it the next time it launches the game.",
+                                    { core: clockName });
                             return (
                                 <FocusableItem
                                     key={row.key}
@@ -282,6 +294,8 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                                     onGamepadBlur={() => setArmed((was) => (was === row.id ? "" : was))}
                                     onGamepadDirection={list.guardTopRow(at)}
                                     bottomSeparator="none"
+                                    help={clockLine}
+                                    modalHelp
                                 >
                                     <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
                                         {isArmed ? (
@@ -294,7 +308,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                                                     {formatDateTime(row.at, language)}
                                                 </span>
                                                 <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>
-                                                    {t(language, REASON_LABELS[row.reason])}
+                                                    {clockName ? t(language, "{{reason}} ({{core}})", { reason, core: clockName }) : reason}
                                                 </span>
                                             </>
                                         )}

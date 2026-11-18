@@ -3435,7 +3435,8 @@ export type SaveBackupReason = "launch" | "couch" | "link" | "stream" | "end" | 
 
 export type SaveBackupsInfo = {
     ok: boolean;
-    groups?: { group: string; label: string; backups: { id: string; at: number; reason: SaveBackupReason }[] }[];
+    groups?: { group: string; label: string; core: string;
+        backups: { id: string; at: number; reason: SaveBackupReason; clock: string }[] }[];
     interval?: number;
     off?: boolean;
     systemId?: number;

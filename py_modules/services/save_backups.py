@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import decky
+import rtc_formats
 from services import wii_saves
 from utils import (
     atomic_file,
@@ -27,6 +28,7 @@ META = "backup.json"
 SCHEMA_VERSION = 1
 KEPT = 10
 REASONS = ("launch", "couch", "link", "stream", "end", "mid", "wii-copy-back", "restore", "rtc")
+CLOCK_SYSTEMS = (4, 6)
 TRIGGERS = ("play", "together", "restore")
 STEADY_SECONDS = 5
 STEADY_TRIES = 3
@@ -287,15 +289,17 @@ class SaveBackups:
             return []
         listed = []
         for group in groups:
-            rows, label = [], ""
+            rows, label, core = [], "", ""
             for name in reversed(self._backups_in(base / group)):
                 meta = self._meta(base / group / name)
                 if meta is None or meta["raGameId"] != game_id:
                     continue
                 label = label or group_label(meta)
-                rows.append({"id": f"{group}/{name}", "at": meta["at"], "reason": meta["reason"]})
+                core = core or meta["core"]
+                rows.append({"id": f"{group}/{name}", "at": meta["at"], "reason": meta["reason"],
+                             "clock": _clock_of(base / group / name, meta)})
             if rows:
-                listed.append({"group": group, "label": label, "backups": rows})
+                listed.append({"group": group, "label": label, "core": core, "backups": rows})
         return listed
 
     def system_of(self, game_id: int) -> int:
@@ -467,6 +471,20 @@ def _snapshot(paths, reads, match: str = "") -> list:
         sources.append({"path": str(path), "file": path.name, "kind": "file", "data": data,
                         "sha256": hashlib.sha256(data).hexdigest()})
     return sources
+
+
+def _clock_of(folder: Path, meta: dict) -> str:
+    if meta["emulator"] != "retroarch" or meta["systemId"] not in CLOCK_SYSTEMS \
+            or meta["core"] not in rtc_formats.SIZES:
+        return ""
+    for source in meta["sources"]:
+        if source["kind"] == "file" and source["file"].endswith(".rtc"):
+            try:
+                size = os.stat(folder / source["file"]).st_size
+            except OSError:
+                return ""
+            return next((core for core, wanted in rtc_formats.SIZES.items() if wanted == size), "")
+    return ""
 
 
 def _recorded(source: dict) -> dict:
