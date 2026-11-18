@@ -237,12 +237,17 @@ async function showTitle(record: MultiplayerRestoreRecord) {
 }
 
 async function restore(record: MultiplayerRestoreRecord) {
-    if (!(await writeLaunchOptions(record.appid, record.original))) {
+    const written = await writeLaunchOptions(record.appid, record.original);
+    const gone = !written && shortcutName(record.appid) === null;
+    if (!written && !gone) {
         logError("multiplayer: Steam didn't confirm the restored launch options", record.appid);
         letGo(record);
         return;
     }
-    if (record.renamed && record.name && shortcutName(record.appid) === record.renamed
+    if (gone) {
+        logError("multiplayer: the shortcut whose launch options were changed is gone, forgetting it", record.appid);
+    }
+    if (!gone && record.renamed && record.name && shortcutName(record.appid) === record.renamed
         && !(await writeShortcutName(record.appid, record.name))) {
         logError("multiplayer: Steam didn't confirm the shortcut's name back", record.appid);
         letGo(record);
