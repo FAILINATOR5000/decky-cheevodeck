@@ -926,7 +926,7 @@ class EmulatorService:
         roots.extend(session.dolphin_config(self._user_home, install).parent for install in ("flatpak", "appimage"))
         ra = self._cores_retroarch()
         if ra is not None:
-            roots.append(ra.cores_dir)
+            roots.extend((ra.cores_dir, ra.info_dir))
         inventory = self._inventory
         for emulator in (inventory or {}).get("emulators") or []:
             for image in emulator["appimages"]:
@@ -1212,6 +1212,7 @@ class EmulatorService:
         ra, index, latest = self._core_context(core)
         target = ra.core_path(core)
         if os.path.lexists(target):
+            self._place_info(ra, core)
             return
         source = self._fetch_core(job, core, index, latest, ra)
         self._check_target(target)
@@ -1221,6 +1222,26 @@ class EmulatorService:
         self._place(source, target, 0o644)
         self._verify(target)
         self._record_core(core, latest["crc"], latest["date"])
+        self._place_info(ra, core)
+
+    def _place_info(self, ra, core: str) -> None:
+        target = ra.info_dir / f"{core}_libretro.info"
+        if os.path.lexists(target):
+            return
+        try:
+            with zipfile.ZipFile(self._work_dir() / "info.zip") as archive:
+                member = next((item for item in archive.infolist()
+                               if item.filename.rsplit("/", 1)[-1] == target.name and item.file_size <= 65536), None)
+                if member is None:
+                    return
+                data = archive.read(member)
+            self._check_target(target)
+            temp = self._work_dir() / f".{target.name}.cheevodeck-tmp"
+            temp.write_bytes(data)
+            self._place(temp, target, 0o644)
+            decky.logger.info("emulators: added %s's core info file, RetroArch's own didn't have it", core)
+        except (OSError, zipfile.BadZipFile, StepFailed) as e:
+            decky.logger.warning("emulators: couldn't add %s's core info file (%s)", core, type(e).__name__)
 
     def _update_core(self, job: dict, step: dict, journal: dict) -> None:
         core = step["core"]
