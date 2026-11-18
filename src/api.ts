@@ -908,7 +908,7 @@ export const multiplayerLeave = callable<[], { ok: boolean; error?: string }>("m
 export const multiplayerVoteStart = callable<["vote" | "pick", number[]], MultiplayerReply>("multiplayer_vote_start");
 export const multiplayerVoteCancel = callable<[], MultiplayerReply>("multiplayer_vote_cancel");
 export const multiplayerVote = callable<[vote: number, pick: number], MultiplayerReply>("multiplayer_vote");
-export const multiplayerTakeRefreshNote = callable<[], { ok: boolean; show: boolean }>("multiplayer_take_refresh_note");
+export const multiplayerTakeRefreshNote = callable<[], { ok: boolean; show: boolean; exit?: boolean }>("multiplayer_take_refresh_note");
 
 export const multiplayerLounge = callable<[game: MultiplayerLoungeGame, act: "move" | "start" | "clear" | "join", cell: number, to: number], MultiplayerReply>(
     "multiplayer_lounge"

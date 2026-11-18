@@ -35,6 +35,7 @@ import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openMessageCenter } from "../components/multiplayer/MessageCenterModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
 import { openStreamScreenWarning } from "../components/multiplayer/StreamScreenWarningModal";
+import { openImportantNotice } from "../components/multiplayer/ImportantNoticeModal";
 import { bitrateLabel, openStreamBitrate } from "../components/multiplayer/StreamBitrateModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
@@ -322,8 +323,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
         multiplayerTakeRefreshNote()
             .then((note) => {
-                if (note.ok && note.show) {
-                    showMultiplayerProblem(language, "60 Hz for Best Experience", t(language, "refresh_note_body"), true);
+                if (note.ok) {
+                    openImportantNotice(language, { refresh: note.show, exit: Boolean(note.exit) });
                 }
             })
             .catch((e) => logError("multiplayer: the 60 Hz note", e));
