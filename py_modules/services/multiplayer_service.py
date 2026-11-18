@@ -35,6 +35,7 @@ from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
+from services.round_saves import _write_real
 from services.update_checker_service import parse_version
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
 
@@ -2164,6 +2165,38 @@ class MultiplayerService:
         route, _gate, _detail = self._play_route(game_id, choice=choice)
         if route is not None:
             self._check_launch_clock(game_id, route, "play")
+
+    def fill_play_save(self, game_id: int, choice=None) -> None:
+        route, _gate, _detail = self._play_route(game_id, choice=choice)
+        if route is not None:
+            self._fill_launch_save(game_id, route)
+
+    def _fill_launch_save(self, game_id: int, route: dict) -> None:
+        game = (self._library() or {}).get(game_id)
+        emulator, core = _route_emulator(route)
+        if game is None or emulator != "retroarch" or core not in session.SAVE_FILL:
+            return
+        ra = self._retroarch()
+        if not ra.found:
+            return
+        rom = Path(route["rom"])
+        owner, folder = self._launch_save(game, route, ra)
+        path = folder / f"{rom.stem}.srm" if folder is not None else ra.save_paths(owner, rom)[0]
+        self._fill_save(path, core, game["systemId"], game["title"])
+
+    def _fill_save(self, path: Path, core: str, system_id: int, title: str) -> None:
+        fill = session.SAVE_FILL.get(core, 0)
+        if not fill or not session.shares_saves("genesis_plus_gx", core, system_id):
+            return
+        data = _read_quietly(path)
+        if not data or len(data) >= fill or _power_of_two(len(data)) or data[-1] == 0xFF:
+            return
+        try:
+            _write_real(path, data + b"\xff" * (fill - len(data)))
+        except OSError as e:
+            decky.logger.warning("saves: couldn't fill out %s's save for %s (%s)", title, core, type(e).__name__)
+            return
+        decky.logger.info("saves: filled %s's save out from %s bytes for PicoDrive", title, len(data))
 
     def _check_launch_clock(self, game_id: int, route: dict, trigger: str) -> bool:
         game = (self._library() or {}).get(game_id)
@@ -5964,6 +5997,7 @@ class MultiplayerService:
         save_dir = None
         owner, keep = "", False
         clock_held = False
+        fill_path = None
         wii_nand = None
         try:
             ensure_dir(self._session_dir)
@@ -6000,6 +6034,7 @@ class MultiplayerService:
                             "detail": {"core": local["coreName"], "shortcutCore": ra.core_name(owner)}}
                 if save_dir is None and not guest:
                     clock_held = self._hold_round_clock(local, ra, rom)
+                    fill_path = ra.save_paths(local["core"], rom)[0]
                 guest_dir = self._guest_save_folder(sid, local, ra, rom) if guest else None
                 cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
@@ -6065,6 +6100,8 @@ class MultiplayerService:
                 backup = self._backup_target(local, owner)
             if backup is not None:
                 self._backups.back_up(backup, mode, "together")
+            if fill_path is not None:
+                self._fill_save(fill_path, local["core"], local["systemId"], local["title"])
             rename = _status_title(local["title"], name) if local["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
@@ -6223,6 +6260,7 @@ class MultiplayerService:
                 if self._backups is not None else None
             if backup is not None:
                 self._backups.back_up(backup, "stream", "together")
+            self._fill_launch_save(local["gameId"], route)
             rename = _status_title(local["title"], name) if route["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
@@ -7523,6 +7561,10 @@ def _route_kind(route: dict) -> str:
         return route["kind"]
     detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
     return detected["emulator"] if detected else ""
+
+
+def _power_of_two(size: int) -> bool:
+    return size > 0 and size & (size - 1) == 0
 
 
 def _route_emulator(route: dict):

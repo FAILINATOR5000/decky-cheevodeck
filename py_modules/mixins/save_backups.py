@@ -23,6 +23,7 @@ class SaveBackupsMixin(PluginContext):
         if target is not None:
             await asyncio.to_thread(self.save_backups.back_up, target, "launch", "play")
             self.save_backups.follow("play", target, "play")
+        await asyncio.to_thread(self.multiplayer_service.fill_play_save, game_id, _choice(choice))
         return {"ok": True}
 
     async def save_backups_play_ended(self):
