@@ -81,6 +81,21 @@ def _live_collapse_keys(mappings) -> set:
     return {_collapse_key(mapping.get("name")) for mapping in mappings}
 
 
+def _seed_place(mappings, item) -> int:
+    key = _collapse_key(item["name"])
+    group = [index for index, mapping in enumerate(mappings) if _collapse_key(mapping.get("name")) == key]
+    if not group:
+        return len(mappings)
+    if item.get("system") == "gamecube":
+        gcn = [index for index in group if mappings[index].get("system") == "gamecube"]
+        if gcn:
+            return gcn[-1] + 1
+        wii = [index for index in group if mappings[index].get("system") == "wii"]
+        if wii:
+            return wii[0]
+    return group[-1] + 1
+
+
 def _same_mapping(stored, cleaned) -> bool:
     stamps = ("createdAt", "updatedAt")
     return ({k: v for k, v in stored.items() if k not in stamps}
@@ -432,7 +447,7 @@ class DolphinMappingsStore:
                 item = self._clean_mapping(entry)
                 if item is None or item["name"] in names or _collapse_key(item["name"]) not in live:
                     continue
-                data["mappings"].append(item)
+                data["mappings"].insert(_seed_place(data["mappings"], item), item)
                 names.add(item["name"])
                 added += 1
             if added:

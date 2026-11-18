@@ -294,8 +294,11 @@ def build_stream_host_mappings():
 def build_seed_mappings():
     mappings = []
     for tag, controller in _SINGLE_PLAYER_TAGS:
-        mappings.extend(_single_player_mappings(tag, controller))
-        mappings.extend(_stream_host_mappings(tag, controller))
+        cards = _single_player_mappings(tag, controller)
+        gcn_host, *wii_hosts = _stream_host_mappings(tag, controller)
+        last_gcn = max(index for index, card in enumerate(cards) if card["system"] == "gamecube")
+        cards.insert(last_gcn + 1, gcn_host)
+        mappings.extend(cards + wii_hosts)
     mappings.extend(_real_wiimote_mappings())
     mappings.extend(_mixed_mappings())
     return mappings
