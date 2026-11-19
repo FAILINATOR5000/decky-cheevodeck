@@ -737,6 +737,22 @@ class OptionsMixin(PluginContext):
             "mpStreamSlowConnection": value,
         }
 
+    async def save_mp_stream_full_4k(self, mp_stream_full_4k: bool):
+        value = self.settings_store.update_mp_stream_full_4k(mp_stream_full_4k)
+
+        return {
+            "ok": True,
+            "mpStreamFull4k": value,
+        }
+
+    async def save_mp_stream_overlay(self, mp_stream_overlay: bool):
+        value = self.settings_store.update_mp_stream_overlay(mp_stream_overlay)
+
+        return {
+            "ok": True,
+            "mpStreamOverlay": value,
+        }
+
     async def save_mp_voice_ptt_toggle(self, mp_voice_ptt_toggle: bool):
         value = self.settings_store.update_mp_voice_ptt_toggle(mp_voice_ptt_toggle)
 

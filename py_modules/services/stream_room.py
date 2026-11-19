@@ -647,7 +647,7 @@ class GuestStream:
             self._debug("stream: capped at the host's %sx%s", width, height)
         return width, height
 
-    def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
+    def launch_options(self, width: int, height: int, slow: bool, watch: bool, overlay: bool = False) -> str:
         screen = (width, height)
         top = uhd_top(height, self.host_size) if self.uhd else STREAM_HEIGHT_MAX
         width, height = self._picture(*screen, top)
@@ -671,6 +671,8 @@ class GuestStream:
                  "--no-quit-after", "--audio-on-host"]
         if self._online:
             parts += ["--packet-size", str(ONLINE_PACKET_SIZE)]
+        if overlay:
+            parts.append("--performance-overlay")
         inner = f"export XDG_CONFIG_HOME={shlex.quote(str(self._config))}; "
         if watch:
             inner += ("export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=0 "

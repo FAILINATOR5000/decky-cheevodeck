@@ -884,6 +884,8 @@ export type SettingsResponse = {
     mpShortcutFallback: boolean;
     mpVoicePushToTalk: boolean;
     mpStreamSlowConnection: boolean;
+    mpStreamFull4k: boolean;
+    mpStreamOverlay: boolean;
     mpChatToastsInGame: boolean;
     mpSteadyWifi: boolean;
     mpStreamShadersOff: boolean;

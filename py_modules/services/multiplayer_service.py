@@ -4006,6 +4006,12 @@ class MultiplayerService:
     def _slow_connection(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamSlowConnection", False))
 
+    def _full_4k(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpStreamFull4k", False))
+
+    def _stream_overlay(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpStreamOverlay", False))
+
     def stream_pad_swap(self) -> dict:
         room = self._room
         current = self._session
@@ -6451,9 +6457,12 @@ class MultiplayerService:
             stream.wait_turn(sum(1 for index, seat in enumerate(status["seats"])
                                  if 0 < index < joined["seat"] and seat["playing"]))
         width, _sep, height = screen.partition("x")
+        if stream.uhd and self._full_4k():
+            decky.logger.info("stream: full 4K asked for in place of a %s screen", screen or "unknown")
+            width, height = "3840", "2160"
         options = stream.launch_options(
             int(width) if width.isdigit() else 0, int(height) if height.isdigit() else 0,
-            self._slow_connection(), joined["row"]["watch"],
+            self._slow_connection(), joined["row"]["watch"], overlay=self._stream_overlay(),
         )
         sid = secrets.token_hex(8)
         rename = _status_title(local["title"], name)

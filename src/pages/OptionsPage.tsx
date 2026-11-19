@@ -252,6 +252,8 @@ type OptionsPageState = {
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
     trackedSetsKeepGamesFresh: boolean;
+    mpStreamFull4k: boolean;
+    mpStreamOverlay: boolean;
     trackedSetsRefreshMinutes: number;
     milestonesServiceEnabled: boolean;
     milestonesTickMinutes: number;
@@ -521,6 +523,8 @@ type OptionsPageActions = {
     onToggleTrackedSetsAutoCheck: (nextValue: boolean) => void | Promise<void>;
     onToggleTrackedSetsServiceEnabled: (nextValue: boolean) => void | Promise<void>;
     onToggleTrackedSetsKeepGamesFresh: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpStreamFull4k: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpStreamOverlay: (nextValue: boolean) => void | Promise<void>;
     onCycleTrackedSetsRefreshMinutes: () => void | Promise<void>;
     onToggleMilestonesServiceEnabled: (nextValue: boolean) => void | Promise<void>;
     onCycleMilestonesTickMinutes: () => void | Promise<void>;
@@ -3280,6 +3284,30 @@ function AdvancedTab(props: TabContentProps) {
                 label={t(state.language, "Comments Scroll Load-Ahead Distance")}
                 value={`${state.dynamicCommentsSentinelRootMargin}px`}
                 help={t(state.language, "help_dynamic_comments_sentinel_root_margin")}
+            />
+                </>
+            )}
+            {state.showDeveloperOptions && (
+                <>
+            <SectionTitle label={t(state.language, "Stream Play")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpStreamFull4k"
+                label={t(state.language, "Full 4K Stream")}
+                value={state.mpStreamFull4k}
+                onChange={actions.onToggleMpStreamFull4k}
+                disabled={disabled}
+                help={t(state.language, "help_mp_stream_full_4k")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpStreamOverlay"
+                label={t(state.language, "Performance Overlay")}
+                value={state.mpStreamOverlay}
+                onChange={actions.onToggleMpStreamOverlay}
+                disabled={disabled}
+                help={t(state.language, "help_mp_stream_overlay")}
+                separator
             />
                 </>
             )}

@@ -49,6 +49,8 @@ import {
     saveTrackedSetsAutoCheck,
     saveTrackedSetsServiceEnabled,
     saveTrackedSetsKeepGamesFresh,
+    saveMpStreamFull4k,
+    saveMpStreamOverlay,
     saveDebugLogging,
     saveAlwaysStaggerMounting,
     saveAutoRefresh,
@@ -425,6 +427,8 @@ type UseOptionsControllerArgs = {
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
     trackedSetsKeepGamesFresh: boolean;
+    mpStreamFull4k: boolean;
+    mpStreamOverlay: boolean;
     debugLogging: boolean;
     notifyDebugEnabled: boolean;
     notifyDebugToast: boolean;
@@ -720,6 +724,8 @@ type UseOptionsControllerArgs = {
     setTrackedSetsAutoCheck: Dispatch<SetStateAction<boolean>>;
     setTrackedSetsServiceEnabled: Dispatch<SetStateAction<boolean>>;
     setTrackedSetsKeepGamesFresh: Dispatch<SetStateAction<boolean>>;
+    setMpStreamFull4k: Dispatch<SetStateAction<boolean>>;
+    setMpStreamOverlay: Dispatch<SetStateAction<boolean>>;
     setDebugLogging: Dispatch<SetStateAction<boolean>>;
     setNotifyDebugEnabled: Dispatch<SetStateAction<boolean>>;
     setNotifyDebugToast: Dispatch<SetStateAction<boolean>>;
@@ -923,6 +929,8 @@ export function buildOptionsController({
     trackedSetsAutoCheck,
     trackedSetsServiceEnabled,
     trackedSetsKeepGamesFresh,
+    mpStreamFull4k,
+    mpStreamOverlay,
     debugLogging,
     notifyDebugEnabled,
     notifyDebugToast,
@@ -1218,6 +1226,8 @@ export function buildOptionsController({
     setTrackedSetsAutoCheck,
     setTrackedSetsServiceEnabled,
     setTrackedSetsKeepGamesFresh,
+    setMpStreamFull4k,
+    setMpStreamOverlay,
     setDebugLogging,
     setNotifyDebugEnabled,
     setNotifyDebugToast,
@@ -1488,6 +1498,8 @@ export function buildOptionsController({
         setTrackedSetsAutoCheck(Boolean(result.trackedSetsAutoCheck ?? true));
         setTrackedSetsServiceEnabled(Boolean(result.trackedSetsServiceEnabled ?? true));
         setTrackedSetsKeepGamesFresh(Boolean(result.trackedSetsKeepGamesFresh ?? false));
+        setMpStreamFull4k(Boolean(result.mpStreamFull4k ?? false));
+        setMpStreamOverlay(Boolean(result.mpStreamOverlay ?? false));
         setDebugLogging(Boolean(result.debugLogging ?? false));
         setNotifyDebugEnabled(Boolean(result.notifyDebugEnabled ?? false));
         setNotifyDebugToast(Boolean(result.notifyDebugToast ?? false));
@@ -2067,6 +2079,24 @@ export function buildOptionsController({
             applyValue: setTrackedSetsKeepGamesFresh,
             saveCall: saveTrackedSetsKeepGamesFresh,
             getSavedValue: (result, fallbackValue) => Boolean(result.trackedSetsKeepGamesFresh ?? fallbackValue),
+        });
+
+    const onToggleMpStreamFull4k = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: mpStreamFull4k,
+            applyValue: setMpStreamFull4k,
+            saveCall: saveMpStreamFull4k,
+            getSavedValue: (result, fallbackValue) => Boolean(result.mpStreamFull4k ?? fallbackValue),
+        });
+
+    const onToggleMpStreamOverlay = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: mpStreamOverlay,
+            applyValue: setMpStreamOverlay,
+            saveCall: saveMpStreamOverlay,
+            getSavedValue: (result, fallbackValue) => Boolean(result.mpStreamOverlay ?? fallbackValue),
         });
 
     const onCycleTrackedSetsRefreshMinutes = () => {
@@ -4005,6 +4035,8 @@ export function buildOptionsController({
         trackedSetsAutoCheck,
         trackedSetsServiceEnabled,
         trackedSetsKeepGamesFresh,
+        mpStreamFull4k,
+        mpStreamOverlay,
         debugLogging,
         notifyDebugEnabled,
         notifyDebugToast,
@@ -4268,6 +4300,8 @@ export function buildOptionsController({
         onToggleTrackedSetsAutoCheck,
         onToggleTrackedSetsServiceEnabled,
         onToggleTrackedSetsKeepGamesFresh,
+        onToggleMpStreamFull4k,
+        onToggleMpStreamOverlay,
         onToggleDebugLogging,
         onToggleNotifyDebugEnabled,
         onToggleNotifyDebugToast,

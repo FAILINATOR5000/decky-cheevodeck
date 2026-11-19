@@ -478,6 +478,8 @@ _KNOBS = (
     Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
     Knob("mpStreamSlowConnection", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpStreamFull4k", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpStreamOverlay", default=False, normalize=True, read=READ_BOOL),
     Knob("mpChatToastsInGame", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSteadyWifi", default=True, normalize=True, read=READ_BOOL),
     Knob("mpStreamShadersOff", default=True, normalize=True, read=READ_BOOL),
@@ -2407,6 +2409,14 @@ class SettingsStore:
     def update_mp_stream_slow_connection(self, value: bool) -> bool:
         cfg = self._update_config("mpStreamSlowConnection", bool(value))
         return bool(cfg.get("mpStreamSlowConnection", False))
+
+    def update_mp_stream_full_4k(self, value: bool) -> bool:
+        cfg = self._update_config("mpStreamFull4k", bool(value))
+        return bool(cfg.get("mpStreamFull4k", False))
+
+    def update_mp_stream_overlay(self, value: bool) -> bool:
+        cfg = self._update_config("mpStreamOverlay", bool(value))
+        return bool(cfg.get("mpStreamOverlay", False))
 
     def update_mp_chat_toasts_in_game(self, value: bool) -> bool:
         cfg = self._update_config("mpChatToastsInGame", bool(value))

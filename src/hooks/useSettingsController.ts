@@ -177,6 +177,8 @@ export function useSettingsController({
     const [trackedSetsAutoCheck, setTrackedSetsAutoCheck] = useState(true);
     const [trackedSetsServiceEnabled, setTrackedSetsServiceEnabled] = useState(true);
     const [trackedSetsKeepGamesFresh, setTrackedSetsKeepGamesFresh] = useState(false);
+    const [mpStreamFull4k, setMpStreamFull4k] = useState(false);
+    const [mpStreamOverlay, setMpStreamOverlay] = useState(false);
     const [trackedSetsRefreshMinutes, setTrackedSetsRefreshMinutes] = useState(15);
     const [milestonesServiceEnabled, setMilestonesServiceEnabled] = useState(true);
     const [milestonesTickMinutes, setMilestonesTickMinutes] = useState(60);
@@ -481,6 +483,8 @@ export function useSettingsController({
         setTrackedSetsAutoCheck(source.trackedSetsAutoCheck);
         setTrackedSetsServiceEnabled(source.trackedSetsServiceEnabled);
         setTrackedSetsKeepGamesFresh(source.trackedSetsKeepGamesFresh);
+        setMpStreamFull4k(source.mpStreamFull4k);
+        setMpStreamOverlay(source.mpStreamOverlay);
         setTrackedSetsRefreshMinutes(source.trackedSetsRefreshMinutes);
         setMilestonesServiceEnabled(source.milestonesServiceEnabled);
         setMilestonesTickMinutes(source.milestonesTickMinutes);
@@ -777,6 +781,8 @@ export function useSettingsController({
         trackedSetsAutoCheck,
         trackedSetsServiceEnabled,
         trackedSetsKeepGamesFresh,
+        mpStreamFull4k,
+        mpStreamOverlay,
         trackedSetsRefreshMinutes,
         milestonesServiceEnabled,
         milestonesTickMinutes,
@@ -1042,6 +1048,8 @@ export function useSettingsController({
         setTrackedSetsAutoCheck,
         setTrackedSetsServiceEnabled,
         setTrackedSetsKeepGamesFresh,
+        setMpStreamFull4k,
+        setMpStreamOverlay,
         setTrackedSetsRefreshMinutes,
         setMilestonesServiceEnabled,
         setMilestonesTickMinutes,

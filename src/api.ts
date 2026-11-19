@@ -983,6 +983,12 @@ export const saveMpStreamShadersOff = callable<[boolean], { ok: boolean; mpStrea
 export const saveMpStreamSlowConnection = callable<[boolean], { ok: boolean; mpStreamSlowConnection: boolean }>(
     "save_mp_stream_slow_connection"
 );
+export const saveMpStreamFull4k = callable<[boolean], { ok: boolean; mpStreamFull4k: boolean }>(
+    "save_mp_stream_full_4k"
+);
+export const saveMpStreamOverlay = callable<[boolean], { ok: boolean; mpStreamOverlay: boolean }>(
+    "save_mp_stream_overlay"
+);
 export const saveMpStreamScreenWarningOff = callable<[boolean], { ok: boolean; mpStreamScreenWarningOff: boolean }>(
     "save_mp_stream_screen_warning_off"
 );
