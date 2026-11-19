@@ -117,7 +117,7 @@ The room's **Stream Options** tab has **Update Streaming Tools** and **Remove St
 
 ### Hosting
 
-Stream Play works with any system that has local multiplayer and without multiplayer (for viewing), except PSP and DS, since those need one console per player. Your guests' controllers show up as extra controllers on your device, so the game sees them just like players 2, 3 and 4 plugged in next to you. In PCSX2 and DuckStation, Player 2 has to be set to a controller, and the page tells you if it isn't.
+Stream Play works with any system that has local multiplayer and without multiplayer (for viewing). PSP and DS games stream too, but guests can only watch, since those systems need one console per player. Your guests' controllers show up as extra controllers on your device, so the game sees them just like players 2, 3 and 4 plugged in next to you. In PCSX2 and DuckStation, Player 2 has to be set to a controller, and the page tells you if it isn't.
 
 When you host an online room, CheevoDeck checks your upload speed first, and that decides how good the picture looks for guests joining over the internet. Each guest takes a share of it, so once it's used up, the next person who presses **Join & Play** is told your connection is too slow. The first guest always gets in, even on a slow connection, just with a softer picture. Guests on the same Wi-Fi as you don't eat into it.
 

@@ -3395,7 +3395,6 @@ export type MultiplayerGame = {
     launchable: boolean;
     canLink: boolean;
     canCouch: boolean;
-    canStream: boolean;
 };
 
 export type MultiplayerRestoreRecord = {

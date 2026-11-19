@@ -3334,7 +3334,6 @@ const JA: LocaleTable = {
     "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "相手がゲームを持っていなくても一緒に遊べます。実績を獲得できるのはあなただけです。ホストするには高速なインターネットが必要です。",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).": "Stream Play には Sunshine と Moonlight が必要です。下の「ストリーミングを設定」を押してインストールしてください（約 {{size}}）。",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them.": "Stream Play には Sunshine と Moonlight が必要です。下の「ストリーミングを設定」を押してインストールしてください。",
-    "Stream Play isn't available for this system: its multiplayer needs one console per player.": "このシステムではストリームプレイを使えません。マルチプレイにはプレイヤーごとに本体が1台必要です。",
     "Slow Connection": "低速回線",
     "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.": "低速なインターネット回線向けに、あなたのストリームの画質を半分にします。参加するルームにのみ適用されます。",
     "Stream Bitrate: {{rate}}": "ストリームのビットレート: {{rate}}",

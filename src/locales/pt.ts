@@ -3500,7 +3500,6 @@ const PT: LocaleTable = {
     "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "Jogue seu jogo com qualquer pessoa, mesmo que ela não o tenha. Só você ganha conquistas. Hospedar exige internet rápida.",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).": "O Stream Play precisa do Sunshine e do Moonlight. Pressione Configurar streaming abaixo para instalá-los (cerca de {{size}}).",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them.": "O Stream Play precisa do Sunshine e do Moonlight. Pressione Configurar streaming abaixo para instalá-los.",
-    "Stream Play isn't available for this system: its multiplayer needs one console per player.": "O jogo por streaming não está disponível para este sistema: o multijogador dele precisa de um console por jogador.",
     "Slow Connection": "Conexão lenta",
     "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.": "Reduz pela metade a qualidade da sua transmissão, para uma conexão lenta. Vale só para salas em que você entra.",
     "Stream Bitrate: {{rate}}": "Taxa de bits da transmissão: {{rate}}",

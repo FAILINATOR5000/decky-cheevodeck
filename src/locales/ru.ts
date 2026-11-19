@@ -3548,7 +3548,6 @@ const RU: LocaleTable = {
     "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "Играйте в свою игру с кем угодно, даже если у них её нет. Достижения получаете только вы. Для хостинга нужен быстрый интернет.",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).": "Для Stream Play нужны Sunshine и Moonlight. Нажмите «Настроить стриминг» ниже, чтобы установить их (около {{size}}).",
     "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them.": "Для Stream Play нужны Sunshine и Moonlight. Нажмите «Настроить стриминг» ниже, чтобы установить их.",
-    "Stream Play isn't available for this system: its multiplayer needs one console per player.": "Игра по трансляции недоступна для этой системы: для её мультиплеера нужна отдельная консоль у каждого игрока.",
     "Slow Connection": "Медленное соединение",
     "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.": "Вдвое снижает качество вашей трансляции для медленного интернет-соединения. Действует только на комнаты, к которым вы присоединяетесь.",
     "Stream Bitrate: {{rate}}": "Битрейт трансляции: {{rate}}",

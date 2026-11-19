@@ -265,7 +265,6 @@ GUEST_SLOT = ("name=Xbox One controller", f"VID={SUNSHINE_PAD[0]}", f"PID={SUNSH
 TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play", "port1": "the multitap on port 1",
              "port2": "the multitap on port 2"}
 PORT_TWO_GAMES = {6294}
-STREAM_ONE_CONSOLE = (session.PSP_SYSTEM, session.DS_SYSTEM, 78)
 STREAM_EMULATOR_NAMES = {
     "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
     "pcsx2": "PCSX2", "melonds": "melonDS",
@@ -1548,7 +1547,6 @@ class MultiplayerService:
                 "launchable": launchable,
                 "canLink": can_link,
                 "canCouch": can_couch,
-                "canStream": system_id not in STREAM_ONE_CONSOLE,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
@@ -2213,8 +2211,6 @@ class MultiplayerService:
         if game is None:
             return None, "not_in_results", {}
         system_id = game["systemId"]
-        if system_id in STREAM_ONE_CONSOLE:
-            return None, "stream_one_console", {}
         route, gate, detail = self._play_route(game_id, self._fallback_on(), session_pick=True)
         if route is None:
             return None, gate, detail
