@@ -61,7 +61,7 @@ export type FixRun = {
     next: FixAnswer | null;
 };
 
-type FixPlanStore = { run: FixRun | null; finished: number };
+type FixPlanStore = { run: FixRun | null; finished: number; onPage: boolean };
 
 const MODE_NAMES: Record<MultiplayerMode, string> = {
     link: "Link Play",
@@ -75,7 +75,7 @@ export const RUN_SETTLE_MS = 700;
 
 export const HOST_GATES = ["no_scan", "not_in_results", "rom_missing", "no_shortcut", "no_emulator_shortcut"];
 
-let store: FixPlanStore = { run: null, finished: 0 };
+let store: FixPlanStore = { run: null, finished: 0, onPage: false };
 let windowsOpen = 0;
 let pageShown = false;
 let reopenWindow: (() => void) | null = null;
@@ -402,7 +402,7 @@ function rows(steps: FixStep[]): FixRunStep[] {
 
 function finish(language: LanguageCode, change: Partial<FixRun>) {
     const run: FixRun = { ...store.run!, running: false, ...change };
-    publish({ run, finished: store.finished + 1 });
+    publish({ run, finished: store.finished + 1, onPage: windowsOpen === 0 && pageShown && !quickAccessIsHidden() });
     announce(language, run, !run.failed && run.next?.state === "ready");
 }
 

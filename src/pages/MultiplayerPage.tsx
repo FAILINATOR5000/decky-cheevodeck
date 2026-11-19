@@ -289,7 +289,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }, [visible]);
 
     useEffect(() => {
-        if (!fixRun?.done || fixPlan.finished === fixDoneShownFor) {
+        if (!fixRun?.done || !fixPlan.onPage || fixPlan.finished === fixDoneShownFor) {
             return;
         }
         fixDoneShownFor = fixPlan.finished;
