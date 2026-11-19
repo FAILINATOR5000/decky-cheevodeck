@@ -125,9 +125,9 @@ async def _list_rooms(server, ulid: str, page, census) -> dict:
                 if isinstance(cursor, str) and 0 < len(cursor) <= CURSOR_CHARS:
                     more = cursor
             break
-        if total is not None:
-            rooms = rooms[:PAGE_ROOMS]
-        return {"rooms": rooms, "ids": ids[:CENSUS_IDS_MAX], "total": total, "next": more}
+        if total is None:
+            raise FrameError("the lobby's list had no total")
+        return {"rooms": rooms[:PAGE_ROOMS], "ids": ids[:CENSUS_IDS_MAX], "total": total, "next": more}
     finally:
         writer.close()
 

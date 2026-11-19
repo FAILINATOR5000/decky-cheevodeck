@@ -1690,8 +1690,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
     const vote = hosted?.vote ?? joined?.status?.vote ?? null;
     const lounge = hosted?.lounge ?? joined?.status?.lounge ?? null;
-    const shownLoungeGame = lounge?.[loungeGame] ? loungeGame
-        : (["ttt", "c4", "rev", "chk"] as const).find((game) => lounge?.[game]) ?? null;
+    const shownLoungeGame = lounge ? loungeGame : null;
     function explainTab(tab: MultiplayerRoomTab) {
         const text = tab === "audio"
             ? t(language, "Voice chat is off in this room. The host can turn it on in the Room tab.")

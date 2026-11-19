@@ -11,7 +11,7 @@ from nearby_protocol import canonical, is_device_id, is_nonce, is_tag, sign, ver
 PORT = 49732
 
 KIND = "cheevodeck.play"
-VERSION = 4
+VERSION = 5
 
 MAX_FRAME_BYTES = 16384
 
@@ -310,12 +310,12 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "hostState": room["hostState"],
         "hardcore": room["hardcore"],
         "private": room["private"],
-        "friends": room.get("friends", False),
-        "owner": room.get("owner", ""),
+        "friends": room["friends"],
+        "owner": room["owner"],
         "share": room["share"],
-        "watch": room.get("watch", False),
-        "voice": room.get("voice", False),
-        "steadyWifi": room.get("steadyWifi", True),
+        "watch": room["watch"],
+        "voice": room["voice"],
+        "steadyWifi": room["steadyWifi"],
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
                   for index, seat in enumerate(room["seats"])],
         "max": room["max"],
@@ -419,7 +419,7 @@ def _room_fields(message):
         "share": message["share"],
         "watch": message.get("watch") is True,
         "voice": message.get("voice") is True,
-        "steadyWifi": message.get("steadyWifi") is not False,
+        "steadyWifi": message.get("steadyWifi") is True,
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
         "max": count,
         "state": message["state"],
@@ -531,7 +531,7 @@ def read_tagged(message):
         or not 1 <= seat < MAX_SEATS
         or not is_nonce(nonce)
         or type(stamp) is not int
-        or not isinstance(message.get("p", {}), dict)
+        or not isinstance(message.get("p"), dict)
         or not is_tag(message.get("t"))
     ):
         return None
@@ -543,7 +543,7 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
         return False
     return verify(
         key, message["t"], message["op"], message["room"], str(message["seat"]), message["n"], str(message["ts"]),
-        canonical(message.get("p", {})),
+        canonical(message["p"]),
     )
 
 
@@ -657,8 +657,11 @@ def read_status_reply(key: bytes, message, nonce: str):
         or not all(isinstance(entry, dict) for entry in message["ids"])
         or not isinstance(message.get("inbox"), list)
         or len(message["inbox"]) > INBOX_MAX
-        or not isinstance(message.get("voice", []), list)
-        or len(message.get("voice", [])) > VOICE_INBOX_MAX
+        or not isinstance(message.get("voice"), list)
+        or len(message["voice"]) > VOICE_INBOX_MAX
+        or type(message.get("chatTop")) is not int
+        or not 0 <= message["chatTop"] < 2 ** 31
+        or lounge is None
     ):
         return None
     return {
@@ -685,7 +688,7 @@ def read_status_reply(key: bytes, message, nonce: str):
                  "rank": clean_rank(entry.get("rank"))}
                 for entry in message["ids"]],
         "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
-        "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],
+        "voice": [item for item in (read_voice_item(raw) for raw in message["voice"]) if item is not None],
         "turn": read_turn(message.get("turn")),
         "vote": vote,
         "lounge": lounge,
@@ -693,7 +696,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "pipe": read_pipe(message.get("pipe")),
         "rmg": message["rmg"] if type(message.get("rmg")) is int and 0 < message["rmg"] < 2 ** 31 else 0,
         "uhd": message.get("uhd") is True,
-        "chatTop": message["chatTop"] if type(message.get("chatTop")) is int and 0 <= message["chatTop"] < 2 ** 31 else -1,
+        "chatTop": message["chatTop"],
     }
 
 
@@ -768,13 +771,12 @@ def read_stream(raw):
     for name in ("pin", "token"):
         if raw.get(name) != "" and (not isinstance(raw.get(name), str) or _HEX64.fullmatch(raw[name]) is None):
             return None
-    occupant = raw.get("occ", "")
-    if not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None:
+    occupant, low, ceiling = raw.get("occ"), raw.get("low"), raw.get("max")
+    if (not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None or type(low) is not bool
+            or type(ceiling) is not int or not 0 <= ceiling <= 100000):
         return None
-    low, ceiling = raw.get("low", False), raw.get("max", 0)
     return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
-            "low": low is True, "max": ceiling if type(ceiling) is int and 0 <= ceiling <= 100000 else 0,
-            "uhd": raw.get("uhd") is True, "hs": _host_size(raw.get("hs"))}
+            "low": low, "max": ceiling, "uhd": raw.get("uhd") is True, "hs": _host_size(raw.get("hs"))}
 
 
 def _host_size(raw):
@@ -1020,24 +1022,27 @@ def _lounge_board(raw, pattern, players_most: int, cells: int, line_most: int = 
 
 def read_lounge(raw):
     if not isinstance(raw, dict):
-        return {}
-    lounge = {}
+        return None
     ttt = _lounge_board(raw.get("ttt"), _TTT_BOARD, 2, 9)
-    if ttt is not None:
-        lounge["ttt"] = ttt
     c4 = _lounge_board(raw.get("c4"), _C4_BOARD, 4, 42)
-    if c4 is not None and type(raw["c4"].get("started")) is bool:
-        c4["started"] = raw["c4"]["started"]
-        lounge["c4"] = c4
     rev = _lounge_board(raw.get("rev"), _REV_BOARD, 2, 64)
-    if rev is not None and type(raw["rev"].get("started")) is bool and _small_int(raw["rev"].get("passed"), -1, 1):
-        rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
-        lounge["rev"] = rev
     chk = _lounge_board(raw.get("chk"), _CHK_BOARD, 2, 64, _CHK_LINE)
-    if chk is not None and type(raw["chk"].get("started")) is bool and _small_int(raw["chk"].get("chain"), -1, 63):
-        chk.update(started=raw["chk"]["started"], chain=raw["chk"]["chain"])
-        lounge["chk"] = chk
-    return lounge
+    if (
+        ttt is None
+        or c4 is None
+        or type(raw["c4"].get("started")) is not bool
+        or rev is None
+        or type(raw["rev"].get("started")) is not bool
+        or not _small_int(raw["rev"].get("passed"), -1, 1)
+        or chk is None
+        or type(raw["chk"].get("started")) is not bool
+        or not _small_int(raw["chk"].get("chain"), -1, 63)
+    ):
+        return None
+    c4["started"] = raw["c4"]["started"]
+    rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
+    chk.update(started=raw["chk"]["started"], chain=raw["chk"]["chain"])
+    return {"ttt": ttt, "c4": c4, "rev": rev, "chk": chk}
 
 
 def read_vote_press(raw):
@@ -1050,8 +1055,8 @@ def read_vote_press(raw):
 def read_lounge_press(raw):
     if not isinstance(raw, dict) or raw.get("game") not in LOUNGE_GAMES or raw.get("act") not in LOUNGE_ACTS:
         return None
-    cell = raw.get("cell", 0)
-    to = raw.get("to", 0)
+    cell = raw.get("cell")
+    to = raw.get("to")
     if not _small_int(cell, 0, _LOUNGE_CELLS[raw["game"]] - 1) or not _small_int(to, 0, 63):
         return None
     return raw["game"], raw["act"], cell, to

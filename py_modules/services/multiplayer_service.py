@@ -479,7 +479,6 @@ class MultiplayerService:
         self._online = {}
         self._online_error = ""
         self._prefer_server = False
-        self._paged = None
         self._page = NO_PAGE
         self._page_info = NO_PAGE_INFO
         self._page_gen = 0
@@ -4319,7 +4318,7 @@ class MultiplayerService:
             current["steadyWifi"] = room["steadyWifi"]
         elif joined is not None and not joined["launched"]:
             status = joined["status"]
-            current["steadyWifi"] = (status["room"] if status is not None else joined["row"]).get("steadyWifi", True)
+            current["steadyWifi"] = (status["room"] if status is not None else joined["row"])["steadyWifi"]
         self._write_round_state(current)
         current["watch"] = self._spawn(self._watch(current))
         game_id = current.get("gameId", 0)
@@ -4340,7 +4339,7 @@ class MultiplayerService:
                 joined["launchedRound"] = status["round"]
             if status is not None and joined["countedRound"] != status["round"]:
                 joined["countedRound"] = status["round"]
-                watching = joined["row"].get("watch", False) and (
+                watching = joined["row"]["watch"] and (
                     current["mode"] == "stream" or (current["mode"] == "couch" and current["emulator"] == "retroarch"))
                 self._count_round(current["mode"], sum(1 for name in status["members"] if name) > 1,
                                   all(status["members"]), watching)
@@ -5303,8 +5302,6 @@ class MultiplayerService:
         elif self._listing is None or self._listing.done():
             if find:
                 self._listing = self._spawn(self._list_online(server, "find", find))
-            elif self._paged != server:
-                self._listing = self._spawn(self._list_online(server, "page"))
             elif not self._online or self._round - self._page_round >= PAGE_RENEW_ROUNDS:
                 self._listing = self._spawn(self._list_online(server, "renew"))
         found = await self._seek()
@@ -5332,8 +5329,7 @@ class MultiplayerService:
             if listing is not None:
                 await asyncio.wait({listing}, timeout=SEEK_SECONDS)
                 online = list(self._online.values())
-                if listing.done() and self._page_info["total"] is not None and online \
-                        and self._room is None and self._joined is None:
+                if listing.done() and online and self._room is None and self._joined is None:
                     await asyncio.to_thread(self._verdicts, online)
             found = await seeking
             self._round += 1
@@ -5424,46 +5420,41 @@ class MultiplayerService:
             return
         if generation != self._page_gen:
             return
-        if listing["heard"]:
-            self._paged = server if listing["total"] is not None else None
         online = {}
         for body, away in listing["rooms"]:
             row = proto.read_room(body)
             if row is not None and row["where"] == "online":
                 row.update(address="", door="server", away=away)
                 online[row["room"]] = row
-        paged = listing["total"] is not None
-        if mode == "find" and paged:
+        if mode == "find":
             self._online.update(online)
-        elif mode == "renew" and paged and self._online:
+        elif mode == "renew" and self._online:
             for room_id in self._online:
                 if room_id in online:
                     self._online[room_id] = online[room_id]
         else:
             self._online = online
             self._page_info = {"total": listing["total"], "next": listing["next"],
-                               "checkHere": listing.get("checkHere", False)} if paged else NO_PAGE_INFO
+                               "checkHere": listing.get("checkHere", False)}
         self._online_error = ""
 
     async def _page_listing(self, server, page: dict, find: str) -> dict:
         ulid = self._identity()[0]
         if find:
-            return {"heard": True, **await lobby_client.list_rooms(server, ulid, page={"size": 1, "room": find})}
+            return {**await lobby_client.list_rooms(server, ulid, page={"size": 1, "room": find})}
         if page["where"] == "local":
-            return {"heard": False, "rooms": [], "ids": [], "total": 0, "next": None}
+            return {"rooms": [], "ids": [], "total": 0, "next": None}
         games = None
         if page["mine"]:
             census = await lobby_client.list_rooms(server, ulid, census=_wire_filters(page))
-            if census["total"] is None:
-                return {"heard": True, **census}
             if census["total"] == 0:
-                return {"heard": True, "rooms": [], "ids": [], "total": 0, "next": None}
+                return {"rooms": [], "ids": [], "total": 0, "next": None}
             have = await asyncio.to_thread(self._game_ids)
             games = sorted(set(census["ids"]) & have)
             if len(",".join(str(game) for game in games)) > GAMES_BYTES_MAX:
                 listing = await lobby_client.list_rooms(server, ulid, page=_wire_page(page, None))
-                return {"heard": True, **listing, "checkHere": True}
-        return {"heard": True, **await lobby_client.list_rooms(server, ulid, page=_wire_page(page, games))}
+                return {**listing, "checkHere": True}
+        return {**await lobby_client.list_rooms(server, ulid, page=_wire_page(page, games))}
 
     def _game_ids(self) -> set:
         return set(self._library() or {})
@@ -5496,11 +5487,8 @@ class MultiplayerService:
                 if not row["friends"] or self._friend_pair(row["owner"]) is not None]
         local = sorted((row for row in rows if row["door"] != "server"), key=lambda row: (row["user"].lower(), row["room"]))
         online = [row for row in rows if row["door"] == "server"]
-        if self._page_info["total"] is not None:
-            order = {room_id: index for index, room_id in enumerate(self._online)}
-            online.sort(key=lambda row: order.get(row["room"], len(order)))
-        else:
-            online.sort(key=lambda row: (row["user"].lower(), row["room"]))
+        order = {room_id: index for index, room_id in enumerate(self._online)}
+        online.sort(key=lambda row: order.get(row["room"], len(order)))
         return local + online
 
     async def lookup(self, address: str) -> dict:
@@ -5699,12 +5687,12 @@ class MultiplayerService:
             or not 1 <= seat < proto.MAX_SEATS
             or not proto.is_ipv4(address)
             or not proto.is_ipv4(own)
+            or type(answer.get("now")) is not int
             or not verify(key, answer.get("t"), "joined", nc, ns, str(seat), address, ga, gb)
         ):
             return {"ok": False, "error": ERROR_HOST_GONE}
         shared = await asyncio.to_thread(proto.dh_shared, private, other)
-        host_now = answer.get("now")
-        skew = host_now - int(time.time()) if type(host_now) is int else 0
+        skew = answer["now"] - int(time.time())
         if abs(skew) > SKEW_LOG_SECONDS:
             decky.logger.info("multiplayer: this device's clock is %s s off the host's, following the host's", skew)
         return {"ok": True, "seat": seat, "ip": address, "ownIp": own, "key": proto.seat_key(key, nc, ns, shared),
@@ -5864,7 +5852,7 @@ class MultiplayerService:
             if joined["games"] is not None:
                 joined["fastUntil"] = max(joined["fastUntil"], time.monotonic() + GAMES_FAST_SECONDS)
             joined["games"] = games
-        if joined["chatBacklog"] < 0 and status["chatTop"] >= 0:
+        if joined["chatBacklog"] < 0:
             joined["chatBacklog"] = status["chatTop"]
         fresh = [entry for entry in status["chat"] if entry["seq"] > joined["chatSince"]]
         if fresh:
@@ -6228,7 +6216,7 @@ class MultiplayerService:
             own_ip = joined["ownIp"]
             hardcore = status["hardcore"] if mode == "couch" else joined["hardcore"]
             share = joined["row"]["share"]
-            watch = joined["row"].get("watch", False)
+            watch = joined["row"]["watch"]
             check_frames = session.DEFAULT_CHECK_FRAMES
             adapter = status.get("adapter", "")
             players = status["players"]
@@ -6459,7 +6447,7 @@ class MultiplayerService:
         width, _sep, height = screen.partition("x")
         options = stream.launch_options(
             int(width) if width.isdigit() else 0, int(height) if height.isdigit() else 0,
-            self._slow_connection(), bool(joined["row"].get("watch")),
+            self._slow_connection(), joined["row"]["watch"],
         )
         sid = secrets.token_hex(8)
         rename = _status_title(local["title"], name)

@@ -62,7 +62,7 @@ let seq = -1;
 let pressed: boolean | null = null;
 let seatedAt = 0;
 
-const CHAT_SETTLE_MS = 5000;
+const SETTLE_MS = 5000;
 const CHAT_TOAST_MS = 6000;
 const listeners = new Set<() => void>();
 let chatToastsInGame = true;
@@ -223,7 +223,7 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
         return;
     }
     const own = after.role === "host" ? after.host : after.seats[after.seat]?.name ?? "";
-    const old = after.chatBacklog >= 0 ? line.seq <= after.chatBacklog : Date.now() - seatedAt < CHAT_SETTLE_MS;
+    const old = line.seq <= after.chatBacklog;
     const playing = Number(Router.MainRunningApp?.appid ?? 0) > 0;
     if (line.name === own || old || (playing && !chatToastsInGame)) {
         return;
@@ -245,7 +245,7 @@ function toast(titleKey: string, lineKey: string, vars: Record<string, string>) 
 
 function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     if (
-        before.role === null || before.role !== after.role || Date.now() - seatedAt < CHAT_SETTLE_MS
+        before.role === null || before.role !== after.role || Date.now() - seatedAt < SETTLE_MS
         || Number(Router.MainRunningApp?.appid ?? 0) > 0 || fixWindowOpen()
     ) {
         return;

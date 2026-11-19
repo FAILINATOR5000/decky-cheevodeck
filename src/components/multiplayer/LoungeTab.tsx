@@ -153,7 +153,7 @@ export function LoungeTab(props: {
     onGame: (game: MultiplayerLoungeGame) => void;
 }) {
     const { language, lounge, ownSeat, game } = props;
-    const board = lounge[game]!;
+    const board = lounge[game];
     const navRef = useRef(null) as NavAxisRef;
     const pressing = useRef(false);
     const [pending, setPending] = useState<Pending | null>(null);
@@ -481,7 +481,7 @@ export function LoungeTab(props: {
     return (
         <>
             {game === "chk" && <style>{CHK_STYLES}</style>}
-            {ROWS.map((row) => row.filter((entry) => lounge[entry])).filter((row) => row.length > 0).map((row, rowIndex) => (
+            {ROWS.map((row, rowIndex) => (
                 <Focusable
                     key={rowIndex}
                     flow-children="row"

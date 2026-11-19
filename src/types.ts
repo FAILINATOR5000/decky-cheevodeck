@@ -3027,10 +3027,10 @@ export type MultiplayerLoungeBoard = {
 };
 
 export type MultiplayerLounge = {
-    ttt?: MultiplayerLoungeBoard;
-    c4?: MultiplayerLoungeBoard & { started: boolean };
-    rev?: MultiplayerLoungeBoard & { started: boolean; passed: number };
-    chk?: MultiplayerLoungeBoard & { started: boolean; chain: number };
+    ttt: MultiplayerLoungeBoard;
+    c4: MultiplayerLoungeBoard & { started: boolean };
+    rev: MultiplayerLoungeBoard & { started: boolean; passed: number };
+    chk: MultiplayerLoungeBoard & { started: boolean; chain: number };
 };
 
 export type MultiplayerWhere = "local" | "online";
