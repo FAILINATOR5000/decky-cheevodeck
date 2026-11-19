@@ -5605,6 +5605,8 @@ class MultiplayerService:
                 return answer
             online = row["door"] == "server"
             meet = await asyncio.to_thread(stream_room.resolve_meet, self._lobby_server()) if online else None
+            output = await asyncio.to_thread(self._output_size)
+            big_screen = output is not None and output[1] > stream_room.STREAM_HEIGHT_MAX
             self._joined = {
                 "row": row,
                 "seat": answer["seat"],
@@ -5629,6 +5631,7 @@ class MultiplayerService:
                 "changed": self._emulators.changed if self._emulators is not None else 0,
                 "hardcore": bool(hardcore),
                 "uhd": self._accept_uhd(),
+                "bigScreen": big_screen,
                 "seq": 0,
                 "said": None,
                 "ready": False,
@@ -6154,6 +6157,7 @@ class MultiplayerService:
             "notice": joined["notice"],
             "hardcore": joined["hardcore"],
             "acceptUhd": joined["uhd"],
+            "bigScreen": joined["bigScreen"],
             "local": _local_view(joined["local"]) if joined["local"] is not None else None,
             "can": joined["can"],
             "reason": joined["reason"],
@@ -6481,6 +6485,7 @@ class MultiplayerService:
             stream.wait_turn(sum(1 for index, seat in enumerate(status["seats"])
                                  if 0 < index < joined["seat"] and seat["playing"]))
         size = self._stream_size("guest", screen) or (0, 0)
+        joined["bigScreen"] = size[1] > stream_room.STREAM_HEIGHT_MAX
         if stream.uhd and self._full_4k():
             self._debug("stream: full 4K asked for in place of a %sx%s screen", *size)
             size = (3840, 2160)

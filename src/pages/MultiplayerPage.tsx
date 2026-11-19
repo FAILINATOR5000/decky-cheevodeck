@@ -1756,7 +1756,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 onChange={(next) => void changeSlowConnection(next)}
                 help={t(language, "Halves your stream's quality, for a slow internet connection. Only affects rooms you join.")}
             />}
-            {joined?.status?.uhd && <ToggleRow
+            {(joined?.status?.uhd || joined?.bigScreen) && <ToggleRow
                 bottomSeparator="none"
                 controlled
                 label={t(language, "Accept 4K Stream")}
@@ -1765,7 +1765,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:toggle:acceptuhd"
                 focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:stream", ...roomKeys]}
                 onChange={actions.setStreamUhd}
-                help={t(language, "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.")}
+                help={t(language, "Lets a host that offers 4K stream to you above 1080p, up to your screen's size. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join. Recommended to keep off if your screen is less than 4K.")}
             />}
             {hosted && <ToggleRow
                 bottomSeparator="none"

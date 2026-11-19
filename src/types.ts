@@ -3218,6 +3218,7 @@ export type MultiplayerRoomStatus =
         notice: string;
         hardcore: boolean;
         acceptUhd?: boolean;
+        bigScreen?: boolean;
         local: MultiplayerLocal | null;
         can: boolean;
         reason: string;
