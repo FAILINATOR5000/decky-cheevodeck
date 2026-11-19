@@ -11,6 +11,7 @@ import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
+import { ModeSummaryCard } from "../components/multiplayer/ModeCompare";
 import { showFixIt, type FixItRequest } from "../components/multiplayer/FixItModal";
 import { FixRunLine } from "../components/multiplayer/FixRunLine";
 import { setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
@@ -1484,7 +1485,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
                 focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                onGamepadDirection={upIntoChart}
                 onClick={() => showMultiplayerProblem(language, "Before You Play",
                     noteCount > 0 ? [...warnings, ...tips] : t(language, "Nothing to note for this game."))}
             >
@@ -1994,13 +1994,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     streamNav={streamModeNav}
                                 />
                                 <PanelSectionRow>
-                                    <div style={bodyTextStyle()}>
-                                        {t(language, mp.mode === "link"
-                                            ? "Each device runs its own copy of the game."
-                                            : mp.mode === "stream"
-                                                ? "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host."
-                                                : "Everyone plays one shared game.")}
-                                    </div>
+                                    <ModeSummaryCard language={language} mode={mp.mode} onDirection={upIntoChart} />
                                 </PanelSectionRow>
                                 {problemLines.map((line) => (
                                     <PanelSectionRow key={line.text}>

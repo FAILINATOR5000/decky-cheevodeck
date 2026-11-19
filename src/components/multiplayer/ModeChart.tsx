@@ -15,7 +15,7 @@ export type ModeState = MultiplayerModeState["state"];
 const ORDER: MultiplayerMode[] = ["link", "couch", "stream"];
 const NAV_ENTER_MAINTAIN_Y = 3;
 
-const MODE_LABELS: Record<MultiplayerMode, string> = {
+export const MODE_LABELS: Record<MultiplayerMode, string> = {
     link: "Link Play",
     couch: "Couch Play",
     stream: "Stream Play"
