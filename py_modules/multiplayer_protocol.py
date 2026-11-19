@@ -68,6 +68,7 @@ _USER_MAX = 32
 _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
+_ADAPTERS = ("team", "4way", "port1", "port2")
 
 TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass", "voice", "vote", "lounge")
 
@@ -670,6 +671,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "start": message["start"],
         "port": message["port"],
         "players": message["players"],
+        "adapter": message.get("adapter") if message.get("adapter") in _ADAPTERS else "",
         "seats": [{"ready": seat["ready"], "can": seat["can"], "launched": seat["launched"],
                    "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX),
                    "seatState": seat["seatState"],
