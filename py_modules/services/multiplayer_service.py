@@ -3618,7 +3618,7 @@ class MultiplayerService:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and uhd is not None:
-            joined["uhd"] = bool(uhd)
+            joined["uhd"] = await asyncio.to_thread(self._settings_store.update_mp_stream_accept_uhd, bool(uhd))
             return {"ok": True, "acceptUhd": joined["uhd"]}
         if room is None and joined is not None and hardcore is not None:
             joined["hardcore"] = bool(hardcore)
@@ -4025,6 +4025,9 @@ class MultiplayerService:
 
     def _slow_connection(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamSlowConnection", False))
+
+    def _accept_uhd(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpStreamAcceptUhd", False))
 
     def _full_4k(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamFull4k", False))
@@ -5625,7 +5628,7 @@ class MultiplayerService:
                 "rowRev": 0,
                 "changed": self._emulators.changed if self._emulators is not None else 0,
                 "hardcore": bool(hardcore),
-                "uhd": False,
+                "uhd": self._accept_uhd(),
                 "seq": 0,
                 "said": None,
                 "ready": False,

@@ -3377,7 +3377,7 @@ const JA: LocaleTable = {
     "4K Support": "4K対応",
     "Lets guests stream above 1080p, up to 4K, when your screen and theirs allow it and they accept. Needs a fast connection. Only for this session.": "あなたと相手の画面が対応していて、ゲストが受け入れた場合、1080pを超えて最大4Kでストリームできるようにします。高速な回線が必要です。このセッションのみ有効です。",
     "Accept 4K Stream": "4Kストリームを受け入れる",
-    "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.": "ホストはこのセッションで最大4Kを提供しています。お使いのデバイスで高画質の4K動画をスムーズに再生できる場合はオンにしてください。ストリームがあなたの画面サイズを超えることはありません。",
+    "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.": "ホストは最大4Kを提供しています。お使いのデバイスで高画質の4K動画をスムーズに再生できる場合はオンにしてください。この設定は参加するルームで保持され、ストリームがあなたの画面サイズを超えることはありません。",
     "Update Streaming Tools": "ストリームツールを更新",
     "Updating Sunshine…": "Sunshine を更新中…",
     "Updating Moonlight…": "Moonlight を更新中…",

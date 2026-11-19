@@ -3519,7 +3519,7 @@ export const EN: LocaleTable = {
     "4K Support": "4K Support",
     "Lets guests stream above 1080p, up to 4K, when your screen and theirs allow it and they accept. Needs a fast connection. Only for this session.": "Lets guests stream above 1080p, up to 4K, when your screen and theirs allow it and they accept. Needs a fast connection. Only for this session.",
     "Accept 4K Stream": "Accept 4K Stream",
-    "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.": "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.",
+    "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.": "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.",
     "Update Streaming Tools": "Update Streaming Tools",
     "Updating Sunshine…": "Updating Sunshine…",
     "Updating Moonlight…": "Updating Moonlight…",

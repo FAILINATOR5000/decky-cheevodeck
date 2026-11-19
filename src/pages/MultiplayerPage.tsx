@@ -1765,7 +1765,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:toggle:acceptuhd"
                 focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:stream", ...roomKeys]}
                 onChange={actions.setStreamUhd}
-                help={t(language, "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.")}
+                help={t(language, "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.")}
             />}
             {hosted && <ToggleRow
                 bottomSeparator="none"

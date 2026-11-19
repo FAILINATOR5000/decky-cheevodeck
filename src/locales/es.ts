@@ -3554,7 +3554,7 @@ const ES: LocaleTable = {
     "4K Support": "Compatibilidad con 4K",
     "Lets guests stream above 1080p, up to 4K, when your screen and theirs allow it and they accept. Needs a fast connection. Only for this session.": "Permite que los invitados reciban el streaming por encima de 1080p, hasta 4K, cuando tu pantalla y la suya lo permitan y ellos acepten. Necesita una conexión rápida. Solo para esta sesión.",
     "Accept 4K Stream": "Aceptar streaming en 4K",
-    "The host offers up to 4K for this session. Turn this on if your device can play high-quality 4K video smoothly. Your stream never goes above your own screen's size.": "El anfitrión ofrece hasta 4K en esta sesión. Actívalo si tu dispositivo puede reproducir vídeo 4K de alta calidad con fluidez. Tu streaming nunca supera el tamaño de tu propia pantalla.",
+    "The host offers up to 4K. Turn this on if your device can play high-quality 4K video smoothly. It's remembered for the rooms you join, and your stream never goes above your own screen's size.": "El anfitrión ofrece hasta 4K. Actívalo si tu dispositivo puede reproducir vídeo 4K de alta calidad con fluidez. Se recuerda para las salas a las que te unas, y tu streaming nunca supera el tamaño de tu propia pantalla.",
     "Update Streaming Tools": "Actualizar herramientas de stream",
     "Updating Sunshine…": "Actualizando Sunshine…",
     "Updating Moonlight…": "Actualizando Moonlight…",
