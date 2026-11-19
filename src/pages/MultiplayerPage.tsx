@@ -100,7 +100,6 @@ import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { playMoveSound } from "../utils/navSound";
 import { ROOM_ENDED, gateText, problemText, roomGameWhy, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
-    achievementGreen,
     bodyTextStyle,
     errorRed,
     regularButtonSpacingStyle,
@@ -112,8 +111,6 @@ import {
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
-const FIX_DONE_MS = 4000;
-let fixDoneShownFor = 0;
 const DIR_UP = 9;
 
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -281,22 +278,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const fixPlan = useFixPlan();
     const gameFilePick = useGameFilePick().pick;
     const fixRun = fixPlan.run;
-    const [fixDoneShown, setFixDoneShown] = useState(false);
 
     useEffect(() => {
         setMultiplayerPageShown(visible);
         return () => setMultiplayerPageShown(false);
     }, [visible]);
-
-    useEffect(() => {
-        if (!fixRun?.done || !fixPlan.onPage || fixPlan.finished === fixDoneShownFor) {
-            return;
-        }
-        fixDoneShownFor = fixPlan.finished;
-        setFixDoneShown(true);
-        const timer = window.setTimeout(() => setFixDoneShown(false), FIX_DONE_MS);
-        return () => window.clearTimeout(timer);
-    }, [fixPlan.finished]);
     const landingWindows = useRef<LandingWindows | null>(null);
     const streamModeNav = useRef<any>(null);
     const [playFocused, setPlayFocused] = useState(false);
@@ -2047,11 +2033,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                                 </div>
                                             )}
                                         </div>
-                                    </PanelSectionRow>
-                                )}
-                                {fixDoneShown && fixHere?.done && !fixHere.running && fixHere.next?.state === "ready" && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: achievementGreen, opacity: 1 }}>{t(language, "Done")}</div>
                                     </PanelSectionRow>
                                 )}
                                 {needsSetup && installing && !fixRun?.running && (
