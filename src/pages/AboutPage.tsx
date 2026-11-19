@@ -419,7 +419,7 @@ function AboutPage(props: AboutPageProps) {
 
                     <div>
                         <div style={{ ...bodyTextStyle() }}>
-                            {t(state.language, "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.")}
+                            {t(state.language, "The Ko-fi, Patreon, Steam and Steam Deck marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
                             <AttributionLink url={CC0_LICENSE_URL} focusKey="about:license:cc0">

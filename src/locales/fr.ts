@@ -47,7 +47,7 @@ const FR: LocaleTable = {
     "Attributions": "Attributions",
     "Icons from Font Awesome Free, redrawn as inline SVG, under the CC BY 4.0 license.": "Icônes de Font Awesome Free, redessinées en SVG intégré, sous licence CC BY 4.0.",
     "View the CC BY 4.0 license": "Voir la licence CC BY 4.0",
-    "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "Les logos Ko-fi et Patreon proviennent de Simple Icons, redessinés en SVG en ligne, publiés sous CC0 1.0.",
+    "The Ko-fi, Patreon, Steam and Steam Deck marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "Les logos Ko-fi, Patreon, Steam et Steam Deck proviennent de Simple Icons, redessinés en SVG en ligne, publiés sous CC0 1.0.",
     "View the CC0 1.0 dedication": "Voir la dédicace CC0 1.0",
     "Two Welcome screen glyphs are from Material Design Icons by Google, redrawn as inline SVG, under the Apache License 2.0.": "Deux icônes de l'écran d'accueil viennent de Material Design Icons de Google, redessinées en SVG intégré, sous la licence Apache 2.0.",
     "View the Apache 2.0 license": "Voir la licence Apache 2.0",

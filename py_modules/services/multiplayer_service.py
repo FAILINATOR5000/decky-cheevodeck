@@ -110,6 +110,7 @@ PAGE_CHOICES = {
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
            "mine": False, "after": None}
 NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
+DEVICE_MODELS = {"Jupiter": "l", "Galileo": "o", "Fremont": "m"}
 ROOM_OPTION_KEYS = ("checkFrames", "share", "watch", "bitrate")
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
@@ -488,6 +489,7 @@ class MultiplayerService:
         self._poller = None
         self._tasks = set()
         self._swept = False
+        self._model = _device_model()
 
         self._session = None
         self._stopping = False
@@ -3437,7 +3439,7 @@ class MultiplayerService:
                 "steadyWifi": bool(steady_wifi),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
-                           "vstamp": 1}] + [None] * (seats - 1),
+                           "vstamp": 1, "model": self._model}] + [None] * (seats - 1),
                 "inboxSeq": 0,
                 "stampSeq": 1,
                 "voiceSeq": 0,
@@ -4131,11 +4133,12 @@ class MultiplayerService:
                 None if seat is None
                 else {"name": seat["name"], "launched": False, "ready": False, "can": not room["hostState"],
                       "seatState": room["hostState"], "title": room["title"],
-                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": self._rank()}
+                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": self._rank(),
+                      "model": seat["model"]}
                 if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_shown_ready(room, index, seat),
                       "can": seat["can"], "reason": seat["reason"], "seatState": seat["seatState"], "title": seat["title"],
-                      "ulid": seat["ulid"], "pic": seat["pic"], "rank": seat.get("rank"),
+                      "ulid": seat["ulid"], "pic": seat["pic"], "rank": seat.get("rank"), "model": seat["model"],
                       "st": room["streams"].seat_state(index) if room.get("streams") is not None else ""}
                 for index, seat in enumerate(room["seats"])
             ],
@@ -4495,6 +4498,7 @@ class MultiplayerService:
             "ulid": params["ulid"],
             "pic": params["pic"],
             "rank": params["rank"],
+            "model": params["model"],
             "ip": address,
             "key": proto.seat_key(key, nc, ns, proto.dh_shared(private, opened["ga"])),
             "inbox": [],
@@ -5067,6 +5071,7 @@ class MultiplayerService:
             "seat": index,
             "state": self._public_state(room),
             "members": [taken["name"] if taken else "" for taken in room["seats"]],
+            "models": "".join(taken["model"] if taken else "-" for taken in room["seats"]),
             "hardcore": room["hardcore"],
             "ip": seat["ip"],
             "chatTop": room["chatSeq"],
@@ -5550,6 +5555,7 @@ class MultiplayerService:
                 local["emuVersion"] if local else "",
                 self._device_id(),
                 *self._identity(),
+                self._model,
                 rank=self._rank(),
             )
             friend = ""
@@ -8050,6 +8056,14 @@ def _boot_clock() -> float:
         return time.clock_gettime(time.CLOCK_BOOTTIME)
     except (AttributeError, OSError):
         return time.monotonic()
+
+
+def _device_model() -> str:
+    try:
+        product = Path(session.PRODUCT_NAME).read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return "u"
+    return DEVICE_MODELS.get(product, "u")
 
 
 def _route_address() -> str:

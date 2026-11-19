@@ -6,7 +6,9 @@ import { RankEmblem } from "../milestones/RankEmblem";
 import { t, type LanguageCode } from "../../locales";
 import type { MilestoneRankBadge } from "../../types";
 import { achievementGreen, bodyTextStyle, masteredGold, warnAmber } from "../../utils/style";
+import { textSize } from "../../utils/scale";
 import type { VoiceMine } from "../../utils/voiceChat";
+import { DeviceIcon } from "./DeviceIcon";
 import { PicAvatar } from "./PicAvatar";
 import { MutedPlayerIcon, OwnMicIcon } from "./VoiceIcons";
 import { STATE_LOOKS } from "./ModeChart";
@@ -28,6 +30,7 @@ type RoomTableSeat = {
     stream?: StreamSeatState;
     avatar?: string;
     rank?: MilestoneRankBadge | null;
+    model?: string;
     open: boolean;
 };
 
@@ -187,7 +190,25 @@ export function RoomTable(props: {
                                     ) : seat.name && seat.game && (
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
                                     )}
-                                    {tags && <span style={bodyTextStyle()}>{tags}</span>}
+                                    {seat.name && (
+                                        <span
+                                            style={{
+                                                ...bodyTextStyle(),
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: "0.3em",
+                                                flexWrap: "wrap"
+                                            }}
+                                        >
+                                            {tags}
+                                            {seat.model && (
+                                                <>
+                                                    <span aria-hidden>·</span>
+                                                    <DeviceIcon model={seat.model} size={Math.round(textSize(12) * 1.15)} />
+                                                </>
+                                            )}
+                                        </span>
+                                    )}
                                 </div>
                             </>
                         );

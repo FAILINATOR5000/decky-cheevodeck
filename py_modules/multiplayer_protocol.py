@@ -440,10 +440,17 @@ def clean_rank(value):
     return {"tier": value["tier"], "step": step}
 
 
+MODEL_CODES = "lomu"
+
+
+def clean_model(value) -> str:
+    return value if isinstance(value, str) and len(value) == 1 and value in MODEL_CODES else "u"
+
+
 def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str, device: str, ulid: str,
-                pic: str, rank=None) -> dict:
+                pic: str, model: str, rank=None) -> dict:
     params = {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device,
-              "ulid": ulid, "pic": pic}
+              "ulid": ulid, "pic": pic, "model": model}
     if rank is not None:
         params["rank"] = rank
     return params
@@ -474,6 +481,7 @@ def read_join_params(raw):
         "core": core,
         "emuVersion": _clean(raw.get("emuVersion"), _VERSION_MAX) or "",
         "rank": clean_rank(raw.get("rank")),
+        "model": clean_model(raw.get("model")),
     }
 
 
@@ -628,6 +636,7 @@ def read_status_reply(key: bytes, message, nonce: str):
     if not verify(key, message.get("t"), "state", nonce, canonical(body)):
         return None
     members = message.get("members")
+    models = message.get("models")
     seats = message.get("seats")
     last = message.get("lastStart")
     sent = message.get("room")
@@ -659,16 +668,19 @@ def read_status_reply(key: bytes, message, nonce: str):
         or len(message["inbox"]) > INBOX_MAX
         or not isinstance(message.get("voice"), list)
         or len(message["voice"]) > VOICE_INBOX_MAX
+        or not isinstance(models, str)
         or type(message.get("chatTop")) is not int
         or not 0 <= message["chatTop"] < 2 ** 31
         or lounge is None
     ):
         return None
+    models = models[:len(members)].ljust(len(members), "u")
     return {
         "state": message["state"],
         "hardcore": message["hardcore"],
         "ip": message["ip"],
         "members": [_clean(name, _USER_MAX) or "" for name in members],
+        "models": "".join(code if code in MODEL_CODES or code == "-" else "u" for code in models),
         "rev": message["rev"],
         "round": message["round"],
         "start": message["start"],

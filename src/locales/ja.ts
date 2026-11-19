@@ -47,7 +47,7 @@ const JA: LocaleTable = {
     "Attributions": "クレジット",
     "Icons from Font Awesome Free, redrawn as inline SVG, under the CC BY 4.0 license.": "アイコンは Font Awesome Free をインライン SVG として描き直したもので、CC BY 4.0 ライセンスに従います。",
     "View the CC BY 4.0 license": "CC BY 4.0 ライセンスを見る",
-    "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "Ko-fi と Patreon のロゴは Simple Icons のもので、インライン SVG として描き直し、CC0 1.0 で公開されています。",
+    "The Ko-fi, Patreon, Steam and Steam Deck marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "Ko-fi、Patreon、Steam、Steam Deck のロゴは Simple Icons のもので、インライン SVG として描き直し、CC0 1.0 で公開されています。",
     "View the CC0 1.0 dedication": "CC0 1.0 の権利放棄を見る",
     "Two Welcome screen glyphs are from Material Design Icons by Google, redrawn as inline SVG, under the Apache License 2.0.": "ようこそ画面のアイコンのうち 2 つは Google の Material Design Icons をインライン SVG として描き直したもので、Apache License 2.0 に基づいています。",
     "View the Apache 2.0 license": "Apache 2.0 ライセンスを見る",

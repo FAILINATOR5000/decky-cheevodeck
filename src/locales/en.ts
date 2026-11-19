@@ -47,7 +47,7 @@ export const EN: LocaleTable = {
     "Attributions": "Attributions",
     "Icons from Font Awesome Free, redrawn as inline SVG, under the CC BY 4.0 license.": "Icons from Font Awesome Free, redrawn as inline SVG, under the CC BY 4.0 license.",
     "View the CC BY 4.0 license": "View the CC BY 4.0 license",
-    "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.",
+    "The Ko-fi, Patreon, Steam and Steam Deck marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.": "The Ko-fi, Patreon, Steam and Steam Deck marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.",
     "View the CC0 1.0 dedication": "View the CC0 1.0 dedication",
     "Two Welcome screen glyphs are from Material Design Icons by Google, redrawn as inline SVG, under the Apache License 2.0.": "Two Welcome screen glyphs are from Material Design Icons by Google, redrawn as inline SVG, under the Apache License 2.0.",
     "View the Apache 2.0 license": "View the Apache 2.0 license",

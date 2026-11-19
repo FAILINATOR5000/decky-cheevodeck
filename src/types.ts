@@ -3112,6 +3112,8 @@ export type MultiplayerRoomsPage = {
 
 export type MultiplayerSeatState = "" | "setup" | "never";
 
+type DeviceModel = "l" | "o" | "m" | "u";
+
 type MultiplayerSeat = {
     name: string;
     launched: boolean;
@@ -3123,6 +3125,7 @@ type MultiplayerSeat = {
     ulid: string;
     pic: string;
     rank?: MilestoneRankBadge | null;
+    model: DeviceModel;
     st?: string;
 } | null;
 
@@ -3179,6 +3182,7 @@ type MultiplayerGuestStatus = {
     hardcore: boolean;
     ip: string;
     members: string[];
+    models: string;
     rev: number;
     round: number;
     start: boolean;

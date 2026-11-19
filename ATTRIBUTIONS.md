@@ -144,9 +144,11 @@ Handled exactly like the Font Awesome paths above — path data only, original 2
 
 Both are named in their own source comments too, the same way the Font Awesome glyphs are, and on the About page in front of the user.
 
-## Simple Icons — the Ko-fi and Patreon marks
+## Simple Icons — the Ko-fi, Patreon, Steam and Steam Deck marks
 
 The two support links on the About page have brand marks drawn by [**Simple Icons**](https://simpleicons.org), who put them in the public domain under [**CC0 1.0**](https://creativecommons.org/publicdomain/zero/1.0/). CC0 means they asked for nothing at all in return, which is a generous thing to do and exactly why they get a thank-you here as well and a line on the About page too, where people will actually see it.
+
+Play Together's rooms use two more of their marks to show what each player is on: the Steam Deck mark for both Decks, the same mark in a box for the Steam Machine, and the Steam logo for anything else. Both are Valve's trademarks, used only to say which device a player has.
 
 Handled the same way as the Font Awesome paths above: path data only, redrawn as inline React SVG components, original `viewBox` kept, fills swapped to `currentColor`. Nothing from the Simple Icons package itself ships with the plugin.
 
