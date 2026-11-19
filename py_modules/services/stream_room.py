@@ -43,6 +43,7 @@ FLOOR_KBPS = TIERS[0][2]
 CEILING_KBPS = TIERS[-1][1]
 SPEED_CHECK_KBPS = TIERS[1][1]
 UHD_STEPS = (2160, 1440, 1080)
+UHD_SLACK = 8
 UHD_MIN_KBPS = {2160: 30000, 1440: 22000}
 LAN_FULL_GUESTS = 3
 SPEED_CONNECTIONS = 4
@@ -85,7 +86,7 @@ def stream_size(width: int, height: int, top: int = STREAM_HEIGHT_MAX):
 
 def uhd_top(height: int, host_size) -> int:
     tallest = min(height, host_size[1]) if host_size is not None else height
-    return next((step for step in UHD_STEPS if step <= tallest), STREAM_HEIGHT_MAX)
+    return next((step for step in UHD_STEPS if step <= tallest + UHD_SLACK), STREAM_HEIGHT_MAX)
 
 
 def tier_kbps(height: int, relayed: bool) -> int:

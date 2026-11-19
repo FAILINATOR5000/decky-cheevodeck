@@ -857,6 +857,26 @@ class MultiplayerService:
             except Exception as e:
                 decky.logger.warning("multiplayer: the listener would not close (%s)", type(e).__name__)
 
+    def _output_size(self):
+        uid = self._user_home.stat().st_uid
+        env = {"HOME": str(self._user_home), "PATH": "/usr/bin:/bin", "DISPLAY": ":0",
+               "XDG_RUNTIME_DIR": f"/run/user/{uid}"}
+        try:
+            code, out, _err = subprocess_util.run_command(["xrandr", "--current"], timeout=3, env=env,
+                                                          as_data_owner=True)
+        except Exception:
+            return None
+        match = re.search(r"current (\d+) x (\d+)", out) if code == 0 else None
+        return stream_room.parse_screen(f"{match.group(1)}x{match.group(2)}") if match else None
+
+    def _stream_size(self, side: str, screen: str):
+        size = self._output_size()
+        if size is not None:
+            self._debug("stream: sizing the %s at %sx%s (display)", side, *size)
+            return size
+        self._debug("stream: sizing the %s at %s (page)", side, screen or "unknown")
+        return stream_room.parse_screen(screen)
+
     def _debug(self, message: str, *args) -> None:
         try:
             on = self._settings_store.get_debug_logging(self._settings_store.load_config())
@@ -3504,7 +3524,7 @@ class MultiplayerService:
                 if failed:
                     self._close_room("")
                     return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
-                room["streams"].host_size = stream_room.parse_screen(screen)
+                room["streams"].host_size = await asyncio.to_thread(self._stream_size, "host", screen)
             if online:
                 room["pipes"] = game_pipes.HostPipes(
                     room_id=room_id, meet=meet, digest=digest, tcp_ports=PIPE_TCP_PORTS, udp_ports=PIPE_UDP_PORTS,
@@ -5188,9 +5208,10 @@ class MultiplayerService:
         room = self._room
         if room is not None and room["hostState"]:
             return self.start()
-        size = stream_room.parse_screen(screen)
-        if room is not None and room.get("streams") is not None and size is not None:
-            room["streams"].host_size = size
+        if room is not None and room.get("streams") is not None:
+            size = await asyncio.to_thread(self._stream_size, "host", screen)
+            if size is not None:
+                room["streams"].host_size = size
         if room is not None and room["mode"] == "stream" and room["state"] == "lobby" \
                 and self._stream_host is not None and not await asyncio.to_thread(self._stream_host.unit_active):
             decky.logger.info("stream: Sunshine isn't running at the round's start, starting it")
@@ -6456,13 +6477,12 @@ class MultiplayerService:
         if status is not None:
             stream.wait_turn(sum(1 for index, seat in enumerate(status["seats"])
                                  if 0 < index < joined["seat"] and seat["playing"]))
-        width, _sep, height = screen.partition("x")
+        size = self._stream_size("guest", screen) or (0, 0)
         if stream.uhd and self._full_4k():
-            decky.logger.info("stream: full 4K asked for in place of a %s screen", screen or "unknown")
-            width, height = "3840", "2160"
+            self._debug("stream: full 4K asked for in place of a %sx%s screen", *size)
+            size = (3840, 2160)
         options = stream.launch_options(
-            int(width) if width.isdigit() else 0, int(height) if height.isdigit() else 0,
-            self._slow_connection(), joined["row"]["watch"], overlay=self._stream_overlay(),
+            *size, self._slow_connection(), joined["row"]["watch"], overlay=self._stream_overlay(),
         )
         sid = secrets.token_hex(8)
         rename = _status_title(local["title"], name)
