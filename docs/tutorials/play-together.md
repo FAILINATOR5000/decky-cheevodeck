@@ -120,6 +120,8 @@ The room's **Stream Options** tab has **Update Streaming Tools** and **Remove St
 
 ### Hosting
 
+Hosting via Stream Play needs a device with AMD graphics, like the Steam Deck or the Steam Machine. Sunshine needs a graphics chip that can encode video to keep up with a game, and CheevoDeck sets it up for AMD's. On anything else, **Host a Room** stays grayed out, and an error message will explain the situation. You can still join anyone's Stream Play room from that device, and Couch Play and Link Play aren't affected. So basically, on ARM devices, for now at least, you can join but not host for Stream Play.
+
 Stream Play works with any system that has local multiplayer and without multiplayer (for viewing). PSP and DS games stream too, but guests can only watch, since those systems need one console per player. Your guests' controllers show up as extra controllers on your device, so the game sees them just like players 2, 3 and 4 plugged in next to you. In PCSX2 and DuckStation, Player 2 has to be set to a controller, and the page tells you if it isn't.
 
 When you host an online room, CheevoDeck checks your upload speed first, and that decides how good the picture looks for guests joining over the internet. Each guest takes a share of it, so once it's used up, the next person who presses **Join & Play** is told your connection is too slow. The first guest always gets in, even on a slow connection, just with a softer picture. Guests on the same Wi-Fi as you don't eat into it.
