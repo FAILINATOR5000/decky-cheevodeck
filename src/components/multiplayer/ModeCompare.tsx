@@ -51,6 +51,15 @@ const COMPARE_ROWS: CompareRow[] = [
         }
     },
     {
+        id: "devices",
+        label: "More Than One Player per Device?",
+        cells: {
+            link: "No; each device counts as one player.",
+            couch: "No; each device counts as one player.",
+            stream: "Yes; plug extra controllers into any device in the room, host or guest, and those players join in too. Each extra controller takes one of the game's player slots, so if the room already fills the game's player count, someone ends up only watching."
+        }
+    },
+    {
         id: "copy",
         label: "Friend Needs a Copy?",
         cells: {
