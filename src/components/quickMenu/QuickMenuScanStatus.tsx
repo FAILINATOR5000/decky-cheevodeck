@@ -188,7 +188,7 @@ export function QuickMenuScanStatus(props: {
         return null;
     }
     return (
-        <>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingBottom: "8px" }}>
             <style>{ROW_STYLES}</style>
             {cheevo !== null && (
                 <StatusRow
@@ -214,6 +214,6 @@ export function QuickMenuScanStatus(props: {
                     }}
                 />
             )}
-        </>
+        </div>
     );
 }
