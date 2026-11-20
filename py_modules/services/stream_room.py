@@ -22,7 +22,7 @@ from utils import child_owner
 
 
 PAIR_POLL_SECONDS = 1.0
-PAIR_GIVE_UP_SECONDS = 15
+PAIR_GIVE_UP_SECONDS = 10
 LIST_SECONDS = 10
 GUEST_PAIR_RETRY_SECONDS = 10
 PIPE_RETRY_SECONDS = 10
@@ -308,6 +308,7 @@ class HostStreams:
                 if entry is None:
                     continue
                 self._debug("stream: answering pairing request %s from %s", request["id"][:8], address)
+                asked = time.monotonic()
                 try:
                     ok = await asyncio.to_thread(self._sunshine.answer_pin, request["id"], entry["pin"],
                                                  _client_name(entry))
@@ -318,8 +319,9 @@ class HostStreams:
                     entry["paired"] = True
                     decky.logger.info("stream: paired a guest from %s", "the pipe" if entry["piped"] else address)
                 else:
-                    decky.logger.info("stream: Sunshine refused the PIN for a guest from %s",
-                                      "the pipe" if entry["piped"] else address)
+                    decky.logger.error("stream: Sunshine refused the PIN for a guest from %s after %.1fs (PIN mark %s)",
+                                       "the pipe" if entry["piped"] else address, time.monotonic() - asked,
+                                       _pin_mark(entry["n"], entry["pin"]))
             await asyncio.sleep(PAIR_POLL_SECONDS)
 
     async def measure(self, server, kbps: int = SPEED_CHECK_KBPS) -> None:
@@ -357,6 +359,10 @@ class HostStreams:
             if entry["pipe"] is not None:
                 entry["pipe"].close()
         self._seats.clear()
+
+
+def _pin_mark(nonce: str, pin: str) -> str:
+    return hmac.new(nonce.encode("ascii"), f"pin|{pin}".encode("ascii"), hashlib.sha256).hexdigest()[:8]
 
 
 def _fresh_pin(old: str = "") -> str:
@@ -426,6 +432,7 @@ class GuestStream:
         self.host_size = None
         self.kbps = 0
         self._pin = ""
+        self._pin_nonce = ""
         self._pipe = None
         self._pipe_task = None
         self._pipe_failed_at = 0.0
@@ -471,6 +478,7 @@ class GuestStream:
         if self._online and (self._pipe is None or self._pipe.path in ("punching", "busy")):
             return
         self._pin = pin
+        self._pin_nonce = stream["n"]
         self._tried_at = time.monotonic()
         self._pairing = asyncio.ensure_future(asyncio.to_thread(self._pair))
 
@@ -592,7 +600,8 @@ class GuestStream:
             decky.logger.warning("stream: couldn't run Moonlight to pair (%s)", e)
             self.failed = True
             return
-        deadline = time.monotonic() + PAIR_GIVE_UP_SECONDS
+        started = time.monotonic()
+        deadline = started + PAIR_GIVE_UP_SECONDS
         paired = False
         listed = ""
         try:
@@ -624,7 +633,7 @@ class GuestStream:
         self.failed = not paired
         if paired:
             output.close()
-            decky.logger.info("stream: paired with the host")
+            decky.logger.info("stream: paired with the host in %.1fs", time.monotonic() - started)
             return
         try:
             output.seek(0)
@@ -634,9 +643,10 @@ class GuestStream:
         finally:
             output.close()
         lines = [line.strip() for line in said.splitlines() if line.strip()]
-        decky.logger.info("stream: couldn't pair with the host at %s (pair %s; Moonlight: %s; list: %s)", self.address,
-                          f"exited {exit_code}" if exit_code is not None else "still waiting", " | ".join(lines[-3:]) or "nothing",
-                          listed.splitlines()[-1][:200] if listed else "nothing")
+        decky.logger.error("stream: couldn't pair with the host at %s after %.1fs, PIN mark %s (pair %s; Moonlight: %s; "
+                           "list: %s)", self.address, time.monotonic() - started, _pin_mark(self._pin_nonce, self._pin),
+                           f"exited {exit_code}" if exit_code is not None else "still waiting",
+                           " | ".join(lines[-3:]) or "nothing", listed.splitlines()[-1][:200] if listed else "nothing")
 
     def kill_moonlight(self) -> None:
         end_moonlight(self._config)
