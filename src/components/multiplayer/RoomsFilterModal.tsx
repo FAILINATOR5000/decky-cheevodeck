@@ -40,7 +40,7 @@ export function roomPasses(row: MultiplayerRoomRow, filter: MultiplayerRoomFilte
         && (!filter.kind || row.watch === (filter.kind === "watch"))
         && (!filter.access || roomAccess(row) === filter.access)
         && (!filter.where || row.where === filter.where)
-        && (filter.seats !== "open" || row.seats.filter(Boolean).length < row.max)
+        && (filter.seats !== "open" || (!row.locked && row.seats.filter(Boolean).length < row.max))
     );
 }
 

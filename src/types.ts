@@ -3073,6 +3073,7 @@ export type MultiplayerRoomRow = {
     share: boolean;
     watch: boolean;
     voice: boolean;
+    locked: boolean;
     seats: string[];
     max: number;
     state: "lobby" | "playing";
@@ -3156,6 +3157,7 @@ export type MultiplayerHostedRoom = {
     watch: boolean;
     voice: boolean;
     steadyWifi: boolean;
+    locked: boolean;
     hostState: MultiplayerSeatState;
     hostGate: string;
     hostDetail: Record<string, string>;

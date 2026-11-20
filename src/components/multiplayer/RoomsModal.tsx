@@ -13,7 +13,7 @@ import { NO_ROOM_FILTER, multiplayerChoices, rememberMultiplayerRoomFilter, reme
 import { startReadingLine } from "../../utils/readingLine";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
-import { compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
+import { compactButtonStyle, errorRed, modalBodyStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { LabeledRow } from "../ui/LabeledRow";
@@ -831,6 +831,7 @@ function RoomsModal(props: RoomsModalProps) {
                                                     {row.coreName ? ` · ${row.coreName}` : ""}
                                                     {" · "}
                                                     {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}
+                                                    {row.locked && <>{" · "}<span style={{ color: errorRed }}>{t(language, "mp_room_locked")}</span></>}
                                                     {row.state === "playing" ? ` · ${t(language, "In-Game")}` : ""}
                                                     {row.watch ? ` · ${t(language, "Watch Only")}` : ""}
                                                     {status ? ` · ${status}` : ""}

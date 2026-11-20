@@ -3783,6 +3783,15 @@ const JA: LocaleTable = {
     "No mappings for this console yet. Make one in the Dolphin Mapper.": "このゲーム機のマッピングはまだありません。Dolphin Mapper で作成してください。",
     "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "EmuDeck の AutoMap が起動時にこのゲームの操作を設定するため、これらのマッピングは使われません。使うには EmuDeck で Dolphin の AutoMap をオフにしてください。",
     "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Dolphin Mapper を開きます。このゲーム専用の Dolphin マッピングがあれば、起動時はそちらが使われます。",
+    "Lock Room": "ルームをロック",
+    "Unlock Room": "ルームのロックを解除",
+    "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "現在のルームをロック/ロック解除します。ロック中は、個別に招待された人以外は誰も入れません。",
+    "Room Locked": "ルームがロックされました",
+    "Host has locked the room": "ホストがルームをロックしました",
+    "Room Unlocked": "ルームのロックが解除されました",
+    "Host has unlocked the room": "ホストがルームのロックを解除しました",
+    "mp_room_locked": "ロック中",
+    "The host locked this room.": "ホストがこのルームをロックしています。",
 };
 
 export default JA;

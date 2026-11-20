@@ -3937,4 +3937,13 @@ export const EN: LocaleTable = {
     "No mappings for this console yet. Make one in the Dolphin Mapper.": "No mappings for this console yet. Make one in the Dolphin Mapper.",
     "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.",
     "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.",
+    "Lock Room": "Lock Room",
+    "Unlock Room": "Unlock Room",
+    "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.",
+    "Room Locked": "Room Locked",
+    "Host has locked the room": "Host has locked the room",
+    "Room Unlocked": "Room Unlocked",
+    "Host has unlocked the room": "Host has unlocked the room",
+    "mp_room_locked": "Locked",
+    "The host locked this room.": "The host locked this room.",
 };

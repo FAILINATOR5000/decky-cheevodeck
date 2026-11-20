@@ -232,6 +232,7 @@ ERROR_VOTE_OPEN = "vote_open"
 ERROR_VOTE_GAMES = "vote_games"
 ERROR_VOTE_LOBBY = "vote_wait_lobby"
 ERROR_SWITCHING = "room_switching"
+ERROR_ROOM_LOCKED = "room_locked"
 
 CHAT_GAP_SECONDS = 1
 
@@ -243,6 +244,7 @@ _JOIN_REFUSALS = {
     "dropped": ERROR_DROPPED,
     "expired": ERROR_INVITE_EXPIRED,
     "friends_only": ERROR_FRIENDS_ONLY,
+    "room_locked": ERROR_ROOM_LOCKED,
 }
 
 _SESSION_ID = re.compile(r"session-([0-9a-f]{16})\.")
@@ -959,7 +961,7 @@ class MultiplayerService:
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
                     "chat": dict(room["chat"][-1]) if room["chat"] else None, "chatBacklog": 0, "lobby": self._lobby_state(),
-                    "voice": self._voice_view(), "roomVoice": bool(room["voice"]),
+                    "voice": self._voice_view(), "roomVoice": bool(room["voice"]), "locked": room["locked"],
                     "gameId": room["gameId"], "imageIcon": room["imageIcon"],
                     "size": len(room["seats"]), "taken": 1 + len(_guests(room)), "own": None,
                     "vote": _vote_marker(lounge.vote_view(room["vote"], lounge.voter_key(room["seats"][0]))),
@@ -978,7 +980,7 @@ class MultiplayerService:
                     "state": status.get("state", "lobby"),
                     "chat": dict(joined["chat"][-1]) if joined["chat"] else None, "chatBacklog": joined["chatBacklog"],
                     "autostart": self._pending_start(joined), "voice": self._voice_view(),
-                    "roomVoice": bool(joined["row"].get("voice")),
+                    "roomVoice": bool(joined["row"].get("voice")), "locked": joined["row"]["locked"],
                     "gameId": joined["row"]["gameId"], "size": len(members),
                     "taken": sum(1 for name in members if name), **self._guest_game(joined),
                     "vote": _vote_marker(status.get("vote")), "lounge": _lounge_marker(status.get("lounge"))}
@@ -3467,6 +3469,7 @@ class MultiplayerService:
                 "uhd": False,
                 "voice": bool(voice),
                 "steadyWifi": bool(steady_wifi),
+                "locked": False,
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
                            "vstamp": 1, "model": self._model}] + [None] * (seats - 1),
@@ -3624,7 +3627,7 @@ class MultiplayerService:
         return status.get("adapter", "") if status else ""
 
     async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None,
-                           check_frames=None, steady_wifi=None, bitrate=None, uhd=None) -> dict:
+                           check_frames=None, steady_wifi=None, bitrate=None, uhd=None, locked=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and uhd is not None:
@@ -3641,11 +3644,16 @@ class MultiplayerService:
             room["steadyWifi"] = bool(steady_wifi)
             decky.logger.info("multiplayer: Steady Wi-Fi turned %s for the room", "on" if steady_wifi else "off")
             self._announce()
+        if locked is not None and bool(locked) != room["locked"]:
+            room["locked"] = bool(locked)
+            decky.logger.info("multiplayer: room %s", "locked" if locked else "unlocked")
+            self._announce()
         if uhd is not None and room["mode"] == "stream" and bool(uhd) != room["uhd"]:
             room["uhd"] = bool(uhd)
             decky.logger.info("multiplayer: 4K Support turned %s for the room", "on" if uhd else "off")
             self._check_upload_for_uhd(room)
-        if (voice is not None or steady_wifi is not None or uhd is not None) and hardcore is None and core is None \
+        if (voice is not None or steady_wifi is not None or uhd is not None or locked is not None) \
+                and hardcore is None and core is None \
                 and share is None and watch is None and adapter is None and check_frames is None and bitrate is None:
             return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
@@ -4164,6 +4172,7 @@ class MultiplayerService:
                 and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],
             "steadyWifi": room["steadyWifi"],
+            "locked": room["locked"],
             "hostState": room["hostState"],
             "hostGate": room["hostGate"],
             "hostDetail": dict(room["hostDetail"]),
@@ -4517,11 +4526,15 @@ class MultiplayerService:
         ):
             await conversation.say({"ok": False, "error": "dropped"})
             return
-        for index, taken in enumerate(room["seats"]):
-            if index > 0 and taken is not None and taken["device"] == params["device"] \
-                    and taken["ulid"] == params["ulid"] and taken["name"].lower() == params["user"].lower():
-                decky.logger.info("multiplayer: seat %s joined again from the same device, its old seat freed", index)
-                self._free_seat(room, index, taken)
+        returning = [index for index, taken in enumerate(room["seats"])
+                     if index > 0 and taken is not None and taken["device"] == params["device"]
+                     and taken["ulid"] == params["ulid"] and taken["name"].lower() == params["user"].lower()]
+        if room["locked"] and invite is None and not returning:
+            await conversation.say({"ok": False, "error": "room_locked"})
+            return
+        for index in returning:
+            decky.logger.info("multiplayer: seat %s joined again from the same device, its old seat freed", index)
+            self._free_seat(room, index, room["seats"][index])
         seat = next((index for index, taken in enumerate(room["seats"]) if taken is None), None)
         if seat is None:
             await conversation.say({"ok": False, "error": "full"})
@@ -4945,7 +4958,7 @@ class MultiplayerService:
         ulid = raw.get("ulid") if isinstance(raw, dict) else None
         if not proto.is_ulid(ulid):
             return {"ok": False}
-        if not room["private"]:
+        if not room["private"] and not (room["locked"] and not room["friends"]):
             return {"ok": True, "exp": 0, "k": ""}
         expires = proto.pass_expiry(time.time())
         key = proto.pass_key(room["key"], room["id"], ulid, expires)
@@ -5014,8 +5027,9 @@ class MultiplayerService:
     async def invite_pass(self, ulid: str):
         room = self._room
         if room is not None:
-            expires = proto.pass_expiry(time.time()) if room["private"] else 0
-            key = proto.pass_key(room["key"], room["id"], ulid, expires) if room["private"] else None
+            signed = room["private"] or room["locked"]
+            expires = proto.pass_expiry(time.time()) if signed else 0
+            key = proto.pass_key(room["key"], room["id"], ulid, expires) if signed else None
             address = next((seat["ip"] for seat in _guests(room) if seat["door"] == "lan"), "") \
                 or _route_address() or room["address"]
             return {"room": room["id"], "name": room["name"], "title": room["title"], "where": room["where"],
@@ -5028,9 +5042,9 @@ class MultiplayerService:
             return None
         row = joined["row"]
         key = None
-        if row["private"]:
+        if reply["exp"] > 0:
             key = proto.unwrap(joined["key"], "pass", nonce, reply.get("k"))
-            if key is None or reply["exp"] <= 0:
+            if key is None:
                 return None
         return {"room": row["room"], "name": row["name"], "title": row["title"], "where": row["where"],
                 "exp": reply["exp"], "key": key, "address": row["address"] if row["door"] == "lan" else ""}
@@ -5530,7 +5544,7 @@ class MultiplayerService:
     def _room_rows(self) -> list:
         rows = [dict(row) for row, _seen, _manual in self._rooms.values()
                 if not row["friends"] or self._friend_pair(row["owner"]) is not None]
-        local = sorted((row for row in rows if row["door"] != "server"), key=lambda row: (row["user"].lower(), row["room"]))
+        local = sorted((row for row in rows if row["door"] != "server"), key=lambda row: (row["locked"], row["user"].lower(), row["room"]))
         online = [row for row in rows if row["door"] == "server"]
         order = {room_id: index for index, room_id in enumerate(self._online)}
         online.sort(key=lambda row: order.get(row["room"], len(order)))
@@ -5880,6 +5894,8 @@ class MultiplayerService:
         allowed = status["room"]["voice"]
         if allowed != joined["row"]["voice"]:
             joined["row"] = {**joined["row"], "voice": allowed}
+        if status["room"]["locked"] != joined["row"]["locked"]:
+            joined["row"] = {**joined["row"], "locked": status["room"]["locked"]}
         if not allowed and joined["vc"]:
             joined["vc"] = False
             decky.logger.info("multiplayer: the host turned voice chat off")

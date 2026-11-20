@@ -4009,6 +4009,15 @@ const RU: LocaleTable = {
     "No mappings for this console yet. Make one in the Dolphin Mapper.": "Для этой консоли пока нет раскладок. Создайте её в Dolphin Mapper.",
     "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "AutoMap в EmuDeck задаёт управление этой игры при запуске, поэтому эти раскладки не используются. Чтобы использовать их, отключите AutoMap для Dolphin в EmuDeck.",
     "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Открывает Dolphin Mapper. Если у этой игры есть своя раскладка Dolphin, при запуске используется она.",
+    "Lock Room": "Заблокировать комнату",
+    "Unlock Room": "Разблокировать комнату",
+    "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Блокирует или разблокирует текущую комнату. Пока она заблокирована, больше никто не может войти, кроме лично приглашённых.",
+    "Room Locked": "Комната заблокирована",
+    "Host has locked the room": "Хост заблокировал комнату",
+    "Room Unlocked": "Комната разблокирована",
+    "Host has unlocked the room": "Хост разблокировал комнату",
+    "mp_room_locked": "Заблокирована",
+    "The host locked this room.": "Хост заблокировал эту комнату.",
 };
 
 export default RU;

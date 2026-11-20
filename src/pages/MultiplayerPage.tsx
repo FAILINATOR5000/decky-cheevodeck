@@ -1864,6 +1864,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             help={t(language, "Starts RetroArch with its shaders off for this session only, so the stream stays sharp. Your shader settings aren't changed.")}
         />
     );
+    const lockRow = hosted && (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:lockroom"
+                focusFallback={["multiplayer:toggle:streamshaders", "multiplayer:toggle:chattoasts", "multiplayer:toggle:steadywifi", "multiplayer:toggle:voice", exitKey]}
+                onClick={() => {
+                    if (!mp.busy) {
+                        actions.setLocked(!hosted.locked);
+                    }
+                }}
+                help={t(language, "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.")}
+            >
+                {t(language, hosted.locked ? "Unlock Room" : "Lock Room")}
+            </FocusableItem>
+        </PanelSectionRow>
+    );
     const perGameShown = !joined && (showCores || Boolean(linkMissing) || showRunsWith || showWatch || showAdapter);
     const optionRows = (roomHasOptions || inSession) && (
         <>
@@ -1884,12 +1902,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showShare && syncOffRow}
             {showShare && syncFrequencyRow}
             {showAdapter && adapterRow}
-            {!joined && (showHardcore || voiceRow || chatToastRow || streamShadersRow) && <SectionTitle label={t(language, "Options")} />}
+            {!joined && (showHardcore || voiceRow || chatToastRow || streamShadersRow || lockRow) && <SectionTitle label={t(language, "Options")} />}
             {showHardcore && hardcoreRow}
             {voiceRow}
             {steadyWifiRow}
             {chatToastRow}
             {streamShadersRow}
+            {lockRow}
         </>
     );
 

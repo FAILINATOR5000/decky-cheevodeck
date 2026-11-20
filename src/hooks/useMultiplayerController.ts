@@ -730,6 +730,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function setLocked(next: boolean) {
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, null, null, null, null, null, next));
+        }
+    }
+
     async function closeRoom() {
         await run("Couldn't Leave the Room", () => multiplayerCloseRoom());
         forgetMultiplayerRoomChoices();
@@ -838,6 +844,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setAdapter,
             setVoice,
             setSteadyWifi,
+            setLocked,
             closeRoom,
             leave,
             play,

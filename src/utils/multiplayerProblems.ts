@@ -67,6 +67,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     friends_off: "Turn on Play Together Friends to host a Friend Only room.",
     locked_out: "Too many wrong passwords. Try again in a minute.",
     full: "That room is full",
+    room_locked: "The host locked this room.",
     chat_refused: "Couldn't send that message",
     no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
     dolphin_game_list: "Dolphin's NetPlay offers games from folders you point Dolphin to look in. This folder isn't added yet.",

@@ -40,6 +40,7 @@ export type MultiplayerRoomMarker = {
     autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
     voice: RoomVoice | null;
     roomVoice: boolean;
+    locked: boolean;
     gameId: number;
     imageIcon: string;
     size: number;
@@ -53,7 +54,7 @@ type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, chatBacklog: -1, autostart: null, voice: null, roomVoice: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
+    chat: null, chatBacklog: -1, autostart: null, voice: null, roomVoice: false, locked: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
     vote: null, lounge: null
 };
 
@@ -175,6 +176,7 @@ function publish(next: MultiplayerRoomMarker, at: number, heard: boolean) {
         chime(marker, next);
         chatter(marker, next);
         announceGames(marker, next);
+        announceLock(marker, next);
     }
     marker = next;
     for (const listener of listeners) {
@@ -292,6 +294,21 @@ function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMark
     }
 }
 
+function announceLock(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
+    if (
+        after.role !== "guest" || before.role !== "guest" || before.locked === after.locked
+        || Date.now() - seatedAt < SETTLE_MS || Number(Router.MainRunningApp?.appid ?? 0) > 0 || fixWindowOpen()
+    ) {
+        return;
+    }
+    if (after.locked) {
+        toast("Room Locked", "Host has locked the room", {});
+    }
+    else {
+        toast("Room Unlocked", "Host has unlocked the room", {});
+    }
+}
+
 function readVoteMarker(raw: unknown): VoteMarker | null {
     const vote = raw as VoteMarker | null | undefined;
     if (!vote || typeof vote.id !== "number") {
@@ -347,6 +364,7 @@ function onRoomEvent(payload: RoomEvent) {
         autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null,
         voice: readVoice(payload.voice),
         roomVoice: payload.roomVoice === true,
+        locked: payload.locked === true,
         gameId: Number(payload.gameId) || 0,
         imageIcon: typeof payload.imageIcon === "string" ? payload.imageIcon : "",
         size: Number(payload.size) || 0,
@@ -416,6 +434,7 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             chat: room.chat[room.chat.length - 1] ?? null,
             voice: readVoice(status.voice),
             roomVoice: room.voice === true,
+            locked: room.locked === true,
             vote: voteMarkerOf(room.vote),
             lounge: loungeMarkerOf(room.lounge)
         };
@@ -438,6 +457,7 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             autostart: status.autostart,
             voice: readVoice(status.voice),
             roomVoice: status.room.voice === true,
+            locked: status.room.locked === true,
             vote: voteMarkerOf(guest?.vote),
             lounge: loungeMarkerOf(guest?.lounge)
         };

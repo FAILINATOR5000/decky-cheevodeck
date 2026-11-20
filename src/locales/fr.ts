@@ -3958,6 +3958,15 @@ const FR: LocaleTable = {
     "No mappings for this console yet. Make one in the Dolphin Mapper.": "Aucun mappage pour cette console pour l'instant. Créez-en un dans Dolphin Mapper.",
     "EmuDeck's AutoMap sets this game's controls when it launches, so these mappings aren't used. Turn off AutoMap for Dolphin in EmuDeck to use them.": "L'AutoMap d'EmuDeck règle les commandes de ce jeu au lancement, donc ces mappages ne sont pas utilisés. Désactivez AutoMap pour Dolphin dans EmuDeck pour les utiliser.",
     "Opens the Dolphin Mapper. This game's own Dolphin Mapping, if set, is used at launch instead.": "Ouvre Dolphin Mapper. Si ce jeu a son propre mappage Dolphin, c'est lui qui est utilisé au lancement.",
+    "Lock Room": "Verrouiller la salle",
+    "Unlock Room": "Déverrouiller la salle",
+    "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Verrouille ou déverrouille la salle actuelle. Une fois verrouillée, plus personne ne peut entrer, sauf sur invitation personnelle.",
+    "Room Locked": "Salle verrouillée",
+    "Host has locked the room": "L'hôte a verrouillé la salle",
+    "Room Unlocked": "Salle déverrouillée",
+    "Host has unlocked the room": "L'hôte a déverrouillé la salle",
+    "mp_room_locked": "Verrouillée",
+    "The host locked this room.": "L'hôte a verrouillé cette salle.",
 };
 
 export default FR;

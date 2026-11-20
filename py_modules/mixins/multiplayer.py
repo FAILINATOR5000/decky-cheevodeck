@@ -81,7 +81,8 @@ class MultiplayerMixin(PluginContext):
         )
 
     async def multiplayer_room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None,
-                                       adapter=None, check_frames=None, steady_wifi=None, bitrate=None, uhd=None):
+                                       adapter=None, check_frames=None, steady_wifi=None, bitrate=None, uhd=None,
+                                       locked=None):
         return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
             None if core is None else str(core),
@@ -93,6 +94,7 @@ class MultiplayerMixin(PluginContext):
             None if steady_wifi is None else bool(steady_wifi),
             None if bitrate is None else to_int(bitrate, 0),
             None if uhd is None else bool(uhd),
+            None if locked is None else bool(locked),
         )
 
     async def multiplayer_game_options(self, game_id: int = 0):
