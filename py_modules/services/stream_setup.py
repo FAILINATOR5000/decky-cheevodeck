@@ -22,7 +22,7 @@ from ra_client import build_user_agent
 from utils import child_owner
 
 
-SUNSHINE_RELEASE_URL = "https://api.github.com/repos/LizardByte/Sunshine/releases/latest"
+SUNSHINE_RELEASE_URL = "https://api.github.com/repos/SunshineStream/Sunshine/releases/latest"
 MOONLIGHT_APP = "com.moonlight_stream.Moonlight"
 MOONLIGHT_REMOTE = "flathub"
 SHORTCUT_NAME = "Moonlight (CheevoDeck)"
