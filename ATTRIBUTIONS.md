@@ -98,9 +98,9 @@ The ARM64 build at `bin/aarch64/rmg-netplay-server` is upstream's own ARM64 rele
 
 ## Sunshine — the host side of Stream Play
 
-Stream Play's host runs [**Sunshine**](https://github.com/LizardByte/Sunshine), **LizardByte**'s game-stream server, to capture the game and send it to each guest. CheevoDeck doesn't ship it. When you set up streaming, the plugin downloads the latest stable x86_64 AppImage from LizardByte's own GitHub release, checks it against the sha256 digest GitHub publishes for that file, and unpacks it into a root-owned folder under `/var/lib/cheevodeck/sunshine`. Update Streaming does the same for a newer release, and Remove Stream Tools deletes it.
+Stream Play's host runs [**Sunshine**](https://github.com/SunshineStream/Sunshine), **SunshineStream**'s game-stream server, to capture the game and send it to each guest. CheevoDeck doesn't ship it. When you set up streaming, the plugin downloads the latest stable AppImage for the device's processor (x86_64 or ARM) from Sunshine's own GitHub release, checks it against the sha256 digest GitHub publishes for that file, and unpacks it into a root-owned folder under `/var/lib/cheevodeck/sunshine`. Update Streaming does the same for a newer release, and Remove Stream Tools deletes it.
 
-**Sunshine is GPL-3.0.** It runs as its own process while a Stream Play room is open, with no linking and none of its code in CheevoDeck, whose own source stays BSD-3. Sunshine's release also carries its own notes on video codec licensing, which travel with LizardByte's download rather than through this plugin.
+**Sunshine is GPL-3.0.** It runs as its own process while a Stream Play room is open, with no linking and none of its code in CheevoDeck, whose own source stays BSD-3. Sunshine's release also carries its own notes on video codec licensing, which travel with Sunshine's download rather than through this plugin.
 
 ## Moonlight — the guest side of Stream Play
 
