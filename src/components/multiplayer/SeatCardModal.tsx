@@ -11,7 +11,7 @@ import { modalBodyStyle, warnAmber } from "../../utils/style";
 import { retryPeer, setPeerMuted, useVoiceChat } from "../../utils/voiceChat";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 import { PicAvatar } from "./PicAvatar";
 
 export type SeatCardOptions = {
@@ -30,7 +30,7 @@ export type SeatCardOptions = {
 function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
     const [busy, setBusy] = useState(false);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
 
     async function addFriend() {
         setBusy(true);
@@ -38,14 +38,14 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         try {
             const asked = await multiplayerFriendAddSeat(props.index, props.ulid);
             if (!asked.ok) {
-                setLine({ tone: "error", text: friendError(language, asked.error, props.name) });
+                fail("Couldn't Send That", friendError(language, asked.error, props.name));
                 setBusy(false);
                 return;
             }
         }
         catch (e) {
             logError("multiplayerFriendAddSeat", e);
-            setLine({ tone: "error", text: friendError(language, "unavailable") });
+            fail("Couldn't Send That", friendError(language, "unavailable"));
             setBusy(false);
             return;
         }
@@ -68,7 +68,7 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         try {
             const dropped = await multiplayerDropSeat(props.index, props.name);
             if (!dropped.ok) {
-                setLine({ tone: "error", text: friendError(language, dropped.error, props.name) });
+                fail("Couldn't Change That", friendError(language, dropped.error, props.name));
                 setBusy(false);
                 return;
             }

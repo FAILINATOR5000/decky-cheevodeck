@@ -13,7 +13,7 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { friendError } from "./AddFriendModal";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const NO_FRIENDS: MultiplayerFriend[] = [];
@@ -30,9 +30,8 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     const [linkUp, setLinkUp] = useState(false);
     const rowsRef = useRef<HTMLDivElement | null>(null);
     const landed = useRef(false);
-    const [line, setLine] = useState<DialogLineState>(
-        () => ({ tone: "hint", text: t(language, "Pick a friend to invite to your room.") })
-    );
+    const { line, setLine, fail } = useDialogLine(language,
+        { tone: "hint", text: t(language, "Pick a friend to invite to your room.") });
 
     useEffect(() => {
         void (async () => {
@@ -80,14 +79,17 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
             setMarks((current) => ({ ...current, [friend.ulid]: sent.ok ? "sent" : "failed" }));
-            setLine(sent.ok
-                ? { tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) }
-                : { tone: "error", text: friendError(language, sent.error, friendName(friend)) });
+            if (sent.ok) {
+                setLine({ tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) });
+            }
+            else {
+                fail("Couldn't Send That", friendError(language, sent.error, friendName(friend)));
+            }
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
             setMarks((current) => ({ ...current, [friend.ulid]: "failed" }));
-            setLine({ tone: "error", text: friendError(language, "unavailable") });
+            fail("Couldn't Send That", friendError(language, "unavailable"));
         }
         setBusy(false);
     }

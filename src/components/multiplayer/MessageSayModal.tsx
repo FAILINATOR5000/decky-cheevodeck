@@ -10,7 +10,7 @@ import { modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 
 const MESSAGE_MAX = 500;
 
@@ -18,7 +18,7 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
     const { language, close } = props;
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const fieldRef = useRef<HTMLDivElement | null>(null);
     const canSend = text.trim().length > 0 && !busy;
 
@@ -35,14 +35,14 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
         try {
             const sent = await multiplayerFriendSend(props.ulid, text);
             if (!sent.ok) {
-                setLine({ tone: "error", text: friendError(language, sent.error, props.name) });
+                fail("Couldn't Send That", friendError(language, sent.error, props.name));
                 setBusy(false);
                 return;
             }
         }
         catch (e) {
             logError("multiplayerFriendSend", e);
-            setLine({ tone: "error", text: friendError(language, "unavailable") });
+            fail("Couldn't Send That", friendError(language, "unavailable"));
             setBusy(false);
             return;
         }

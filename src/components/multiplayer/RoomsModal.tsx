@@ -20,7 +20,7 @@ import { LabeledRow } from "../ui/LabeledRow";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine, type DialogLineState } from "./DialogLine";
 import { ModeStateLabel, type ModeState } from "./ModeChart";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
 import { RoomVoiceIcon } from "./VoiceIcons";
@@ -126,7 +126,7 @@ function RoomsModal(props: RoomsModalProps) {
     const [backFromIp, setBackFromIp] = useState(false);
     const stopReading = useRef<() => void>(() => { });
     useEffect(() => () => stopReading.current(), []);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const joinedRef = useRef(false);
     const searchRef = useRef<HTMLDivElement | null>(null);
@@ -540,12 +540,12 @@ function RoomsModal(props: RoomsModalProps) {
                 close();
                 return;
             }
-            setLine({ tone: "error", text: describe(joined.gate ?? joined.error ?? "unavailable", joined.detail) });
+            fail("Couldn't Join the Room", describe(joined.gate ?? joined.error ?? "unavailable", joined.detail));
         }
         catch (e) {
             stopReading.current();
             logError("multiplayerJoin", e);
-            setLine({ tone: "error", text: describe("unavailable") });
+            fail("Couldn't Join the Room", describe("unavailable"));
         }
         setBusy(false);
     }
@@ -575,12 +575,12 @@ function RoomsModal(props: RoomsModalProps) {
                 found = answer.room;
             }
             else {
-                setLine({ tone: "error", text: describe(answer.error ?? "not_found") });
+                fail("Couldn't Join the Room", describe(answer.error ?? "not_found"));
             }
         }
         catch (e) {
             logError("multiplayerLookup", e);
-            setLine({ tone: "error", text: describe("not_found") });
+            fail("Couldn't Join the Room", describe("not_found"));
         }
         setBusy(false);
         if (found) {

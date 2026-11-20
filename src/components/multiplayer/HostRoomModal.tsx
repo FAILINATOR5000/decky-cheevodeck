@@ -17,7 +17,7 @@ import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { ToggleRow } from "../ui/ToggleRow";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 import { ROOM_ACCESS, RoomAccessLabel } from "./roomAccess";
 import { ROOM_STATUSES } from "./roomStatus";
 
@@ -72,7 +72,7 @@ function HostRoomModal(props: HostRoomModalProps) {
     const [hosting, setHosting] = useState(false);
     const stopReading = useRef<() => void>(() => { });
     useEffect(() => () => stopReading.current(), []);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const nameRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,7 +87,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             return;
         }
         if (access === "private" && !password) {
-            setLine({ tone: "error", text: t(language, "A Private room needs a password.") });
+            fail("Couldn't Host the Room", t(language, "A Private room needs a password."));
             return;
         }
         setHosting(true);
@@ -108,12 +108,12 @@ function HostRoomModal(props: HostRoomModalProps) {
                 close();
                 return;
             }
-            setLine({ tone: "error", text: describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail) });
+            fail("Couldn't Host the Room", describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail));
         }
         catch (e) {
             stopReading.current();
             logError("multiplayerHost", e);
-            setLine({ tone: "error", text: describe("unavailable") });
+            fail("Couldn't Host the Room", describe("unavailable"));
         }
         setHosting(false);
     }

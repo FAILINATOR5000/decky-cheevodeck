@@ -4018,6 +4018,7 @@ const RU: LocaleTable = {
     "Host has unlocked the room": "Хост разблокировал комнату",
     "mp_room_locked": "Заблокирована",
     "The host locked this room.": "Хост заблокировал эту комнату.",
+    "Couldn't Host the Room": "Не удалось открыть комнату",
 };
 
 export default RU;

@@ -3946,4 +3946,5 @@ export const EN: LocaleTable = {
     "Host has unlocked the room": "Host has unlocked the room",
     "mp_room_locked": "Locked",
     "The host locked this room.": "The host locked this room.",
+    "Couldn't Host the Room": "Couldn't Host the Room",
 };

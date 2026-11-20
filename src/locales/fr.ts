@@ -3967,6 +3967,7 @@ const FR: LocaleTable = {
     "Host has unlocked the room": "L'hôte a déverrouillé la salle",
     "mp_room_locked": "Verrouillée",
     "The host locked this room.": "L'hôte a verrouillé cette salle.",
+    "Couldn't Host the Room": "Impossible d'ouvrir la salle",
 };
 
 export default FR;

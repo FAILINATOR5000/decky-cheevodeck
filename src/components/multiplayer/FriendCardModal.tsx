@@ -20,7 +20,7 @@ import { achievementGreen, modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const PASSWORD_MAX = 32;
@@ -42,7 +42,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     const [step, setStep] = useState<Step>("menu");
     const [leftStep, setLeftStep] = useState<Step | null>(null);
     const [busy, setBusy] = useState(false);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const [password, setPassword] = useState("");
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
@@ -62,7 +62,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     }
 
     function failed(code: string | undefined) {
-        setLine({ tone: "error", text: friendError(language, code, friendName(friend)) });
+        fail("Couldn't Join the Room", friendError(language, code, friendName(friend)));
     }
 
     async function join() {

@@ -4049,6 +4049,7 @@ const PL: LocaleTable = {
     "Host has unlocked the room": "Host odblokował pokój",
     "mp_room_locked": "Zablokowany",
     "The host locked this room.": "Host zablokował ten pokój.",
+    "Couldn't Host the Room": "Nie udało się otworzyć pokoju",
 };
 
 export default PL;

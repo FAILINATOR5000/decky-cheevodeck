@@ -1,11 +1,22 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
+import type { LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, modalBodyStyle } from "../../utils/style";
+import { showMultiplayerProblem } from "./ProblemModal";
 
 type DialogLineTone = "hint" | "busy" | "ok" | "error";
 
 export type DialogLineState = { tone: DialogLineTone; text: string };
+
+export function useDialogLine(language: LanguageCode, idle: DialogLineState) {
+    const [line, setLine] = useState<DialogLineState>(idle);
+    function fail(titleKey: string, text: string) {
+        setLine(idle);
+        showMultiplayerProblem(language, titleKey, text);
+    }
+    return { line, setLine, fail };
+}
 
 export function DialogLine(props: DialogLineState & { beside?: boolean }) {
     const { tone, text, beside } = props;

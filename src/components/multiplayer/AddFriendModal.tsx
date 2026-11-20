@@ -10,7 +10,7 @@ import { modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
-import { DialogLine, type DialogLineState } from "./DialogLine";
+import { DialogLine, useDialogLine } from "./DialogLine";
 
 const NAME_MAX = 32;
 
@@ -49,7 +49,7 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
-    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
+    const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
     const canAdd = name.trim().length > 0 && !busy;
@@ -67,7 +67,7 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
         try {
             const added = await multiplayerFriendAdd(name.trim());
             if (!added.ok) {
-                setLine({ tone: "error", text: friendError(language, added.error) });
+                fail("Couldn't Send That", friendError(language, added.error));
                 setBusy(false);
                 return;
             }
@@ -81,7 +81,7 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
         }
         catch (e) {
             logError("multiplayerFriendAdd", e);
-            setLine({ tone: "error", text: friendError(language, "unavailable") });
+            fail("Couldn't Send That", friendError(language, "unavailable"));
             setBusy(false);
             return;
         }

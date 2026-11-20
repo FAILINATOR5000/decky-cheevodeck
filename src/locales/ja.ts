@@ -3792,6 +3792,7 @@ const JA: LocaleTable = {
     "Host has unlocked the room": "ホストがルームのロックを解除しました",
     "mp_room_locked": "ロック中",
     "The host locked this room.": "ホストがこのルームをロックしています。",
+    "Couldn't Host the Room": "ルームを開けませんでした",
 };
 
 export default JA;
