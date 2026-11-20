@@ -807,10 +807,13 @@ function RoomsModal(props: RoomsModalProps) {
                                         <FocusableItem
                                             focusKey={rowKey(row)}
                                             focusFallback={[...neighbors, "multiplayer:rooms:filter", "multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
-                                            disabled={busy}
                                             onGamepadFocus={() => roomWindow.onItemFocus(at)}
                                             onGamepadDirection={roomWindow.guardTopRow(index === firstMountedRoom ? roomWindow.start : at)}
-                                            onClick={() => choose(row)}
+                                            onClick={() => {
+                                                if (!busy) {
+                                                    choose(row);
+                                                }
+                                            }}
                                         >
                                             <div style={{ display: "flex", flexDirection: "column", gap: "2px", ...modalBodyStyle(), opacity: 1, width: "100%", textAlign: "left" }}>
                                                 <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>
