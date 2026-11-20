@@ -96,7 +96,7 @@ from dolphin_mappings_store import DolphinMappingsStore
 from freeze_incidents_store import INCIDENT_EVENT, FreezeIncidentsStore
 from smb_shares_store import SmbSharesStore
 from settings_store import SettingsStore
-from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, emit_notification, is_type_enabled
+from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, emit_notification, is_type_enabled, set_game_mode_check
 from utils import (
     chown_to_data_owner,
     ensure_dir,
@@ -747,6 +747,7 @@ class Plugin(
         self.session_mode_service = SessionModeService(
             on_change=self._sync_game_mode_services,
         )
+        set_game_mode_check(self.session_mode_service.is_game_mode)
         self.back_button_service = BackButtonService(
             settings_store=self.settings_store,
             debug_logging=lambda: getattr(self, "_debug_logging", False),

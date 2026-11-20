@@ -23,6 +23,8 @@ NOTIFICATION_EVENT = "cheevodeck_notification"
 
 NOTIFICATIONS_FILENAME = "notifications.json"
 
+_in_game_mode = None
+
 NOTIFICATIONS_ARCHIVE_FILENAME = "notifications_archive.json"
 
 MAX_ARCHIVED_NOTIFICATIONS = 2000
@@ -80,6 +82,11 @@ def is_type_toast(ntype: str, settings_store, cfg=None) -> bool:
         return False
 
 
+def set_game_mode_check(check) -> None:
+    global _in_game_mode
+    _in_game_mode = check
+
+
 def emit_notification(
     *,
     ntype: str,
@@ -113,6 +120,9 @@ def emit_notification(
         and cfg.get("doNotDisturbDisablesToast", True)
         and ntype != "noteReminder"
     ):
+        show_toast = False
+
+    if show_toast and not force_toast and _in_game_mode is not None and not _in_game_mode():
         show_toast = False
 
     payload = {"type": ntype, "toast": show_toast}
