@@ -3527,6 +3527,7 @@ const DE: LocaleTable = {
     "In-Game (relay)": "Im Spiel (Relay)",
     "Watching (relay)": "Schaut zu (Relay)",
     "Couldn't connect": "Keine Verbindung",
+    "Hosting Stream Play needs an AMD graphics chip, and this device doesn't have one. You can still join Stream Play rooms, and Couch Play and Link Play aren't affected.": "Zum Hosten von Stream-Spiel braucht es einen AMD-Grafikchip, und dieses Gerät hat keinen. Räumen für Stream-Spiel kannst du weiterhin beitreten, und Couch-Spiel und Link-Spiel sind nicht betroffen.",
     "Sunshine is already running on this device. Close it before hosting a Stream Play room.": "Sunshine läuft bereits auf diesem Gerät. Schließe es, bevor du einen Raum für Stream-Spiel hostest.",
     "Sunshine is already running on this device. Close it before joining a Stream Play room.": "Sunshine läuft bereits auf diesem Gerät. Schließe es, bevor du einem Raum für Stream-Spiel beitrittst.",
     "Streaming needs a CheevoDeck update.": "Streaming braucht ein CheevoDeck-Update.",

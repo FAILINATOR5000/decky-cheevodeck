@@ -293,6 +293,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_debug_server_door(self, on: bool = False):
         return self.multiplayer_service.debug_server_door(bool(on))
 
+    async def multiplayer_debug_no_amd(self, on: bool = False):
+        return self.multiplayer_service.debug_no_amd(bool(on))
+
     async def multiplayer_debug_proc(self):
         return await asyncio.to_thread(self.multiplayer_service.debug_processes)
 

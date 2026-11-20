@@ -39,6 +39,7 @@ from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
 from services.file_watcher_service import steam_game_running
 from services.round_saves import _write_real
+from services.stream_host import graphics_drivers, has_amd_graphics
 from services.update_checker_service import parse_version
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int, user_file_target
 
@@ -480,6 +481,8 @@ class MultiplayerService:
         self._online = {}
         self._online_error = ""
         self._prefer_server = False
+        self._no_amd_debug = False
+        self._said_no_amd = False
         self._page = NO_PAGE
         self._page_info = NO_PAGE_INFO
         self._page_gen = 0
@@ -2313,6 +2316,13 @@ class MultiplayerService:
     def _stream_gates(self, room):
         if room is not None:
             return None
+        if self._no_amd_debug or not has_amd_graphics():
+            if not self._said_no_amd:
+                self._said_no_amd = True
+                decky.logger.info("stream: Stream Play hosting is off on this device, no AMD graphics found "
+                                  "(%s, graphics drivers: %s)",
+                                  "aarch64" if cheevo_check_tools.host_is_arm64() else "x86_64", graphics_drivers())
+            return "stream_host_needs_amd", {}
         record = self._stream_setup.status() if self._stream_setup is not None else None
         overlay = self._overlay()
         if overlay is not None and overlay.streaming:
@@ -7331,6 +7341,15 @@ class MultiplayerService:
         self._rooms.clear()
         decky.logger.info("multiplayer: debug, Online rooms %s", "through the server" if on else "on the LAN when heard")
         return {"ok": True, "on": self._prefer_server}
+
+    def debug_no_amd(self, on: bool) -> dict:
+        if not self._settings_store.get_debug_logging(self._settings_store.load_config()):
+            return {"ok": False, "error": ERROR_UNAVAILABLE}
+        self._no_amd_debug = bool(on)
+        self._said_no_amd = False
+        decky.logger.info("multiplayer: debug, Stream Play hosting %s",
+                          "acts as if there's no AMD graphics" if on else "uses the real graphics check")
+        return {"ok": True, "on": self._no_amd_debug}
 
     def _pactl(self, *args):
         try:

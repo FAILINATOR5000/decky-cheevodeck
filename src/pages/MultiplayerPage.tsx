@@ -500,7 +500,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const setupPending = needsSetup && !installing;
     const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
     const chartShowsGate = mp.modes === null || mp.modes.modes[mp.mode] !== undefined;
-    const lineProblem = problemShown && (mp.visibleError || !chartShowsGate) ? problemShown : null;
+    const needsAmd = mp.mode === "stream" && !hosted && !joined
+        && (mp.modes?.modes[mp.mode] ?? shownCheck)?.gate === "stream_host_needs_amd";
+    const lineProblem = problemShown && problemShown.code !== "stream_host_needs_amd"
+        && (mp.visibleError || !chartShowsGate) ? problemShown : null;
     const problemLines = [
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
@@ -510,6 +513,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             ? "The host runs an older CheevoDeck ({{version}}). Some things may not show until they update."
             : "The host runs a newer CheevoDeck ({{version}}). Update CheevoDeck to see everything.",
         { version: joined.room.pv ?? "" }), color: undefined }] : []),
+        ...(needsAmd ? [{ text: problemText(language, "stream_host_needs_amd"), color: warnAmber }] : []),
         ...(lineProblem ? [{ text: problemLine(lineProblem.code, { size: stream.size || "?", ...lineProblem.detail }),
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))

@@ -1,4 +1,5 @@
 import base64
+import functools
 import json
 import os
 import socket
@@ -34,6 +35,8 @@ KEY_FILE = "cakey.pem"
 CERT_FILE = "cacert.pem"
 MARKER_DIR = Path("/run/cheevodeck")
 COMPOSITE_MARKER = "force-composite"
+DRM_CLASS = Path("/sys/class/drm")
+AMD_VENDOR = "0x1002"
 
 START_SECONDS = 25
 API_SECONDS = 5
@@ -72,6 +75,25 @@ def _port_open(port: int) -> bool:
         finally:
             probe.close()
     return False
+
+
+@functools.cache
+def has_amd_graphics() -> bool:
+    for card in DRM_CLASS.glob("card*"):
+        if not card.name[4:].isdigit():
+            continue
+        try:
+            if (card / "device" / "vendor").read_text(encoding="ascii").strip().lower() == AMD_VENDOR:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def graphics_drivers() -> str:
+    names = sorted({(card / "device" / "driver").resolve().name for card in DRM_CLASS.glob("card*")
+                    if card.name[4:].isdigit() and (card / "device" / "driver").exists()})
+    return ", ".join(names) or "none"
 
 
 class StreamHost:

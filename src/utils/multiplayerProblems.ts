@@ -96,6 +96,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     lan_only: "This game links over LAN, so it plays Local only.",
     invite_expired: "That invite expired",
     stream_not_set_up: "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).",
+    stream_host_needs_amd: "Hosting Stream Play needs an AMD graphics chip, and this device doesn't have one. You can still join Stream Play rooms, and Couch Play and Link Play aren't affected.",
     sunshine_running: "Sunshine is already running on this device. Close it before hosting a Stream Play room.",
     sunshine_running_guest: "Sunshine is already running on this device. Close it before joining a Stream Play room.",
     stream_needs_update: "Streaming needs a CheevoDeck update.",
