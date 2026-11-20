@@ -19,6 +19,7 @@ import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./componen
 import { registerMultiplayerSession, unregisterMultiplayerSession } from "./utils/multiplayerSession";
 import { registerMoonlightSweep, unregisterMoonlightSweep } from "./utils/streamPlay";
 import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./utils/multiplayerRoomState";
+import { registerSeatPads, unregisterSeatPads } from "./utils/seatPads";
 import { registerHotspotState, unregisterHotspotState } from "./utils/hotspotState";
 import { registerHotspotIntro } from "./components/hotspot/HotspotIntroModal";
 import { registerEmulatorJobs, unregisterEmulatorJobs } from "./utils/emulatorJobs";
@@ -101,6 +102,7 @@ export default definePlugin(() => {
     registerMultiplayerSession();
     registerMoonlightSweep();
     registerMultiplayerRoomState();
+    registerSeatPads();
     registerHotspotState();
     registerHotspotIntro();
     registerEmulatorJobs();
@@ -130,6 +132,7 @@ export default definePlugin(() => {
             unregisterMultiplayerSession();
             unregisterMoonlightSweep();
             unregisterVoiceChat();
+            unregisterSeatPads();
             unregisterMultiplayerRoomState();
             unregisterHotspotState();
             unregisterEmulatorJobs();

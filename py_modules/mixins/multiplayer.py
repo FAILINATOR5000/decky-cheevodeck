@@ -97,6 +97,9 @@ class MultiplayerMixin(PluginContext):
             None if locked is None else bool(locked),
         )
 
+    async def multiplayer_set_pads(self, count: int = 0):
+        return self.multiplayer_service.set_pads(count)
+
     async def multiplayer_game_options(self, game_id: int = 0):
         return await asyncio.to_thread(self.multiplayer_service.game_options, to_int(game_id, 0))
 

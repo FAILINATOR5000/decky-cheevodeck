@@ -148,3 +148,15 @@ export function swapSteamPads(fromSlot: number, toSlot: number): void {
 export function pingSteamPad(index: number): void {
     SteamClient.Input.IdentifyController(index);
 }
+
+export function onSteamPadListChanged(listener: () => void): () => void {
+    const svc = service();
+    if (!svc) {
+        return () => { };
+    }
+    const list = svc.RegisterForNotifyControllerListChanged(() => {
+        listener();
+        return HANDLED;
+    });
+    return () => list.unregister();
+}

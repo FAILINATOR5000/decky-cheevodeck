@@ -495,6 +495,7 @@ class MultiplayerService:
         self._tasks = set()
         self._swept = False
         self._model = _device_model()
+        self._pads = 0
 
         self._session = None
         self._stopping = False
@@ -965,7 +966,9 @@ class MultiplayerService:
                     "gameId": room["gameId"], "imageIcon": room["imageIcon"],
                     "size": len(room["seats"]), "taken": 1 + len(_guests(room)), "own": None,
                     "vote": _vote_marker(lounge.vote_view(room["vote"], lounge.voter_key(room["seats"][0]))),
-                    "lounge": _lounge_marker(lounge.lounge_view(room["lounge"]))}
+                    "lounge": _lounge_marker(lounge.lounge_view(room["lounge"])),
+                    "pads": [self._seat_pads(index, seat) for index, seat in enumerate(room["seats"])],
+                    "inGame": self._pads_frozen()}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -983,7 +986,8 @@ class MultiplayerService:
                     "roomVoice": bool(joined["row"].get("voice")), "locked": joined["row"]["locked"],
                     "gameId": joined["row"]["gameId"], "size": len(members),
                     "taken": sum(1 for name in members if name), **self._guest_game(joined),
-                    "vote": _vote_marker(status.get("vote")), "lounge": _lounge_marker(status.get("lounge"))}
+                    "vote": _vote_marker(status.get("vote")), "lounge": _lounge_marker(status.get("lounge")),
+                    "pads": status.get("pads") or [], "inGame": self._pads_frozen()}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
                 "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None, "voice": None}
 
@@ -1035,6 +1039,28 @@ class MultiplayerService:
         self._emit({**view, "seq": self._event_seq}, ROOM_EVENT)
         if self._friends is not None:
             self._friends.room_changed()
+
+    def set_pads(self, count) -> dict:
+        if type(count) is not int or not 0 <= count <= proto.PADS_MAX:
+            return {"ok": False}
+        if self._pads_frozen() or count == self._pads:
+            return {"ok": True}
+        self._pads = count
+        self._debug("this device has %s controllers", count)
+        self._announce()
+        return {"ok": True}
+
+    def _pads_frozen(self) -> bool:
+        room = self._room
+        if room is not None:
+            return room["state"] != "lobby"
+        joined = self._joined
+        return joined is not None and joined["launched"]
+
+    def _seat_pads(self, index: int, seat) -> int:
+        if seat is None:
+            return 0
+        return self._pads if index == 0 else seat["pads"]
 
     def _in_game(self) -> bool:
         current = self._session
@@ -4182,12 +4208,12 @@ class MultiplayerService:
                 else {"name": seat["name"], "launched": False, "ready": False, "can": not room["hostState"],
                       "seatState": room["hostState"], "title": room["title"],
                       "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": self._rank(),
-                      "model": seat["model"]}
+                      "model": seat["model"], "pads": self._pads}
                 if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_shown_ready(room, index, seat),
                       "can": seat["can"], "reason": seat["reason"], "seatState": seat["seatState"], "title": seat["title"],
                       "ulid": seat["ulid"], "pic": seat["pic"], "rank": seat.get("rank"), "model": seat["model"],
-                      "st": room["streams"].seat_state(index) if room.get("streams") is not None else ""}
+                      "pads": seat["pads"], "st": room["streams"].seat_state(index) if room.get("streams") is not None else ""}
                 for index, seat in enumerate(room["seats"])
             ],
             "state": self._public_state(room),
@@ -4551,6 +4577,7 @@ class MultiplayerService:
             "pic": params["pic"],
             "rank": params["rank"],
             "model": params["model"],
+            "pads": 0,
             "ip": address,
             "key": proto.seat_key(key, nc, ns, proto.dh_shared(private, opened["ga"])),
             "inbox": [],
@@ -5075,7 +5102,7 @@ class MultiplayerService:
         seat.update(seq=report["seq"], ready=report["ready"], rev=report["rev"], round=report["round"],
                     can=report["can"], reason=report["reason"], gameId=report["gameId"],
                     title=report["title"], launched=report["launched"], seatState=report["seatState"],
-                    rank=report["rank"])
+                    rank=report["rank"], pads=report["pads"])
         if room.get("streams") is not None:
             room["streams"].report(index, report["st"], report["kb"], report["uhd"])
         if self._seat_ready(room, seat) != was_ready:
@@ -5125,6 +5152,7 @@ class MultiplayerService:
             "state": self._public_state(room),
             "members": [taken["name"] if taken else "" for taken in room["seats"]],
             "models": "".join(taken["model"] if taken else "-" for taken in room["seats"]),
+            "pads": [self._seat_pads(position, taken) for position, taken in enumerate(room["seats"])],
             "hardcore": room["hardcore"],
             "ip": seat["ip"],
             "chatTop": room["chatSeq"],
@@ -6011,7 +6039,7 @@ class MultiplayerService:
         rank = self._rank()
         said = (joined["ready"], joined["readyRev"], joined["readyRound"], joined["can"], reason,
                 local["gameId"] if local else 0, local["title"] if local else "", joined["launched"], joined["hardcore"],
-                joined["seatState"], rank, joined["uhd"])
+                joined["seatState"], rank, joined["uhd"], self._pads)
         if said != joined["said"]:
             joined["said"] = said
             joined["seq"] += 1
@@ -6031,7 +6059,7 @@ class MultiplayerService:
             can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
             title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
             seat_state=joined["seatState"], st=state, kb=kb, rank=rank,
-            uhd=joined["uhd"] and joined["row"]["mode"] == "stream",
+            uhd=joined["uhd"] and joined["row"]["mode"] == "stream", pads=self._pads,
         )
 
     @_in_one_pass

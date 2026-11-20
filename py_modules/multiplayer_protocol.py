@@ -433,6 +433,13 @@ def _optional(value, pattern) -> bool:
     return isinstance(value, str) and (value == "" or pattern.fullmatch(value) is not None)
 
 
+PADS_MAX = 16
+
+
+def clean_pads(value) -> int:
+    return value if type(value) is int and 0 <= value <= PADS_MAX else 0
+
+
 def clean_rank(value):
     if not isinstance(value, dict) or value.get("tier") not in RANK_TIERS:
         return None
@@ -559,7 +566,7 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
            launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0, rank=None,
-           uhd: bool = False) -> dict:
+           uhd: bool = False, pads: int = 0) -> dict:
     body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore,
             "seatState": seat_state}
@@ -571,6 +578,8 @@ def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: s
         body["kb"] = kb
     if uhd:
         body["uhd"] = True
+    if pads:
+        body["pads"] = pads
     return body
 
 
@@ -624,7 +633,7 @@ def read_report(raw):
     return {**{name: raw[name] for name in (*numbers, *flags, "reason", "seatState")},
             "title": _clean(raw["title"], _TITLE_MAX),
             "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0,
-            "rank": clean_rank(raw.get("rank")), "uhd": raw.get("uhd") is True}
+            "rank": clean_rank(raw.get("rank")), "uhd": raw.get("uhd") is True, "pads": clean_pads(raw.get("pads"))}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:
@@ -677,12 +686,15 @@ def read_status_reply(key: bytes, message, nonce: str):
     ):
         return None
     models = models[:len(members)].ljust(len(members), "u")
+    pads = message.get("pads")
+    pads = [clean_pads(count) for count in pads[:len(members)]] if isinstance(pads, list) else []
     return {
         "state": message["state"],
         "hardcore": message["hardcore"],
         "ip": message["ip"],
         "members": [_clean(name, _USER_MAX) or "" for name in members],
         "models": "".join(code if code in MODEL_CODES or code == "-" else "u" for code in models),
+        "pads": pads + [0] * (len(members) - len(pads)),
         "rev": message["rev"],
         "round": message["round"],
         "start": message["start"],

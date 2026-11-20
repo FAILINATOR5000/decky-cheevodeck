@@ -41,6 +41,7 @@ export type MultiplayerRoomMarker = {
     voice: RoomVoice | null;
     roomVoice: boolean;
     locked: boolean;
+    inGame: boolean;
     gameId: number;
     imageIcon: string;
     size: number;
@@ -54,7 +55,7 @@ type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, chatBacklog: -1, autostart: null, voice: null, roomVoice: false, locked: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
+    chat: null, chatBacklog: -1, autostart: null, voice: null, roomVoice: false, locked: false, inGame: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
     vote: null, lounge: null
 };
 
@@ -365,6 +366,7 @@ function onRoomEvent(payload: RoomEvent) {
         voice: readVoice(payload.voice),
         roomVoice: payload.roomVoice === true,
         locked: payload.locked === true,
+        inGame: payload.inGame === true,
         gameId: Number(payload.gameId) || 0,
         imageIcon: typeof payload.imageIcon === "string" ? payload.imageIcon : "",
         size: Number(payload.size) || 0,
@@ -435,6 +437,7 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             voice: readVoice(status.voice),
             roomVoice: room.voice === true,
             locked: room.locked === true,
+            inGame: room.state !== "lobby",
             vote: voteMarkerOf(room.vote),
             lounge: loungeMarkerOf(room.lounge)
         };
@@ -458,6 +461,7 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             voice: readVoice(status.voice),
             roomVoice: status.room.voice === true,
             locked: status.room.locked === true,
+            inGame: status.launched,
             vote: voteMarkerOf(guest?.vote),
             lounge: loungeMarkerOf(guest?.lounge)
         };

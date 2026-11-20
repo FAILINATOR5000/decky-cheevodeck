@@ -109,7 +109,7 @@ Couch Play rooms on RetroArch get a few extras:
 
 ## Stream Play
 
-Stream Play lets you play a game with someone who doesn't have it. You play it exactly like you normally would, and everyone who joins sees your game and plays along with their own controller, as if they were sitting right next to you. Guests don't need the game, the emulator or any BIOS files, just a controller. Only the host earns achievements, since the game is only running on the host's device. Stream Play also has the most compatibility as it works with almost any game.
+Stream Play lets you play a game with someone who doesn't have it. You play it exactly like you normally would, and everyone who joins sees your game and plays along with their own controller, as if they were sitting right next to you. One major benefit of Stream Play is that it allows hosts and clients alike to have friends connect their controllers locally to play with them online. The number next to the system icon (like Steam Machine, Steam Deck, etc.) indicates how many people have controllers connected locally for the client or host. Guests don't need the game, the emulator or any BIOS files, just a controller. Only the host earns achievements, since the game is only running on the host's device. Stream Play also has the most compatibility as it works with almost any game.
 
 ### Setting it up
 

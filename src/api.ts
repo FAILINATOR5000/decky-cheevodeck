@@ -867,6 +867,7 @@ export const multiplayerRoomOptions = callable<
     [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?, (number | null)?, (boolean | null)?, (number | null)?, (boolean | null)?, (boolean | null)?],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
+export const multiplayerSetPads = callable<[number], { ok: boolean }>("multiplayer_set_pads");
 export const multiplayerGameOptions = callable<[number], { ok: boolean; options: MultiplayerGameOptions }>("multiplayer_game_options");
 export const multiplayerSetGameOptions = callable<[number, Partial<MultiplayerGameOptions>], { ok: boolean; error?: string }>(
     "multiplayer_set_game_options"

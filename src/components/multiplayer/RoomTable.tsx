@@ -31,6 +31,7 @@ type RoomTableSeat = {
     avatar?: string;
     rank?: MilestoneRankBadge | null;
     model?: string;
+    pads?: number;
     open: boolean;
 };
 
@@ -205,6 +206,7 @@ export function RoomTable(props: {
                                                 <>
                                                     <span aria-hidden>·</span>
                                                     <DeviceIcon model={seat.model} size={Math.round(textSize(12) * 1.15)} />
+                                                    {(seat.pads ?? 0) >= 2 && <span>{seat.pads}</span>}
                                                 </>
                                             )}
                                         </span>

@@ -3129,6 +3129,7 @@ type MultiplayerSeat = {
     pic: string;
     rank?: MilestoneRankBadge | null;
     model: DeviceModel;
+    pads: number;
     st?: string;
 } | null;
 
@@ -3187,6 +3188,7 @@ type MultiplayerGuestStatus = {
     ip: string;
     members: string[];
     models: string;
+    pads: number[];
     rev: number;
     round: number;
     start: boolean;

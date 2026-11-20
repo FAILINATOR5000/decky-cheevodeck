@@ -1387,6 +1387,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
                     rank: seat?.rank,
                     model: seat?.model,
+                    pads: seat?.pads,
                     open: index > 0 && seat !== null
                 }))}
                 onSeat={(index) => {
@@ -1433,6 +1434,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         avatar: pic ? friends.state.avatars[pic] : undefined,
                         rank: joined.status?.ids[index]?.rank,
                         model: joined.status?.models[index],
+                        pads: joined.status?.pads[index],
                         open: Boolean(name) && index !== joined.seat
                     };
                 })}
