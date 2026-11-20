@@ -1717,6 +1717,9 @@ class MultiplayerService:
             return None, "link_gc_no_lan", {}
         if mode == "couch" and system_id == session.DS_SYSTEM:
             return None, "ds_no_couch", {}
+        on_disk = [entry for entry in game["paths"] if os.path.isfile(entry["path"])]
+        if not on_disk:
+            return None, "rom_missing", {}
         saved = self._game_options.get(game_id)["pick"] if use_saved and room is None and mode == "couch" else None
         own_pick, vehicle, saved_core = None, None, ""
         if saved is not None:
@@ -1727,15 +1730,13 @@ class MultiplayerService:
                 vehicle = self._emulator_by_appid(saved["appid"])
         candidates = [{**entry, "shortcut": own_pick if own_pick in entry["shortcuts"]
                        else self._pick_shortcut(entry["shortcuts"], mode, system_id)}
-                      for entry in game["paths"] if entry["shortcut"]]
+                      for entry in on_disk if entry["shortcut"]]
         fallback = None
         if not candidates:
             if not self._fallback_on():
                 return None, "no_shortcut", {}
             fallback = self._fallback(mode, system_id)
-            candidates = [{**entry, "shortcut": fallback} for entry in game["paths"] if os.path.isfile(entry["path"])]
-            if not candidates:
-                return None, "rom_missing", {}
+            candidates = [{**entry, "shortcut": fallback} for entry in on_disk]
 
         pick = candidates[0]
         if room is not None and mode == "couch":
@@ -2001,6 +2002,9 @@ class MultiplayerService:
             return None, "not_in_results", {}
         if game.get("changed"):
             return None, "rom_missing", {"picked": "1"}
+        on_disk = [entry for entry in game["paths"] if os.path.isfile(entry["path"])]
+        if not on_disk:
+            return None, "rom_missing", {}
         picked = "chosen"
         if choice is None and session_pick and game_id in self._session_picks:
             choice, picked = self._session_picks[game_id], "session"
@@ -2012,7 +2016,7 @@ class MultiplayerService:
             if route is not None:
                 route["picked"] = picked
                 return route, None, {}
-        linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
+        linked = next((entry for entry in on_disk if entry["shortcut"]), None)
         if linked is not None:
             own = self._pick_shortcut(linked["shortcuts"], "play", game["systemId"])
             return {"appid": own["appid"], "fallback": False, "shortcut": own, "rom": linked["path"]}, None, {}
@@ -2020,9 +2024,7 @@ class MultiplayerService:
             fallback_on = self._play_fallback_on()
         if not fallback_on:
             return None, "no_shortcut", {}
-        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["path"])), None)
-        if rom is None:
-            return None, "rom_missing", {}
+        rom = on_disk[0]["path"]
         system_id = game["systemId"]
         kinds = self._play_kinds(system_id)
         coreless, first_run, missing = False, False, None
