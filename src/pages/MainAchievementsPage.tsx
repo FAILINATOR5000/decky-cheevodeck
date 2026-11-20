@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy, FaUserFriends } from "react-icons/fa";
+import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
@@ -83,6 +83,7 @@ import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
 import { useHotspotOn } from "../utils/hotspotState";
 import { PlaySplitButton } from "../components/game/PlaySplitButton";
 import { FixRunLine } from "../components/multiplayer/FixRunLine";
+import { QuickMenuScanStatus, readScanStatus, type ScanSnapshot } from "../components/quickMenu/QuickMenuScanStatus";
 import { useGamePlayController } from "../hooks/useGamePlayController";
 
 // Layout constants
@@ -1064,6 +1065,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         useState<StripButtonId | null>(null);
 
     const [quickMenuExpanded, setQuickMenuExpanded] = useState(false);
+    const [scanSnapshot, setScanSnapshot] = useState<ScanSnapshot | null>(null);
     useSetupCatchUp({
         onMain: view === "achievements",
         loading,
@@ -2021,10 +2023,15 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             >
                 <DialogButton
                     onClick={() => {
-                        if (!quickMenuExpanded) {
-                            recordMilestoneEvent("quick_menu_open");
+                        if (quickMenuExpanded) {
+                            setQuickMenuExpanded(false);
+                            return;
                         }
-                        setQuickMenuExpanded((value) => !value);
+                        recordMilestoneEvent("quick_menu_open");
+                        void readScanStatus().then((snapshot) => {
+                            setScanSnapshot(snapshot);
+                            setQuickMenuExpanded(true);
+                        });
                     }}
                     navRef={quickMenuButtonNavRef}
                     onGamepadFocus={() => focusStripButton("quickmenu")}
@@ -2237,50 +2244,14 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     </div>
                                 </FocusableItem>
                             </PanelSectionRow>
-                            {inRoom && (
-                                <PanelSectionRow>
-                                    <FocusableItem
-                                        focusKey="quickmenu:multiplayer"
-                                        focusFallback={["quickmenu:search"]}
-                                        bottomSeparator="none"
-                                        onClick={() => {
-                                            setQuickMenuExpanded(false);
-                                            openMultiplayer();
-                                        }}
-                                        outerStyle={{ width: "100%", minWidth: 0 }}
-                                    >
-                                        <div
-                                            style={{
-                                                width: "100%",
-                                                boxSizing: "border-box",
-                                                display: "flex",
-                                                flexDirection: "row",
-                                                alignItems: "center",
-                                                gap: "8px",
-                                                padding: "7px 10px",
-                                                borderRadius: "8px",
-                                                minWidth: 0,
-                                                border: `1px solid ${achievementGreen}`,
-                                                background: "rgba(34, 197, 94, 0.16)"
-                                            }}
-                                        >
-                                            <FaUserFriends size={16} color={achievementGreen} />
-                                            <span
-                                                style={{
-                                                    ...smallTextStyle(),
-                                                    flex: 1,
-                                                    minWidth: 0,
-                                                    textAlign: "left",
-                                                    color: achievementGreen,
-                                                    fontWeight: 700,
-                                                    overflowWrap: "anywhere"
-                                                }}
-                                            >
-                                                {t(language, roomRole === "host" ? "Play Together room open" : "In a Play Together room")}
-                                            </span>
-                                        </div>
-                                    </FocusableItem>
-                                </PanelSectionRow>
+                            {scanSnapshot !== null && (
+                                <QuickMenuScanStatus
+                                    language={language}
+                                    snapshot={scanSnapshot}
+                                    onLeave={() => setQuickMenuExpanded(false)}
+                                    openCheevoCheck={openCheevoCheck}
+                                    openFileWatcher={openFileWatcher}
+                                />
                             )}
                             <Focusable
                                 flow-children="grid"

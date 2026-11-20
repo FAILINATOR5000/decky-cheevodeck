@@ -949,6 +949,7 @@ class Plugin(
         self._background_tasks = set()
 
         self._cheevo_check_schedule = None
+        self._cheevo_check_due = 0.0
 
         self._welcome_owed = False
 

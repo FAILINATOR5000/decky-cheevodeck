@@ -137,6 +137,7 @@ class PluginContext:
     _memories_deferred_resolve: asyncio.Task | None
     _memories_switch_pending: dict[str, tuple[int | None, int]]
     _cheevo_check_schedule: asyncio.Task | None
+    _cheevo_check_due: float
     _welcome_owed: bool
 
     def _ra_slot(self, wait_for_game_check: bool = True) -> AbstractAsyncContextManager[None]: ...

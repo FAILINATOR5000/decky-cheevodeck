@@ -594,7 +594,13 @@ export const cancelCheevoCheckScan = callable<[], { ok: boolean; running: boolea
 );
 export const getCheevoCheckScanStatus = callable<
     [],
-    { running: boolean; scheduled: boolean; error: string | null; progress: CheevoCheckScanProgress | null }
+    {
+        running: boolean;
+        scheduled: boolean;
+        scheduledAt: number;
+        error: string | null;
+        progress: CheevoCheckScanProgress | null;
+    }
 >("get_cheevo_check_scan_status");
 export const startCheevoCheckScan = callable<
     [string, boolean],
