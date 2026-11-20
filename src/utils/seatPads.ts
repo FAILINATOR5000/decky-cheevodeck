@@ -1,18 +1,32 @@
 import { logFocusDebug, multiplayerSetPads } from "../api";
 import { logError } from "./errors";
 import { multiplayerRoomMarker, subscribeMultiplayerRoom } from "./multiplayerRoomState";
-import { onSteamPadListChanged, readSteamPads } from "./steamControllers";
+import { gameRunning, onSteamPadListChanged, readSteamPads } from "./steamControllers";
 
 const SETTLE_MS = 250;
 
 let stopRoom: (() => void) | null = null;
+let stopGames: (() => void) | null = null;
 let stopPads: (() => void) | null = null;
+let playing = false;
 let timer = 0;
 let sent = -1;
 
 function follow() {
-    const marker = multiplayerRoomMarker();
-    const wanted = marker.role !== null && !marker.inGame;
+    const inRoom = multiplayerRoomMarker().role !== null;
+    if (inRoom && stopGames === null) {
+        playing = gameRunning();
+        const handle = SteamClient.GameSessions.RegisterForAppLifetimeNotifications((event) => {
+            playing = event.bRunning;
+            follow();
+        });
+        stopGames = () => handle.unregister();
+    }
+    else if (!inRoom && stopGames !== null) {
+        stopGames();
+        stopGames = null;
+    }
+    const wanted = inRoom && !playing;
     if (wanted === (stopPads !== null)) {
         return;
     }
@@ -57,6 +71,8 @@ export function registerSeatPads() {
 export function unregisterSeatPads() {
     stopRoom?.();
     stopRoom = null;
+    stopGames?.();
+    stopGames = null;
     stopPads?.();
     stopPads = null;
     window.clearTimeout(timer);

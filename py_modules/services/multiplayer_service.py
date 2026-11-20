@@ -967,8 +967,7 @@ class MultiplayerService:
                     "size": len(room["seats"]), "taken": 1 + len(_guests(room)), "own": None,
                     "vote": _vote_marker(lounge.vote_view(room["vote"], lounge.voter_key(room["seats"][0]))),
                     "lounge": _lounge_marker(lounge.lounge_view(room["lounge"])),
-                    "pads": [self._seat_pads(index, seat) for index, seat in enumerate(room["seats"])],
-                    "inGame": self._pads_frozen()}
+                    "pads": [self._seat_pads(index, seat) for index, seat in enumerate(room["seats"])]}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -987,7 +986,7 @@ class MultiplayerService:
                     "gameId": joined["row"]["gameId"], "size": len(members),
                     "taken": sum(1 for name in members if name), **self._guest_game(joined),
                     "vote": _vote_marker(status.get("vote")), "lounge": _lounge_marker(status.get("lounge")),
-                    "pads": status.get("pads") or [], "inGame": self._pads_frozen()}
+                    "pads": status.get("pads") or []}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
                 "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None, "voice": None}
 
@@ -1043,19 +1042,12 @@ class MultiplayerService:
     def set_pads(self, count) -> dict:
         if type(count) is not int or not 0 <= count <= proto.PADS_MAX:
             return {"ok": False}
-        if self._pads_frozen() or count == self._pads:
+        if self._in_game() or count == self._pads:
             return {"ok": True}
         self._pads = count
         self._debug("this device has %s controllers", count)
         self._announce()
         return {"ok": True}
-
-    def _pads_frozen(self) -> bool:
-        room = self._room
-        if room is not None:
-            return room["state"] != "lobby"
-        joined = self._joined
-        return joined is not None and joined["launched"]
 
     def _seat_pads(self, index: int, seat) -> int:
         if seat is None:
