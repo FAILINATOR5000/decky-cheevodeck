@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { getCheevoCheckScanStatus, getFileWatcherPassStatus } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
+import { textSize } from "../../utils/scale";
 import { bodyTextStyle } from "../../utils/style";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { FocusTarget } from "../ui/FocusTarget";
 import { focusReticle } from "../ui/HeadingStop";
 import { ProgressBar } from "../ui/ProgressBar";
@@ -29,7 +31,7 @@ type RowState = "running" | "downloading" | "verifying" | "scheduled" | "paused"
 
 type Row = {
     state: RowState;
-    fraction: number;
+    fraction: number | null;
     dueAt: number;
 };
 
@@ -64,7 +66,7 @@ function cheevoRow(status: CheevoStatus, prev: Row | null): Row | null {
     if (status?.running) {
         const phase = status.progress?.phase;
         const state = phase === "fetch" ? "downloading" : phase === "verify" ? "verifying" : "running";
-        return { state, fraction: ratio(status.progress?.done, status.progress?.total) ?? 0, dueAt: 0 };
+        return { state, fraction: ratio(status.progress?.done, status.progress?.total), dueAt: 0 };
     }
     if (status?.scheduled) {
         return { state: "scheduled", fraction: 0, dueAt: Number(status.scheduledAt) || 0 };
@@ -84,7 +86,7 @@ function watchRow(status: WatchStatus, prev: Row | null): Row | null {
     }
     const pass = status?.pass;
     if (pass) {
-        const fraction = ratio(pass.doneBytes, pass.totalBytes) ?? 0;
+        const fraction = ratio(pass.doneBytes, pass.totalBytes);
         return { state: pass.active ? "running" : "paused", fraction, dueAt: 0 };
     }
     if (prev === null) {
@@ -108,7 +110,10 @@ function cheevoText(language: LanguageCode, row: Row) {
         case "failed":
             return t(language, "Cheevo Check: Failed");
         default:
-            return t(language, "Cheevo Check: Running");
+            if (row.fraction === null) {
+                return t(language, "Cheevo Check: Running");
+            }
+            return t(language, "Cheevo Check: Running · {{percent}}%", { percent: Math.floor(row.fraction * 100) });
     }
 }
 
@@ -119,15 +124,19 @@ function watchText(language: LanguageCode, row: Row) {
         case "complete":
             return t(language, "File Watcher: Complete");
         default:
-            return t(language, "File Watcher: Running");
+            if (row.fraction === null) {
+                return t(language, "File Watcher: Running");
+            }
+            return t(language, "File Watcher: Running · {{percent}}%", { percent: Math.floor(row.fraction * 100) });
     }
 }
 
 function StatusRow(props: {
+    language: LanguageCode;
     focusKey: string;
     focusFallback: string[];
     text: string;
-    fraction: number;
+    fraction: number | null;
     onPress: () => void;
 }) {
     const [focused, setFocused] = useState(false);
@@ -149,7 +158,10 @@ function StatusRow(props: {
                     >
                         <div style={bodyTextStyle()}>{props.text}</div>
                         <div style={{ marginTop: "6px" }}>
-                            <ProgressBar fraction={props.fraction} />
+                            <ProgressBar fraction={props.fraction ?? 0} />
+                        </div>
+                        <div style={{ ...bodyTextStyle(), lineHeight: 1, marginTop: "6px" }}>
+                            <ButtonPrompt language={props.language} textKey="{{button}} View More" button="a" fontSize={textSize(12)} inline />
                         </div>
                     </Focusable>
                 </FocusTarget>
@@ -198,6 +210,7 @@ export function QuickMenuScanStatus(props: {
             <style>{ROW_STYLES}</style>
             {cheevo !== null && (
                 <StatusRow
+                    language={language}
                     focusKey={CHEEVO_KEY}
                     focusFallback={watch !== null ? [WATCH_KEY, "quickmenu:search"] : ["quickmenu:search"]}
                     text={cheevoText(language, cheevo)}
@@ -210,6 +223,7 @@ export function QuickMenuScanStatus(props: {
             )}
             {watch !== null && (
                 <StatusRow
+                    language={language}
                     focusKey={WATCH_KEY}
                     focusFallback={cheevo !== null ? [CHEEVO_KEY, "quickmenu:search"] : ["quickmenu:search"]}
                     text={watchText(language, watch)}
