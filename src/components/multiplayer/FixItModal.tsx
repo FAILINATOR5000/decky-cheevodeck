@@ -471,7 +471,7 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         t(language, "The file for this game might have been moved or deleted since the last Cheevo Check scan. It's recommended to rescan your library whenever you make changes to ROM names, folders, etc."),
                         t(language, "Don't want to run a scan now? Try the “Fix It” feature below that will scan just this game only.")
                     ] : [
-                        t(language, "For the smoothest experience, run a Cheevo Check scan once on your whole library. It tells CheevoDeck which game each file is."),
+                        t(language, "A Cheevo Check scan of your library is recommended for the best experience, as this helps CheevoDeck identify your games."),
                         t(language, "Rather not? The “Fix It” feature below checks just this game's file instead.")
                     ]}>
                         {scanButton}

@@ -3764,7 +3764,7 @@ export const EN: LocaleTable = {
     "Stream Play: Couldn't finish setup": "Stream Play: Couldn't finish setup",
     "Something went wrong, so Fix It stopped.": "Something went wrong, so Fix It stopped.",
     "Couldn't reach the server. Check your internet connection and try again.": "Couldn't reach the server. Check your internet connection and try again.",
-    "For the smoothest experience, run a Cheevo Check scan once on your whole library. It tells CheevoDeck which game each file is.": "For the smoothest experience, run a Cheevo Check scan once on your whole library. It tells CheevoDeck which game each file is.",
+    "A Cheevo Check scan of your library is recommended for the best experience, as this helps CheevoDeck identify your games.": "A Cheevo Check scan of your library is recommended for the best experience, as this helps CheevoDeck identify your games.",
     "For the smoothest experience, add your games to Steam as non-Steam shortcuts with Steam ROM Manager, which bulk adds your games at once. At the least, add your emulators as non-Steam shortcuts, which allows CheevoDeck to launch your games through them.": "For the smoothest experience, add your games to Steam as non-Steam shortcuts with Steam ROM Manager, which bulk adds your games at once. At the least, add your emulators as non-Steam shortcuts, which allows CheevoDeck to launch your games through them.",
     "Rather not? The “Fix It” feature below takes a quicker route to get you up and running right now.": "Rather not? The “Fix It” feature below takes a quicker route to get you up and running right now.",
     "Rather not? The “Fix It” feature below checks just this game's file instead.": "Rather not? The “Fix It” feature below checks just this game's file instead.",

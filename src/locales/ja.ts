@@ -3610,7 +3610,7 @@ const JA: LocaleTable = {
     "Stream Play: Couldn't finish setup": "ストリームプレイ：準備を完了できませんでした",
     "Something went wrong, so Fix It stopped.": "問題が発生したため、「修正する」を中止しました。",
     "Couldn't reach the server. Check your internet connection and try again.": "サーバーに接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
-    "For the smoothest experience, run a Cheevo Check scan once on your whole library. It tells CheevoDeck which game each file is.": "いちばん快適に使うには、ライブラリ全体でCheevo Checkのスキャンを一度実行してください。各ファイルがどのゲームかをCheevoDeckが把握できます。",
+    "A Cheevo Check scan of your library is recommended for the best experience, as this helps CheevoDeck identify your games.": "最高の体験のために、ライブラリをCheevo Checkでスキャンすることをおすすめします。CheevoDeckがあなたのゲームを識別しやすくなります。",
     "For the smoothest experience, add your games to Steam as non-Steam shortcuts with Steam ROM Manager, which bulk adds your games at once. At the least, add your emulators as non-Steam shortcuts, which allows CheevoDeck to launch your games through them.": "いちばん快適に使うには、Steam ROM ManagerでゲームをSteam以外のショートカットとしてSteamに追加してください。すべてのゲームを一度にまとめて追加できます。少なくともエミュレーターをSteam以外のショートカットとして追加しておけば、CheevoDeckがそれを使ってゲームを起動できます。",
     "Rather not? The “Fix It” feature below takes a quicker route to get you up and running right now.": "追加しない場合は、下の「修正する」機能が手早い方法で、今すぐ遊べるようにします。",
     "Rather not? The “Fix It” feature below checks just this game's file instead.": "スキャンしない場合は、下の「修正する」機能がこのゲームのファイルだけを確認します。",
