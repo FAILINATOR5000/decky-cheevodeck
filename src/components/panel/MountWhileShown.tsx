@@ -10,7 +10,6 @@ export function MountWhileShown(props: { children: ReactNode }) {
             return undefined;
         }
         const update = () => setShown(doc.visibilityState === "visible");
-        update();
         doc.addEventListener("visibilitychange", update);
         return () => doc.removeEventListener("visibilitychange", update);
     }, []);
