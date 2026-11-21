@@ -3798,6 +3798,10 @@ const JA: LocaleTable = {
     "mp_room_locked": "ロック中",
     "The host locked this room.": "ホストがこのルームをロックしています。",
     "Couldn't Host the Room": "ルームを開けませんでした",
+    "CheevoDeck couldn't draw this page.": "CheevoDeck はこのページを表示できませんでした。",
+    "CheevoDeck couldn't draw this window.": "CheevoDeck はこのウィンドウを表示できませんでした。",
+    "Close the menu and open it again. The full error is in the CheevoDeck log.": "メニューを閉じてもう一度開いてください。エラーの詳細は CheevoDeck のログに記録されています。",
+    "Press B to close it and try again. The full error is in the CheevoDeck log.": "B で閉じてから、もう一度お試しください。エラーの詳細は CheevoDeck のログに記録されています。",
 };
 
 export default JA;

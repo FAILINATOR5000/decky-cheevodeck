@@ -3973,6 +3973,10 @@ const FR: LocaleTable = {
     "mp_room_locked": "Verrouillée",
     "The host locked this room.": "L'hôte a verrouillé cette salle.",
     "Couldn't Host the Room": "Impossible d'ouvrir la salle",
+    "CheevoDeck couldn't draw this page.": "CheevoDeck n'a pas pu afficher cette page.",
+    "CheevoDeck couldn't draw this window.": "CheevoDeck n'a pas pu afficher cette fenêtre.",
+    "Close the menu and open it again. The full error is in the CheevoDeck log.": "Ferme le menu et rouvre-le. L'erreur complète se trouve dans le journal de CheevoDeck.",
+    "Press B to close it and try again. The full error is in the CheevoDeck log.": "Appuie sur B pour la fermer et réessaie. L'erreur complète se trouve dans le journal de CheevoDeck.",
 };
 
 export default FR;

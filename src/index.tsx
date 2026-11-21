@@ -2,13 +2,15 @@ import { definePlugin, addEventListener, removeEventListener } from "@decky/api"
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
-import { refreshHealedUserAvatar } from "./api";
+import { ErrorBoundary } from "./components/panel/ErrorBoundary";
+import { logStartupEvent, refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { warmConsoleCatalog } from "./utils/consoleCatalog";
 import { stopCardCollage, warmCardCollage } from "./utils/playTogetherCollage";
 import { watchMilestoneKinds } from "./utils/milestoneEvents";
 import { logError } from "./utils/errors";
+import { logSteamUiKind } from "./utils/steam/build";
 import { showToastAfter } from "./utils/delayedToast";
 import { PRESS_TOAST_DELAY_MS } from "./utils/navSound";
 import { quickAccessMenuClasses } from "@decky/ui";
@@ -38,6 +40,7 @@ const NOTIFICATION_EVENT = "cheevodeck_notification";
 const AVATAR_HEALED_EVENT = "cheevodeck_avatar_healed";
 
 export default definePlugin(() => {
+    logSteamUiKind();
     releaseWebBrowserActionset();
 
     let disposed = false;
@@ -93,28 +96,42 @@ export default definePlugin(() => {
         void refreshHealedUserAvatar(username);
     };
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
-    registerBrowserDownloads();
-    registerGlobalBackButtons();
-    registerPhantomMouseGuard();
 
-    registerScreenDarken();
-    registerMemoryCapture();
-    registerMultiplayerSession();
-    registerMoonlightSweep();
-    registerMultiplayerRoomState();
-    registerSeatPads();
-    registerHotspotState();
-    registerHotspotIntro();
-    registerEmulatorJobs();
+    const start = (name: string, register: () => void) => {
+        try {
+            register();
+        }
+        catch (e) {
+            logError(`index: ${name} didn't start`, e);
+            void logStartupEvent(`${name} didn't start`, String(e)).catch(() => { });
+        }
+    };
+    start("browser downloads", registerBrowserDownloads);
+    start("global back buttons", registerGlobalBackButtons);
+    start("phantom mouse guard", registerPhantomMouseGuard);
+
+    start("screen darken", registerScreenDarken);
+    start("memory capture", registerMemoryCapture);
+    start("multiplayer session", registerMultiplayerSession);
+    start("moonlight sweep", registerMoonlightSweep);
+    start("room state", registerMultiplayerRoomState);
+    start("seat pads", registerSeatPads);
+    start("hotspot state", registerHotspotState);
+    start("hotspot intro", registerHotspotIntro);
+    start("emulator jobs", registerEmulatorJobs);
     void finishPendingFixes();
-    registerVoiceChat();
-    registerGameVolume();
-    registerMemoryFullscreen();
+    start("voice chat", registerVoiceChat);
+    start("game volume", registerGameVolume);
+    start("memory fullscreen", registerMemoryFullscreen);
 
     return {
         name: "CheevoDeck",
         title: <div className={quickAccessMenuClasses.Title}>CheevoDeck</div>,
-        content: <AchievementsRoot />,
+        content: (
+            <ErrorBoundary where="panel">
+                <AchievementsRoot />
+            </ErrorBoundary>
+        ),
         icon: <FaTrophy />,
         onDismount() {
             disposed = true;

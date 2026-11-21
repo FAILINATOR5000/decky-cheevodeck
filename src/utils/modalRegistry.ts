@@ -3,6 +3,7 @@ import { cloneElement, createElement, useEffect, type ReactElement } from "react
 import { logFocusDebug } from "../api";
 import { markCloseTrace, traceModalClose } from "./closeTrace";
 import { logError } from "./errors";
+import { ErrorBoundary } from "../components/panel/ErrorBoundary";
 import { focusOurPlugin } from "./quickAccess";
 
 type OpenModal = {
@@ -151,10 +152,11 @@ function ModalPresence(props: { children: ClosableElement; closeModal?: () => vo
             mountedModals -= 1;
         };
     }, []);
+    let content = props.children;
     if (props.closeModal) {
-        return cloneElement(props.children, { closeModal: props.closeModal });
+        content = cloneElement(props.children, { closeModal: props.closeModal });
     }
-    return props.children;
+    return createElement(ErrorBoundary, { where: "modal", closeModal: props.closeModal }, content);
 }
 
 export function cheevoModalOpen(): boolean {

@@ -1,4 +1,4 @@
-import { Router } from "@decky/ui";
+import { mainRunningApp } from "./steam/runningApp";
 import { logStormbreakerEvent, recordStormBroken } from "../api";
 import { logError } from "./errors";
 import { quickAccessWindow } from "./quickAccess";
@@ -59,7 +59,7 @@ function report(stage: string, extra: string): void {
 }
 
 function runningGameName(): string {
-    const name = Router.MainRunningApp?.display_name;
+    const name = mainRunningApp()?.display_name;
     return typeof name === "string" ? name : "";
 }
 

@@ -3984,6 +3984,10 @@ const ES: LocaleTable = {
     "mp_room_locked": "Bloqueada",
     "The host locked this room.": "El anfitrión bloqueó esta sala.",
     "Couldn't Host the Room": "No se pudo abrir la sala",
+    "CheevoDeck couldn't draw this page.": "CheevoDeck no pudo mostrar esta página.",
+    "CheevoDeck couldn't draw this window.": "CheevoDeck no pudo mostrar esta ventana.",
+    "Close the menu and open it again. The full error is in the CheevoDeck log.": "Cierra el menú y vuelve a abrirlo. El error completo está en el registro de CheevoDeck.",
+    "Press B to close it and try again. The full error is in the CheevoDeck log.": "Pulsa B para cerrarla e inténtalo de nuevo. El error completo está en el registro de CheevoDeck.",
 };
 
 export default ES;

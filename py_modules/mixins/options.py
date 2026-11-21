@@ -863,6 +863,18 @@ class OptionsMixin(PluginContext):
         decky.logger.warning("startup: %s %s", stage_text, extra_text)
         return {"ok": True}
 
+    async def log_steam_event(self, stage=None, extra=None):
+        stage_text = str(stage or "").strip() or "?"
+        extra_text = str(extra or "").strip()
+        decky.logger.info("steam: %s %s", stage_text, extra_text)
+        return {"ok": True}
+
+    async def log_render_crash(self, where=None, error=None):
+        where_text = str(where or "").strip() or "?"
+        error_text = str(error or "").strip()[:2000]
+        decky.logger.warning("render: %s crashed: %s", where_text, error_text)
+        return {"ok": True}
+
     async def clear_recovery_logs(self):
         removed = await asyncio.to_thread(clear_captures)
         decky.logger.info("freeze capture: cleared %d recovery log folder(s)", removed)

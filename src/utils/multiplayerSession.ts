@@ -1,5 +1,5 @@
 import { addEventListener, removeEventListener, toaster } from "@decky/api";
-import { Router } from "@decky/ui";
+import { runningAppId } from "./steam/runningApp";
 
 import {
     checkCurrentGame,
@@ -128,12 +128,12 @@ function publishFailure(failure: string) {
 }
 
 export function otherGameRunning(): boolean {
-    const running = Number(Router.MainRunningApp?.appid ?? 0);
+    const running = runningAppId();
     return running > 0 && running !== snapshot.appid;
 }
 
 export function anyGameRunning(): boolean {
-    return Number(Router.MainRunningApp?.appid ?? 0) > 0 || playStarting();
+    return runningAppId() > 0 || playStarting();
 }
 
 function playStarting(): boolean {
@@ -691,7 +691,7 @@ function onSessionEvent(payload: {
     }
     if (payload?.state === "ended") {
         const record = launched;
-        if (record && record.session === payload.session && Number(Router.MainRunningApp?.appid ?? 0) !== record.appid) {
+        if (record && record.session === payload.session && runningAppId() !== record.appid) {
             publish({ appid: 0, running: false });
             forgetRound();
             void restore(record);
@@ -715,7 +715,7 @@ async function restoreLeftover() {
             || (roundStarting() && record.session === launched?.session)) {
             return;
         }
-        if (Number(Router.MainRunningApp?.appid ?? 0) === record.appid) {
+        if (runningAppId() === record.appid) {
             if (record.play) {
                 played = record;
                 playedRunning = true;
@@ -742,8 +742,8 @@ export function registerMultiplayerSession() {
     }
     addEventListener(SESSION_EVENT, onSessionEvent);
     registered = true;
-    noteRunningApp(Number(Router.MainRunningApp?.appid ?? 0));
-    publishRunning({ appid: Number(Router.MainRunningApp?.appid ?? 0) });
+    noteRunningApp(runningAppId());
+    publishRunning({ appid: runningAppId() });
     stopRoomWatch = subscribeMultiplayerRoom(() => {
         const room = multiplayerRoomMarker();
         if (room.role !== "guest") {

@@ -1,4 +1,5 @@
-import { findModuleExport, Router } from "@decky/ui";
+import { findModuleExport } from "@decky/ui";
+import { runningAppId as steamRunningAppId } from "../../utils/steam/runningApp";
 import { toaster } from "@decky/api";
 
 import { adoptClip, adoptScreenshot } from "../../api";
@@ -167,7 +168,7 @@ function currentAppId(): number {
     if (runningAppId) {
         return runningAppId;
     }
-    const running = Number(Router.MainRunningApp?.appid ?? 0);
+    const running = steamRunningAppId();
     return Number.isFinite(running) && running > 0 ? running : 0;
 }
 

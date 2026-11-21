@@ -341,6 +341,12 @@ export const getFreezeIncidents = callable<
 export const logStartupEvent = callable<[string, string], { ok: boolean }>(
     "log_startup_event"
 );
+export const logSteamEvent = callable<[string, string], { ok: boolean }>(
+    "log_steam_event"
+);
+export const logRenderCrash = callable<[string, string], { ok: boolean }>(
+    "log_render_crash"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );

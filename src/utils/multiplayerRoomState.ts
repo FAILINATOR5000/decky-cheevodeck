@@ -1,5 +1,5 @@
 import { addEventListener, removeEventListener, toaster } from "@decky/api";
-import { Router } from "@decky/ui";
+import { runningAppId } from "./steam/runningApp";
 import { useSyncExternalStore } from "react";
 
 import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi, saveMpStreamShadersOff } from "../api";
@@ -189,7 +189,7 @@ function chime(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
         before.role === null || before.role !== after.role
         || before.rev !== after.rev || before.round !== after.round
         || before.state !== "lobby" || after.state !== "lobby"
-        || Number(Router.MainRunningApp?.appid ?? 0) > 0
+        || runningAppId() > 0
     ) {
         return;
     }
@@ -226,7 +226,7 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     }
     const own = after.role === "host" ? after.host : after.seats[after.seat]?.name ?? "";
     const old = line.seq <= after.chatBacklog;
-    const playing = Number(Router.MainRunningApp?.appid ?? 0) > 0;
+    const playing = runningAppId() > 0;
     if (line.name === own || old || (playing && !chatToastsInGame)) {
         return;
     }
@@ -248,7 +248,7 @@ function toast(titleKey: string, lineKey: string, vars: Record<string, string>) 
 function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     if (
         before.role === null || before.role !== after.role || Date.now() - seatedAt < SETTLE_MS
-        || Number(Router.MainRunningApp?.appid ?? 0) > 0 || fixWindowOpen()
+        || runningAppId() > 0 || fixWindowOpen()
     ) {
         return;
     }
@@ -297,7 +297,7 @@ function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMark
 function announceLock(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     if (
         after.role !== "guest" || before.role !== "guest" || before.locked === after.locked
-        || Date.now() - seatedAt < SETTLE_MS || Number(Router.MainRunningApp?.appid ?? 0) > 0 || fixWindowOpen()
+        || Date.now() - seatedAt < SETTLE_MS || runningAppId() > 0 || fixWindowOpen()
     ) {
         return;
     }

@@ -1,4 +1,5 @@
-import { findModuleExport, Router } from "@decky/ui";
+import { findModuleExport } from "@decky/ui";
+import { runningAppId } from "./steam/runningApp";
 import { logError } from "./errors";
 
 type ControllerListMessage = {
@@ -138,7 +139,7 @@ export function onDeckBattery(listener: (battery: DeckBattery | null) => void): 
 }
 
 export function gameRunning(): boolean {
-    return Number(Router.MainRunningApp?.appid ?? 0) > 0;
+    return runningAppId() > 0;
 }
 
 export function swapSteamPads(fromSlot: number, toSlot: number): void {
