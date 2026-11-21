@@ -3198,6 +3198,8 @@ const DE: LocaleTable = {
     "Host": "Host",
     "Current Game": "Aktuelles Spiel",
     "Cheevo Check: Running": "Cheevo Check: Läuft",
+    "Cheevo Check: Downloading RA Data...": "Cheevo Check: RA-Daten werden geladen...",
+    "Cheevo Check: Checking Dumps...": "Cheevo Check: Dumps werden geprüft...",
     "Cheevo Check: In {{seconds}}s...": "Cheevo Check: In {{seconds}} s...",
     "Cheevo Check: Complete": "Cheevo Check: Abgeschlossen",
     "Cheevo Check: Failed": "Cheevo Check: Fehlgeschlagen",

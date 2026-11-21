@@ -3207,6 +3207,8 @@ export const EN: LocaleTable = {
     "Host": "Host",
     "Current Game": "Current Game",
     "Cheevo Check: Running": "Cheevo Check: Running",
+    "Cheevo Check: Downloading RA Data...": "Cheevo Check: Downloading RA Data...",
+    "Cheevo Check: Checking Dumps...": "Cheevo Check: Checking Dumps...",
     "Cheevo Check: In {{seconds}}s...": "Cheevo Check: In {{seconds}}s...",
     "Cheevo Check: Complete": "Cheevo Check: Complete",
     "Cheevo Check: Failed": "Cheevo Check: Failed",

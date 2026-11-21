@@ -25,7 +25,7 @@ type WatchStatus = Awaited<ReturnType<typeof getFileWatcherPassStatus>>;
 
 export type ScanSnapshot = { cheevo: CheevoStatus; watch: WatchStatus };
 
-type RowState = "running" | "scheduled" | "paused" | "complete" | "failed";
+type RowState = "running" | "downloading" | "verifying" | "scheduled" | "paused" | "complete" | "failed";
 
 type Row = {
     state: RowState;
@@ -62,7 +62,9 @@ function cheevoRow(status: CheevoStatus, prev: Row | null): Row | null {
         return prev;
     }
     if (status?.running) {
-        return { state: "running", fraction: ratio(status.progress?.done, status.progress?.total) ?? 0, dueAt: 0 };
+        const phase = status.progress?.phase;
+        const state = phase === "fetch" ? "downloading" : phase === "verify" ? "verifying" : "running";
+        return { state, fraction: ratio(status.progress?.done, status.progress?.total) ?? 0, dueAt: 0 };
     }
     if (status?.scheduled) {
         return { state: "scheduled", fraction: 0, dueAt: Number(status.scheduledAt) || 0 };
@@ -97,6 +99,10 @@ function cheevoText(language: LanguageCode, row: Row) {
             return t(language, "Cheevo Check: In {{seconds}}s...", {
                 seconds: Math.max(0, Math.ceil(row.dueAt - Date.now() / 1000))
             });
+        case "downloading":
+            return t(language, "Cheevo Check: Downloading RA Data...");
+        case "verifying":
+            return t(language, "Cheevo Check: Checking Dumps...");
         case "complete":
             return t(language, "Cheevo Check: Complete");
         case "failed":

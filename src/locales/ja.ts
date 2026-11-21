@@ -3065,6 +3065,8 @@ const JA: LocaleTable = {
     "Host": "ホスト",
     "Current Game": "現在のゲーム",
     "Cheevo Check: Running": "Cheevo Check: 実行中",
+    "Cheevo Check: Downloading RA Data...": "Cheevo Check: RAデータをダウンロード中...",
+    "Cheevo Check: Checking Dumps...": "Cheevo Check: ダンプを検証中...",
     "Cheevo Check: In {{seconds}}s...": "Cheevo Check: {{seconds}}秒後に開始...",
     "Cheevo Check: Complete": "Cheevo Check: 完了",
     "Cheevo Check: Failed": "Cheevo Check: 失敗",
