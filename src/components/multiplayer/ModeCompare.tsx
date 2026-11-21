@@ -147,7 +147,7 @@ export function ModeSummaryCard(props: {
             >
                 <div style={{ ...bodyTextStyle(), ...CARD_TEXT }}>{t(language, SUMMARY[mode])}</div>
                 <div style={{ ...bodyTextStyle(), ...CARD_TEXT, lineHeight: 1, marginTop: "6px" }}>
-                    <ButtonPrompt language={language} textKey="{{button}} View More" button="a" fontSize={textSize(12)} />
+                    <ButtonPrompt language={language} textKey="{{button}} View More" button="a" fontSize={textSize(12)} inline />
                 </div>
             </Focusable>
         </FocusTarget>

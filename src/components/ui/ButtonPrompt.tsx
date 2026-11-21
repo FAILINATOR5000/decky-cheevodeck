@@ -108,7 +108,7 @@ export function ButtonPrompt(props: ButtonPromptProps) {
                         {show(text.slice(trailing[index].length))}
                         {glyphAfter && (
                             <span style={{ whiteSpace: "nowrap" }}>
-                                {inline ? <span style={{ verticalAlign: "middle" }}>{token}</span> : token}
+                                {inline ? <span style={{ verticalAlign: `calc(0.5cap - ${size / 2}px)` }}>{token}</span> : token}
                                 {after && show(after)}
                             </span>
                         )}
