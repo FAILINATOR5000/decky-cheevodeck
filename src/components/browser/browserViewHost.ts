@@ -1,6 +1,8 @@
 import { findModuleExport } from "@decky/ui";
 import { logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
+import { steamUiKind } from "../../utils/steam/build";
+import { BrowserHost, browserHostAvailable, findViewRenderer } from "./BrowserHost";
 
 const VIEW_NAME = "CheevoDeck Browser";
 
@@ -50,6 +52,9 @@ function srcOf(value: any): string {
 let components: BrowserComponents | null | undefined;
 
 export function resolveBrowserComponents(): BrowserComponents | null {
+    if (steamUiKind() === "vite") {
+        return browserHostAvailable() ? { GamepadHost: BrowserHost, ViewRenderer: findViewRenderer() } : null;
+    }
     if (components !== undefined) {
         return components;
     }
