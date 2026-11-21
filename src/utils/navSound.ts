@@ -1,5 +1,5 @@
 import { toaster } from "@decky/api";
-import { findModuleExport } from "@decky/ui";
+import { steamModule } from "./steam/lookup";
 
 const SOUND_HIDE_MODAL = 12;
 const SOUND_TOGGLE_ON = 16;
@@ -11,19 +11,8 @@ const SOUND_SCREENSHOT = 28;
 
 type NavSoundPlayer = { PlayNavSound: (sound: number) => void };
 
-let cached: NavSoundPlayer | null | undefined;
-
 function player(): NavSoundPlayer | null {
-    if (cached !== undefined) {
-        return cached;
-    }
-    try {
-        cached = findModuleExport((e: any) => typeof e?.PlayNavSound === "function") ?? null;
-    }
-    catch {
-        cached = null;
-    }
-    return cached ?? null;
+    return steamModule<NavSoundPlayer>("nav sounds", (e) => typeof e?.PlayNavSound === "function");
 }
 
 export function playOkSound(): void {

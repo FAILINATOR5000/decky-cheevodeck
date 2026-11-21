@@ -1,6 +1,5 @@
-import { findModuleExport } from "@decky/ui";
+import { steamModule } from "./steam/lookup";
 import { runningAppId } from "./steam/runningApp";
-import { logError } from "./errors";
 
 type ControllerListMessage = {
     BSuccess(): boolean;
@@ -48,24 +47,12 @@ const DECK_CONTROLLER_PID = 0x1205;
 
 const HANDLED = 1;
 
-let cached: ControllerService | null | undefined;
-
 function service(): ControllerService | null {
-    if (cached !== undefined) {
-        return cached;
-    }
-    try {
-        cached = findModuleExport((e: any) =>
-            typeof e?.GetControllerList === "function"
-            && typeof e?.RegisterForNotifyControllerListChanged === "function"
-            && typeof e?.RegisterForNotifyControllerBatteryState === "function"
-        ) ?? null;
-    }
-    catch (e) {
-        logError("finding Steam's controller service", e);
-        cached = null;
-    }
-    return cached ?? null;
+    return steamModule<ControllerService>("controller service", (e) =>
+        typeof e?.GetControllerList === "function"
+        && typeof e?.RegisterForNotifyControllerListChanged === "function"
+        && typeof e?.RegisterForNotifyControllerBatteryState === "function"
+    );
 }
 
 export async function readSteamPads(): Promise<SteamPad[] | null> {

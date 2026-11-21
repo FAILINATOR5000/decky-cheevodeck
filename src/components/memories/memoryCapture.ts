@@ -1,4 +1,4 @@
-import { findModuleExport } from "@decky/ui";
+import { steamModule } from "../../utils/steam/lookup";
 import { runningAppId as steamRunningAppId } from "../../utils/steam/runningApp";
 import { toaster } from "@decky/api";
 
@@ -97,14 +97,8 @@ async function onScreenshot(event: ScreenshotEvent) {
 }
 
 function gameRecording(): any {
-    try {
-        return findModuleExport((e: any) =>
-            e && typeof e === "object" && typeof e.RegisterForNotifyClipCreated === "function");
-    }
-    catch (e) {
-        logError("memories: couldn't find Steam's recording module", e);
-        return null;
-    }
+    return steamModule("clip capture", (e) =>
+        e && typeof e === "object" && typeof e.RegisterForNotifyClipCreated === "function");
 }
 
 async function deleteSteamClip(clipId: string) {

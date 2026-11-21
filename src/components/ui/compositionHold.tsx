@@ -1,43 +1,33 @@
-import { findModuleExport } from "@decky/ui";
+import { useEffect } from "react";
 
 const OVERLAY_COMPOSITION = 2;
 
-type CompositionHoldHook = (state: number, owner: string) => unknown;
+type CompositionStore = {
+    AddMinimumCompositionStateRequest: (state: number, owner: string) => void;
+    RemoveMinimumCompositionStateRequest: (state: number, owner: string) => void;
+};
 
-const COMPOSITION_HOOK_MARKERS = [
-    "AddMinimumCompositionStateRequest",
-    "RemoveMinimumCompositionStateRequest",
-    ".useEffect(",
-    ".useRef("
-];
-
-let compositionHold: CompositionHoldHook | null | undefined;
-
-function findCompositionHold(): CompositionHoldHook | null {
-    if (compositionHold !== undefined) {
-        return compositionHold;
+function compositionStore(): CompositionStore | null {
+    const store = (window as any).SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.CompositionStateStore;
+    if (typeof store?.AddMinimumCompositionStateRequest !== "function"
+        || typeof store?.RemoveMinimumCompositionStateRequest !== "function") {
+        return null;
     }
-    try {
-        compositionHold = findModuleExport((e: any) => {
-            if (typeof e !== "function") {
-                return false;
-            }
-            const source = String(e);
-            return COMPOSITION_HOOK_MARKERS.every((marker) => source.includes(marker));
-        }) ?? null;
-    }
-    catch {
-        compositionHold = null;
-    }
-    return compositionHold ?? null;
+    return store;
 }
 
 export function hasCompositionHold(): boolean {
-    return findCompositionHold() !== null;
+    return compositionStore() !== null;
 }
 
 // Holds Steam's composition request for as long as it stays mounted.
 export function CompositionHold(props: { owner: string }) {
-    findCompositionHold()?.(OVERLAY_COMPOSITION, props.owner);
+    useEffect(() => {
+        const store = compositionStore();
+        store?.AddMinimumCompositionStateRequest(OVERLAY_COMPOSITION, props.owner);
+        return () => {
+            store?.RemoveMinimumCompositionStateRequest(OVERLAY_COMPOSITION, props.owner);
+        };
+    }, [props.owner]);
     return null;
 }

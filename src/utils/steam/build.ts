@@ -4,7 +4,7 @@ export type SteamUiKind = "webpack" | "vite";
 
 let kind: SteamUiKind | null = null;
 
-function steamUiKind(): SteamUiKind {
+export function steamUiKind(): SteamUiKind {
     if (!kind) {
         kind = (window as any).webpackChunksteamui ? "webpack" : "vite";
     }
