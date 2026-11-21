@@ -677,6 +677,9 @@ _KNOBS = (
     Knob("dolphinStreamHostSeeded", default=False, reset=False, ship=False),
     Knob("refreshNoteShown", default=False, reset=False, ship=False),
     Knob("exitNoteShown", default=False, reset=False, ship=False),
+    Knob("raQuitComboLast", default="", reset=False, ship=False),
+    Knob("raQuitConfirmSet", default=False, reset=False, ship=False),
+    Knob("raQuitConfirmBefore", default="", reset=False, ship=False),
     Knob("gamesListCacheMinutes", default=20),
     Knob("awardsListCacheMinutes", default=15),
     Knob("wantToPlayCacheMinutes", default=20),
@@ -1857,6 +1860,14 @@ class SettingsStore:
 
     def mark_exit_note_shown(self) -> None:
         self._update_config("exitNoteShown", True)
+
+    def update_ra_quit_record(self, record: dict) -> None:
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            cfg["raQuitComboLast"] = str(record.get("comboLast") or "")
+            cfg["raQuitConfirmSet"] = bool(record.get("confirmSet"))
+            cfg["raQuitConfirmBefore"] = str(record.get("confirmBefore") or "")
+            self.save_config(cfg)
 
     def mark_dolphin_stream_host_seeded(self) -> None:
         self._update_config("dolphinStreamHostSeeded", True)
@@ -5152,6 +5163,13 @@ class SettingsStore:
 
     def get_exit_note_shown(self, cfg: dict) -> bool:
         return bool(cfg.get("exitNoteShown", False))
+
+    def get_ra_quit_record(self, cfg: dict) -> dict:
+        return {
+            "comboLast": str(cfg.get("raQuitComboLast") or ""),
+            "confirmSet": bool(cfg.get("raQuitConfirmSet", False)),
+            "confirmBefore": str(cfg.get("raQuitConfirmBefore") or ""),
+        }
 
     def get_dolphin_stream_host_seeded(self, cfg: dict) -> bool:
         return bool(cfg.get("dolphinStreamHostSeeded", False))

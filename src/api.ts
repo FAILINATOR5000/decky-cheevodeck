@@ -1,6 +1,7 @@
 import { callable } from "@decky/api";
 import type { LanguageCode } from "./locales";
 import type { GuideListEntry } from "./utils/guidesFetch";
+import type { GlyphButton } from "./utils/controllerGlyphs";
 import { logError } from "./utils/errors";
 
 import type {
@@ -923,6 +924,18 @@ export const multiplayerVoteStart = callable<["vote" | "pick", number[]], Multip
 export const multiplayerVoteCancel = callable<[], MultiplayerReply>("multiplayer_vote_cancel");
 export const multiplayerVote = callable<[vote: number, pick: number], MultiplayerReply>("multiplayer_vote");
 export const multiplayerTakeRefreshNote = callable<[], { ok: boolean; show: boolean; exit?: boolean }>("multiplayer_take_refresh_note");
+
+type RetroArchQuitNote = { kind: "binds"; buttons: GlyphButton[] } | { kind: "keyboard"; key: string };
+export type RetroArchQuitStatus = {
+    found: boolean;
+    on: boolean;
+    combo: { buttons: GlyphButton[]; hold: boolean } | null;
+    others: RetroArchQuitNote[];
+};
+export const retroarchQuitHotkey = callable<[], RetroArchQuitStatus>("retroarch_quit_hotkey");
+export const setRetroarchQuitHotkey = callable<[on: boolean], ({ ok: true } & RetroArchQuitStatus) | { ok: false; error: string }>(
+    "set_retroarch_quit_hotkey"
+);
 
 export const multiplayerLounge = callable<[game: MultiplayerLoungeGame, act: "move" | "start" | "clear" | "join", cell: number, to: number], MultiplayerReply>(
     "multiplayer_lounge"

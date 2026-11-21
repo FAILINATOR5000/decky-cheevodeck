@@ -2,6 +2,7 @@ import asyncio
 import urllib.error
 
 import decky
+import retroarch_quit_hotkey as quit_hotkey
 from mixins._context import PluginContext
 from utils import to_int
 
@@ -158,6 +159,22 @@ class MultiplayerMixin(PluginContext):
         if exit_note:
             self.settings_store.mark_exit_note_shown()
         return {"ok": True, "show": refresh, "exit": exit_note}
+
+    async def retroarch_quit_hotkey(self):
+        record = self.settings_store.get_ra_quit_record(self.settings_store.load_config())
+        return await asyncio.to_thread(quit_hotkey.status, self.user_home, record)
+
+    async def set_retroarch_quit_hotkey(self, on: bool = False):
+        store = self.settings_store
+        record = store.get_ra_quit_record(store.load_config())
+        try:
+            result, record = await asyncio.to_thread(quit_hotkey.set_quit_hotkey, self.user_home, bool(on), record)
+        except Exception as e:
+            decky.logger.warning("retroarch: couldn't change the quit combo (%s: %s)", type(e).__name__, e)
+            return {"ok": False, "error": "failed"}
+        if result["ok"]:
+            store.update_ra_quit_record(record)
+        return result
 
     async def multiplayer_lounge(self, game: str = "", act: str = "", cell: int = 0, to: int = 0):
         return await self.multiplayer_service.lounge_press(str(game or ""), str(act or ""), to_int(cell, 0), to_int(to, 0))
