@@ -1,7 +1,9 @@
-import { ButtonItem } from "@decky/ui";
 import React, { useLayoutEffect, useRef } from "react";
 import { FocusTarget } from "./FocusTarget";
 import { helpDescription } from "./InfoText";
+import { buttonItem } from "../../utils/steam/components";
+
+const ButtonItem = buttonItem();
 
 export type FocusableItemProps = {
     focusKey?: string;
