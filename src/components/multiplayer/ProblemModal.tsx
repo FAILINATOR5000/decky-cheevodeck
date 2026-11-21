@@ -45,7 +45,7 @@ function ProblemModal(props: {
                                 item.onPress();
                             }
                         }}
-                        style={{ display: "flex", gap: "8px", fontSize: `${modalSize(16)}px`, lineHeight: 1.4, marginBottom: "10px" }}
+                        style={{ display: "flex", gap: "8px", fontSize: `${modalSize(16)}px`, lineHeight: 1.4, marginBottom: "1.4em" }}
                     >
                         {bulleted && <span>•</span>}
                         <span style={{ flex: 1, whiteSpace: "pre-line" }}>{typeof item === "string" ? item : item.text}</span>
