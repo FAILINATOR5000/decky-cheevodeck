@@ -240,6 +240,7 @@ import { toggleScreenDarken } from "../components/darken/screenDarken";
 import { guardFooterPrompts, setFooterBack } from "../utils/footerPrompts";
 import {
     drainOpenModals,
+    restoreOpenModals,
     modalEchoPending,
     showManagedModal,
     MODAL_ECHO_WINDOW_MS,
@@ -2694,7 +2695,9 @@ function AchievementsRoot() {
             return;
         }
         logFocusDebug("panel-life", `reap#${orphans.length}`, `delay=${MODAL_REAP_DELAY_MS}ms`);
+        let reaped = false;
         const timer = window.setTimeout(() => {
+            reaped = true;
             for (const entry of orphans) {
                 entry.close();
                 if (entry.needsMarkSeen) {
@@ -2704,6 +2707,9 @@ function AchievementsRoot() {
         }, MODAL_REAP_DELAY_MS);
         return () => {
             window.clearTimeout(timer);
+            if (!reaped) {
+                restoreOpenModals(orphans);
+            }
         };
     }, []);
 

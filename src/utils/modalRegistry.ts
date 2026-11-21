@@ -187,6 +187,10 @@ export function drainOpenModals(): OpenModal[] {
     return entries;
 }
 
+export function restoreOpenModals(entries: OpenModal[]): void {
+    entries.forEach((entry) => openModals.add(entry));
+}
+
 export function showManagedModal(
     render: (close: () => void) => ReactElement,
     opts?: { needsMarkSeen?: boolean; onClose?: () => void; returnToQam?: boolean | (() => boolean) }
