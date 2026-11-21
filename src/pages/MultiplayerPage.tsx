@@ -16,7 +16,8 @@ import { showFixIt, type FixItRequest } from "../components/multiplayer/FixItMod
 import { FixRunLine } from "../components/multiplayer/FixRunLine";
 import { setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
 import { forgetGameFile, gameFilePickFailure, useGameFilePick } from "../utils/gameFilePick";
-import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
+import { showMultiplayerProblem, type ProblemItem } from "../components/multiplayer/ProblemModal";
+import { RetroArchQuitHotkey } from "../components/multiplayer/RetroArchQuitHotkey";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
@@ -534,12 +535,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return t(language, "Multiplayer runs best with every player's screen at 60 Hz. If the game jitters, set 60 Hz in Steam's Performance menu while it runs.");
     }
 
+    const exitHeadsUp = pingsSaves ? t(language, savesOnClose ? "unload_saves_heads_up" : "retroarch_exit_heads_up") : null;
     const warnings = [
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : []),
         ...(mp.mode === "link" ? [t(language, "link_trade_heads_up")] : []),
-        ...(pingsSaves ? [t(language, savesOnClose ? "unload_saves_heads_up" : "retroarch_exit_heads_up")] : []),
+        ...(exitHeadsUp ? [exitHeadsUp] : []),
         ...(dreamcastHost ? [t(language, "dreamcast_exit_heads_up")] : []),
         ...(mp.mode === "stream" && !joined && !(streamRetroArchHost && streamShadersOff)
             ? [t(language, streamRetroArchHost ? "stream_shaders_heads_up" : "stream_shaders_heads_up_plain")] : []),
@@ -1490,6 +1492,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     const noteCount = warnings.length + tips.length;
+
+    function notesList(): ProblemItem[] {
+        if (!exitHeadsUp) {
+            return [...warnings, ...tips];
+        }
+        const notes: ProblemItem[] = [...warnings.filter((warning) => warning !== exitHeadsUp), ...tips];
+        notes.push({
+            node: <RetroArchQuitHotkey language={language} focusKey="problem:raquit" modal divider intro={exitHeadsUp} />
+        });
+        return notes;
+    }
     const chartLocked = joined !== null || (hosted !== null && hosted.state !== "lobby");
 
     function upIntoChart(evt: { detail?: { button?: number } }) {
@@ -1512,7 +1525,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:notes"
                 focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                 onClick={() => showMultiplayerProblem(language, "Before You Play",
-                    noteCount > 0 ? [...warnings, ...tips] : t(language, "Nothing to note for this game."))}
+                    noteCount > 0 ? notesList() : t(language, "Nothing to note for this game."))}
             >
                 <div style={{ width: "100%", textAlign: "center" }}>
                     {t(language, "Before You Play")}

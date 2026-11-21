@@ -17,6 +17,7 @@ import {
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { ButtonGlyph } from "../components/ui/ButtonGlyph";
 import { ButtonHints } from "../components/ui/ButtonHints";
+import { RetroArchQuitHotkey } from "../components/multiplayer/RetroArchQuitHotkey";
 import { logFocusDebug } from "../api";
 import {
     LANGUAGES,
@@ -2162,6 +2163,15 @@ function SocialTab(props: TabContentProps) {
                 disabled={disabled}
                 help={t(state.language, "help_mp_shortcut_fallback")}
             />
+            <PanelSectionRow>
+                <RetroArchQuitHotkey
+                    language={state.language}
+                    focusKey="options:raquit"
+                    focusFallback={["options:toggle:mpShortcutFallback"]}
+                    outerStyle={buttonOuterStyle}
+                    disabled={disabled}
+                />
+            </PanelSectionRow>
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 focusKey="options:toggle:mpFriendsEnabled"

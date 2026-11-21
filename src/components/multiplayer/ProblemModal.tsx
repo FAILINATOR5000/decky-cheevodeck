@@ -1,11 +1,16 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
+import type { ReactNode } from "react";
 
 import { t, type LanguageCode } from "../../locales";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { HeadingStop } from "../ui/HeadingStop";
 
-export type ProblemItem = string | { text: string; onPress: () => void };
+export type ProblemItem = string | { text: string; onPress: () => void } | { node: ReactNode };
+
+function isNode(item: ProblemItem): item is { node: ReactNode } {
+    return typeof item !== "string" && "node" in item;
+}
 
 type ProblemAction = { label: string; onPress: () => void };
 
@@ -36,7 +41,9 @@ function ProblemModal(props: {
                 <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
                     {text}
                 </div>
-            ) : items.map((item, index) => (
+            ) : items.map((item, index) => isNode(item) ? (
+                <div key={index}>{item.node}</div>
+            ) : (
                 <div key={index} data-focus-key={`problem:item:${index}`}>
                     <Focusable
                         onActivate={() => {
