@@ -44,6 +44,7 @@ import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { landOnTop, usePageLanding, type LandingWindows } from "../focusRecords";
+import { requestRoute } from "../utils/pendingPanelEntry";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -287,6 +288,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const streamModeNav = useRef<any>(null);
     const [playFocused, setPlayFocused] = useState(false);
     const [mapperFocused, setMapperFocused] = useState(false);
+    const [hostFocused, setHostFocused] = useState(false);
+    const [pickFocused, setPickFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
     const voice = useVoiceChat(visible);
     const [seatAction, setSeatAction] = useState<{ label: string | null; own: boolean }>({ label: null, own: false });
@@ -631,6 +634,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const playFixable = !canPlay && inLobby && inSession && Boolean(shownCheck?.gate);
     const hostGated = !hosted && Boolean((mp.modes?.modes[mp.mode] ?? shownCheck)?.gate);
+    const noGamesWhy = !mp.scanned ? "scan" : mp.games?.length === 0 ? "empty" : null;
+    const pickExplains = noGamesWhy !== null;
+    const hostExplains = !hosted && mp.gameId === null && noGamesWhy !== null;
+    function explainNoGames() {
+        const action = {
+            label: t(language, "Run Cheevo Check Scan"),
+            onPress: () => requestRoute({ kind: "cheevoCheck" })
+        };
+        if (noGamesWhy === "empty") {
+            showMultiplayerProblem(language, "No Games Found",
+                t(language, "Your Cheevo Check scan didn't find any RetroAchievements games on this device. Make sure it's scanning the folder your ROMs are in, then run it again."),
+                false, action);
+        }
+        else {
+            showMultiplayerProblem(language, "Cheevo Check Scan Required",
+                t(language, "Play Together needs to know what games you have in your library. Run a scan of your entire library first."), false, action);
+        }
+    }
     const playGreen = playLabel !== "Unready";
     const playBackground = !playGreen || playFocused ? undefined : canPlay ? steamPlayGreen : steamPlayGrey;
     const playColor = !playGreen || playFocused ? undefined : canPlay ? "#ffffff" : steamPlayGreyText;
@@ -1007,11 +1028,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         style={slotStyle}
                     >
                         <DialogButton
-                            disabled={!mp.games || mp.games.length === 0}
-                            onClick={() => openGamePicker(actions.pickGame)}
+                            disabled={!pickExplains && (!mp.games || mp.games.length === 0)}
+                            onClick={pickExplains
+                                ? explainNoGames
+                                : () => openGamePicker(actions.pickGame)}
+                            onGamepadFocus={() => setPickFocused(true)}
+                            onGamepadBlur={() => setPickFocused(false)}
                             style={slotButtonStyle}
                         >
-                            {t(language, "Pick Another Game")}
+                            <span style={{ opacity: pickExplains && !pickFocused ? 0.45 : 1 }}>{t(language, "Pick Another Game")}</span>
                         </DialogButton>
                     </FocusTarget>
                 )}
@@ -1213,13 +1238,18 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
                     focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                    disabled={!hosted && (mp.gameId === null || !shownCheck || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached"))}
+                    disabled={!hosted && !hostExplains && (mp.gameId === null || !shownCheck || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached"))}
+                    onGamepadFocus={() => setHostFocused(true)}
+                    onGamepadBlur={() => setHostFocused(false)}
                     onClick={() => {
                         if (mp.busy) {
                             return;
                         }
                         if (hosted) {
                             void actions.closeRoom();
+                        }
+                        else if (hostExplains) {
+                            explainNoGames();
                         }
                         else if (hostGated) {
                             openModeReason(mp.mode);
@@ -1229,7 +1259,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         }
                     }}
                 >
-                    <span style={{ opacity: hostGated ? 0.45 : 1 }}>{t(language, hosted ? "Close Room" : "Host a Room")}</span>
+                    <span style={{ opacity: (hostGated || hostExplains) && !hostFocused ? 0.45 : 1 }}>
+                        {t(language, hosted ? "Close Room" : "Host a Room")}
+                    </span>
                 </FocusableItem>
             </PanelSectionRow>
             {!hosted && (

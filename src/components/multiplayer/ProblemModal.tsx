@@ -7,14 +7,17 @@ import { HeadingStop } from "../ui/HeadingStop";
 
 export type ProblemItem = string | { text: string; onPress: () => void };
 
+type ProblemAction = { label: string; onPress: () => void };
+
 function ProblemModal(props: {
     language: LanguageCode;
     title: string;
     text: string | ProblemItem[];
     titleFirst: boolean;
+    action?: ProblemAction;
     close: () => void;
 }) {
-    const { language, close } = props;
+    const { language, action, close } = props;
     const text = typeof props.text === "string" ? props.text : null;
     const items = typeof props.text === "string" ? null : props.text;
     const bulleted = items !== null && items.length > 1;
@@ -49,15 +52,27 @@ function ProblemModal(props: {
                     </Focusable>
                 </div>
             ))}
-            <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }} flow-children="row">
-                <DialogButton onClick={close} autoFocus={closeFirst}>{t(language, "Close")}</DialogButton>
+            <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
+                {action && (
+                    <DialogButton
+                        onClick={() => {
+                            close();
+                            action.onPress();
+                        }}
+                        autoFocus={closeFirst}
+                    >
+                        {action.label}
+                    </DialogButton>
+                )}
+                <DialogButton onClick={close} autoFocus={closeFirst && !action}>{t(language, "Close")}</DialogButton>
             </Focusable>
         </ModalRoot>
     );
 }
 
-export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | ProblemItem[], titleFirst = false) {
+export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | ProblemItem[], titleFirst = false,
+    action?: ProblemAction) {
     showManagedModal((close) => (
-        <ProblemModal language={language} title={t(language, titleKey)} text={text} titleFirst={titleFirst} close={close} />
+        <ProblemModal language={language} title={t(language, titleKey)} text={text} titleFirst={titleFirst} action={action} close={close} />
     ));
 }
