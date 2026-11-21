@@ -125,6 +125,7 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
                                 textKey="Press {{button}} to view more"
                                 button="a"
                                 fontSize={commentsTextSize(metrics.pointsFontSize)}
+                                inline
                             />
                         </div>
                     )}

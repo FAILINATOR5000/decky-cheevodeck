@@ -1136,6 +1136,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 textKey="Press {{button}} to view more"
                                 button="a"
                                 fontSize={metrics.pointsFontSize}
+                                inline
                             />
                         </div>
                     )}
@@ -1154,6 +1155,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 textKey="Press {{button}} for install options."
                                 button="a"
                                 fontSize={metrics.pointsFontSize}
+                                inline
                             />
                         </div>
                     )}
@@ -1172,6 +1174,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 textKey="Press {{button}} to join."
                                 button="a"
                                 fontSize={metrics.pointsFontSize}
+                                inline
                             />
                         </div>
                     )}

@@ -1986,6 +1986,7 @@ function SubscriptionCard(props: SubscriptionCardProps) {
             button="a"
             fontSize={metrics.bodyFontSize}
             vars={{ context: bodyContext || subscription.title }}
+            inline
         />
     );
 

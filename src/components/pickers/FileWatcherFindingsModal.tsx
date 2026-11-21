@@ -523,7 +523,7 @@ const FindingRow = React.memo(function FindingRow(props: FindingRowProps) {
         : armed
             ? bucketConfirm(bucket, language)
             : (promptKey
-                ? <ButtonPrompt language={language} textKey={promptKey} button="a" fontSize={12} />
+                ? <ButtonPrompt language={language} textKey={promptKey} button="a" fontSize={12} inline />
                 : null);
 
     function handlePress() {

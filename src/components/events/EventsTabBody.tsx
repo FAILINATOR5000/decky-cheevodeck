@@ -162,6 +162,7 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                             textKey="Mark events with {{button}} first"
                             button="l1"
                             fontSize={12}
+                            inline
                         />
                     );
                 }
