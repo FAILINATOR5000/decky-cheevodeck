@@ -33,6 +33,45 @@ export function steamCollections(): SteamCollection[] {
     }
 }
 
+type CloudList = { [key: string]: unknown; added: number[]; removed: number[] };
+
+function readCloudList(collectionId: string): CloudList | null {
+    try {
+        const raw = collectionStore.m_cloudStorage?.Get(`user-collections.${collectionId}`);
+        if (typeof raw !== "string" || !raw) {
+            return null;
+        }
+        const parsed = JSON.parse(raw);
+        return {
+            ...parsed,
+            added: Array.isArray(parsed?.added) ? parsed.added : [],
+            removed: Array.isArray(parsed?.removed) ? parsed.removed : []
+        };
+    }
+    catch (e) {
+        logError("emulators: reading a collection's cloud list", e);
+        return null;
+    }
+}
+
+async function addToCollection(collection: any, appid: number) {
+    const before = readCloudList(collection.id);
+    collection.internalAddedList.add(appid);
+    collection.internalRemovedList.delete(appid);
+    await collection.Save();
+    if (before === null) {
+        return;
+    }
+    const restored = {
+        ...before,
+        id: collection.id,
+        name: collection.displayName,
+        added: before.added.includes(appid) ? before.added : [...before.added, appid],
+        removed: before.removed.filter((id) => id !== appid)
+    };
+    await collectionStore.m_cloudStorageMap.StoreObject(collection.id, restored, "custom", "union-collections");
+}
+
 export async function addEmulatorShortcut(name: string, install: EmulatorInstall, collectionId: string, newCollection = ""): Promise<number> {
     let exe = "/usr/bin/flatpak";
     let startDir = "/usr/bin";
@@ -61,9 +100,8 @@ export async function addEmulatorShortcut(name: string, install: EmulatorInstall
     else if (collectionId) {
         try {
             const collection = collectionStore.GetCollection(collectionId)?.AsDragDropCollection();
-            const overview = appStore.GetAppOverviewByAppID(appid);
-            if (collection && overview) {
-                collection.AddApps([overview]);
+            if (collection && appStore.GetAppOverviewByAppID(appid)) {
+                await addToCollection(collection, appid);
             }
         }
         catch (e) {
@@ -81,7 +119,10 @@ async function fileIntoNewCollection(appid: number, name: string) {
         }
         const existing = collectionStore.GetUserCollectionsByName(name)[0];
         if (existing) {
-            existing.AsDragDropCollection()?.AddApps([overview]);
+            const dragDrop = existing.AsDragDropCollection();
+            if (dragDrop) {
+                await addToCollection(dragDrop, appid);
+            }
             return;
         }
         if (collectionStore.BIsSystemCollectionName(name)) {
