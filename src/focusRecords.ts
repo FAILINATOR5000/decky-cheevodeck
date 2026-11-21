@@ -525,9 +525,11 @@ onKeyClaimSpent((key) => {
     }
 });
 
-type FocusSpot = { entryId: number; key: string; family: string; top: number };
+type FocusSpot = { entryId: number; key: string; family: string; top: number; left: number };
 
 let lastSpot: FocusSpot | null = null;
+
+const SAME_ROW_PX = 2;
 
 function keyFamily(key: string): string | null {
     const cut = key.lastIndexOf(":");
@@ -547,7 +549,9 @@ function noteSpot(root: HTMLElement, target: Element) {
     const key = keyed.getAttribute("data-focus-key") ?? "";
     const family = keyFamily(key);
     if (family) {
-        lastSpot = { entryId: entry.id, key, family, top: keyed.getBoundingClientRect().top - root.getBoundingClientRect().top };
+        const rect = keyed.getBoundingClientRect();
+        const rootRect = root.getBoundingClientRect();
+        lastSpot = { entryId: entry.id, key, family, top: rect.top - rootRect.top, left: rect.left - rootRect.left };
     }
 }
 
@@ -555,18 +559,21 @@ function occupantOf(spot: FocusSpot): string | null {
     if (!rootElement) {
         return null;
     }
-    const rootTop = rootElement.getBoundingClientRect().top;
+    const rootRect = rootElement.getBoundingClientRect();
     let best: string | null = null;
     let bestGap = Infinity;
+    let bestSideGap = Infinity;
     for (const found of rootElement.querySelectorAll(`[data-focus-key^="${escapeKey(spot.family)}"]`)) {
         const element = found as HTMLElement;
         const rect = element.getBoundingClientRect();
         if (rect.height === 0 || keyedDisabled(element)) {
             continue;
         }
-        const gap = Math.abs(rect.top - rootTop - spot.top);
-        if (gap < bestGap) {
-            bestGap = gap;
+        const gap = Math.abs(rect.top - rootRect.top - spot.top);
+        const sideGap = Math.abs(rect.left - rootRect.left - spot.left);
+        if (gap < bestGap - SAME_ROW_PX || (gap <= bestGap + SAME_ROW_PX && sideGap < bestSideGap)) {
+            bestGap = Math.min(gap, bestGap);
+            bestSideGap = sideGap;
             best = element.getAttribute("data-focus-key");
         }
     }
