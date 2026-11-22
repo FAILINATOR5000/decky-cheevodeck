@@ -3388,6 +3388,8 @@ const PT: LocaleTable = {
     "Open EmuDeck in Desktop Mode": "Abrir EmuDeck no Modo Desktop",
     "Open Steam ROM Manager in Desktop Mode": "Abrir Steam ROM Manager no Modo Desktop",
     "Can't Host": "Não é possível hospedar",
+    "Standalone Games Not Supported": "Jogos independentes não são suportados",
+    "This game is a standalone game. Standalone games are currently not supported.": "Este jogo é um jogo independente. Jogos independentes não são suportados no momento.",
     "Couldn't Switch to Desktop Mode": "Não foi possível mudar para o Modo Desktop",
     "Switch to Desktop Mode from Steam's power menu instead.": "Mude para o Modo Desktop pelo menu de energia do Steam.",
     "Friend Request": "Pedido de amizade",

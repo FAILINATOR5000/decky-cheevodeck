@@ -1099,6 +1099,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const play = useGamePlayController({
         gameId: payload?.gameId ?? null,
         title: payload?.title ?? "",
+        consoleName: payload?.consoleName ?? null,
         isActive: view === "achievements",
         language,
         openMultiplayer

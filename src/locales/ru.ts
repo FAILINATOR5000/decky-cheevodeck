@@ -3436,6 +3436,8 @@ const RU: LocaleTable = {
     "Open EmuDeck in Desktop Mode": "Открыть EmuDeck в режиме рабочего стола",
     "Open Steam ROM Manager in Desktop Mode": "Открыть Steam ROM Manager в режиме рабочего стола",
     "Can't Host": "Не удаётся создать комнату",
+    "Standalone Games Not Supported": "Отдельные игры не поддерживаются",
+    "This game is a standalone game. Standalone games are currently not supported.": "Это отдельная игра. Отдельные игры пока не поддерживаются.",
     "Couldn't Switch to Desktop Mode": "Не удалось переключиться в режим рабочего стола",
     "Switch to Desktop Mode from Steam's power menu instead.": "Переключись в режим рабочего стола через меню питания Steam.",
     "Friend Request": "Заявка в друзья",

@@ -3222,6 +3222,8 @@ const JA: LocaleTable = {
     "Open EmuDeck in Desktop Mode": "デスクトップモードでEmuDeckを開く",
     "Open Steam ROM Manager in Desktop Mode": "デスクトップモードでSteam ROM Managerを開く",
     "Can't Host": "ホストできません",
+    "Standalone Games Not Supported": "スタンドアロンゲームは未対応",
+    "This game is a standalone game. Standalone games are currently not supported.": "このゲームはスタンドアロンゲームです。スタンドアロンゲームには現在対応していません。",
     "Couldn't Switch to Desktop Mode": "デスクトップモードに切り替えられませんでした",
     "Switch to Desktop Mode from Steam's power menu instead.": "代わりにSteamの電源メニューからデスクトップモードに切り替えてください。",
     "Friend Request": "フレンド申請",

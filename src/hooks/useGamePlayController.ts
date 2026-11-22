@@ -25,6 +25,8 @@ import {
 
 export type PlayMode = "play" | "host" | "with" | "backups" | "mappings";
 
+const STANDALONE_CONSOLE = "Standalone";
+
 const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "backups", backups: "mappings", mappings: "play" };
 
 type HostCheck = { gameId: number; gate: string | null };
@@ -34,11 +36,13 @@ const playInfos = new Map<number, PlayInfo>();
 export function useGamePlayController(props: {
     gameId: number | null;
     title: string;
+    consoleName: string | null;
     isActive: boolean;
     language: LanguageCode;
     openMultiplayer: () => void;
 }) {
     const { gameId, isActive, language } = props;
+    const standalone = props.consoleName === STANDALONE_CONSOLE;
     const gameFilesChanged = useGameFilePick().changed;
     const fixPlan = useFixPlan();
     const fixesFinished = fixPlan.finished;
@@ -52,7 +56,7 @@ export function useGamePlayController(props: {
     const roomRole = useMultiplayerRoomRole();
 
     useEffect(() => {
-        if (!isActive || gameId == null) {
+        if (!isActive || gameId == null || standalone) {
             return;
         }
         let alive = true;
@@ -67,7 +71,7 @@ export function useGamePlayController(props: {
         return () => {
             alive = false;
         };
-    }, [isActive, gameId, gameFilesChanged, fixesFinished]);
+    }, [isActive, gameId, standalone, gameFilesChanged, fixesFinished]);
 
     useEffect(() => {
         setHostCheck(null);
@@ -75,7 +79,7 @@ export function useGamePlayController(props: {
 
     const hostChecked = host !== null;
     useEffect(() => {
-        if (!isActive || mode !== "host" || gameId == null || roomRole !== null || hostChecked) {
+        if (!isActive || mode !== "host" || gameId == null || standalone || roomRole !== null || hostChecked) {
             return;
         }
         let alive = true;
@@ -89,7 +93,7 @@ export function useGamePlayController(props: {
         return () => {
             alive = false;
         };
-    }, [isActive, mode, gameId, roomRole, hostChecked]);
+    }, [isActive, mode, gameId, standalone, roomRole, hostChecked]);
 
     const ownAppid = info?.launchable && !info.fallback ? info.appid : 0;
     const playing = (ownAppid !== 0 && running.appid === ownAppid)
@@ -218,8 +222,16 @@ export function useGamePlayController(props: {
             explain = () => void openFixIt(language, about);
         }
     }
+    if (standalone) {
+        press = null;
+        explain = () => showMultiplayerProblem(language, "Standalone Games Not Supported",
+            t(language, "This game is a standalone game. Standalone games are currently not supported."));
+    }
 
     function offered(next: PlayMode) {
+        if (standalone) {
+            return next === "play" || next === "host";
+        }
         return (next !== "backups" || Boolean(info?.backups)) && (next !== "mappings" || Boolean(info?.dolphinMappings));
     }
 
