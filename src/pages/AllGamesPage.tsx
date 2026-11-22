@@ -21,7 +21,7 @@ import type {
 } from "../types";
 
 import { formatInteger } from "../utils/format";
-import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
+import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle, FADE_IN_KEYFRAMES, SEARCH_FIELD_STYLES } from "../utils/style";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
@@ -402,6 +402,7 @@ function AllGamesPage(props: AllGamesPageProps) {
                 }
             >
                 <PanelSectionRow>
+                    <style>{SEARCH_FIELD_STYLES}</style>
                     <FocusableItem
                         focusKey="friendallgames:search"
                         onClick={() => props.onOpenGameSearch()}
@@ -409,6 +410,7 @@ function AllGamesPage(props: AllGamesPageProps) {
                         bottomSeparator="none"
                     >
                         <div
+                            className="da-search-field"
                             style={{
                                 width: "100%",
                                 boxSizing: "border-box",
@@ -418,8 +420,6 @@ function AllGamesPage(props: AllGamesPageProps) {
                                 gap: "8px",
                                 padding: "7px 10px",
                                 borderRadius: "8px",
-                                background: "rgba(255,255,255,0.08)",
-                                border: "1px solid rgba(255,255,255,0.14)",
                                 minWidth: 0
                             }}
                         >

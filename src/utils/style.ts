@@ -66,6 +66,17 @@ export function regularButtonSpacingStyle(value: ButtonSpacing): React.CSSProper
 
 export const compactButtonStyle: React.CSSProperties = { minWidth: 0, padding: "4px 12px" };
 
+export const SEARCH_FIELD_STYLES = `
+.da-search-field {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.gpfocus .da-search-field {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.30);
+}
+`;
+
 export const NOTES_DOT_KEYFRAMES = `
 @keyframes da-notes-dot-pulse {
     0%, 100% { background: #b9740a; }

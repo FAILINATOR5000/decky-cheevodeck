@@ -43,7 +43,7 @@ import {
     nextMainAchievementFilter,
     payloadAchievementSummaryLabel
 } from "../utils/achievements";
-import { bodyTextStyle } from "../utils/style";
+import { SEARCH_FIELD_STYLES, bodyTextStyle } from "../utils/style";
 import { headerSize } from "../utils/scale";
 import { consoleInlineName, consoleSearchName } from "../utils/consoles";
 import { openExternalUrl, youtubeSearchUrl } from "../utils/navigation";
@@ -917,6 +917,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     </PanelSectionRow>
                 )}
 
+                <style>{SEARCH_FIELD_STYLES}</style>
                 <PanelSectionRow>
                     <FocusableItem
                         focusKey="gameoverview:searchmore"
@@ -925,6 +926,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                         outerStyle={{ width: "100%", minWidth: 0, marginTop: "2px" }}
                     >
                         <div
+                            className="da-search-field"
                             style={{
                                 width: "100%",
                                 boxSizing: "border-box",
@@ -934,8 +936,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                 gap: "8px",
                                 padding: "7px 10px",
                                 borderRadius: "8px",
-                                background: "rgba(255,255,255,0.08)",
-                                border: "1px solid rgba(255,255,255,0.14)",
                                 minWidth: 0
                             }}
                         >
@@ -967,6 +967,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                             outerStyle={{ width: "100%", minWidth: 0, marginTop: "0px" }}
                         >
                             <div
+                                className="da-search-field"
                                 style={{
                                     width: "100%",
                                     boxSizing: "border-box",
@@ -976,8 +977,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                     gap: "8px",
                                     padding: "7px 10px",
                                     borderRadius: "8px",
-                                    background: "rgba(255,255,255,0.08)",
-                                    border: "1px solid rgba(255,255,255,0.14)",
                                     minWidth: 0
                                 }}
                             >

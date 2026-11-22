@@ -70,7 +70,7 @@ import {
     payloadAchievementSummaryLabel
 } from "../utils/achievements";
 import { BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
-import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, warnAmber, skyBlue } from "../utils/style";
+import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, SEARCH_FIELD_STYLES, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, warnAmber, skyBlue } from "../utils/style";
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
@@ -546,18 +546,6 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
 const QUICK_ACTION_REFRESH_SPIN = `
 @keyframes da-quick-refresh-spin {
     to { transform: rotate(360deg); }
-}
-`;
-
-const QUICK_MENU_SEARCH_STYLES = `
-.da-quickmenu-search {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-}
-[class*="gpfocus"] .da-quickmenu-search,
-[class*="GPFocus"] .da-quickmenu-search {
-    background: rgba(0, 0, 0, 0.06);
-    border-color: rgba(0, 0, 0, 0.30);
 }
 `;
 
@@ -2188,7 +2176,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         }}
                     >
                         <style>{QUICK_ACTION_REFRESH_SPIN}</style>
-                        <style>{QUICK_MENU_SEARCH_STYLES}</style>
+                        <style>{SEARCH_FIELD_STYLES}</style>
                         <Focusable
                             flow-children="column"
                             autoFocus
@@ -2213,7 +2201,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     outerStyle={{ width: "100%", minWidth: 0 }}
                                 >
                                     <div
-                                        className="da-quickmenu-search"
+                                        className="da-search-field"
                                         style={{
                                             width: "100%",
                                             boxSizing: "border-box",
