@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 2,
+  "revision": 3,
   "enabled": true,
   "marker": [
     "playabilityStatus",
@@ -38,6 +38,18 @@
         "playbackContext.contentPlaybackContext.adPlaybackContext": {
           "adType": "AD_TYPE_INSTREAM"
         }
+      }
+    },
+    {
+      "name": "params-yaf4",
+      "set": {
+        "params": "YAF4AaIGAS4"
+      }
+    },
+    {
+      "name": "params-eafg",
+      "set": {
+        "params": "eAFgAQ"
       }
     }
   ],
