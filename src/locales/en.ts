@@ -3430,6 +3430,7 @@ export const EN: LocaleTable = {
     "Send Request": "Send Request",
     "Something went wrong. Try again.": "Something went wrong. Try again.",
     "Suggested": "Suggested",
+    "Dismiss": "Dismiss",
     "That Was Me": "That Was Me",
     "That Wasn't Me": "That Wasn't Me",
     "That invite expired": "That invite expired",

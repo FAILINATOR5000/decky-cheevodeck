@@ -368,7 +368,7 @@ export function FriendsTab(props: FriendsTabProps) {
                                                     onGamepadDirection={list.guardTopRow(at)}
                                                     onClick={() => void act(() => multiplayerFriendDismiss(suggestion.ulid))}
                                                 >
-                                                    {t(language, "Not Now")}
+                                                    {t(language, "Dismiss")}
                                                 </DialogButton>
                                             </FocusTarget>
                                         </Focusable>

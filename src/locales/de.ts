@@ -3421,6 +3421,7 @@ const DE: LocaleTable = {
     "Send Request": "Anfrage senden",
     "Something went wrong. Try again.": "Etwas ist schiefgelaufen. Versuch es noch einmal.",
     "Suggested": "Vorschläge",
+    "Dismiss": "Verwerfen",
     "That Was Me": "Das war ich",
     "That Wasn't Me": "Das war ich nicht",
     "That invite expired": "Diese Einladung ist abgelaufen",

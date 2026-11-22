@@ -3288,6 +3288,7 @@ const JA: LocaleTable = {
     "Send Request": "申請を送る",
     "Something went wrong. Try again.": "問題が発生しました。もう一度お試しください。",
     "Suggested": "おすすめ",
+    "Dismiss": "非表示",
     "That Was Me": "自分です",
     "That Wasn't Me": "自分ではない",
     "That invite expired": "この招待は期限切れです",

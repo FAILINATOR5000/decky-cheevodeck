@@ -3454,6 +3454,7 @@ const PT: LocaleTable = {
     "Send Request": "Enviar pedido",
     "Something went wrong. Try again.": "Algo deu errado. Tente de novo.",
     "Suggested": "Sugestões",
+    "Dismiss": "Dispensar",
     "That Was Me": "Fui eu",
     "That Wasn't Me": "Não fui eu",
     "That invite expired": "Esse convite expirou",

@@ -3533,6 +3533,7 @@ const PL: LocaleTable = {
     "Send Request": "Wyślij prośbę",
     "Something went wrong. Try again.": "Coś poszło nie tak. Spróbuj ponownie.",
     "Suggested": "Propozycje",
+    "Dismiss": "Pomiń",
     "That Was Me": "To ja",
     "That Wasn't Me": "To nie ja",
     "That invite expired": "To zaproszenie wygasło",

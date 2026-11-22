@@ -3465,6 +3465,7 @@ const ES: LocaleTable = {
     "Send Request": "Enviar solicitud",
     "Something went wrong. Try again.": "Algo salió mal. Inténtalo de nuevo.",
     "Suggested": "Sugeridos",
+    "Dismiss": "Descartar",
     "That Was Me": "Fui yo",
     "That Wasn't Me": "No fui yo",
     "That invite expired": "Esa invitación caducó",

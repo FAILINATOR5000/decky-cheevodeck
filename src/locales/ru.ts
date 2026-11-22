@@ -3502,6 +3502,7 @@ const RU: LocaleTable = {
     "Send Request": "Отправить заявку",
     "Something went wrong. Try again.": "Что-то пошло не так. Попробуй ещё раз.",
     "Suggested": "Предложения",
+    "Dismiss": "Убрать",
     "That Was Me": "Это я",
     "That Wasn't Me": "Это не я",
     "That invite expired": "Приглашение истекло",
