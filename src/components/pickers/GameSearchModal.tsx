@@ -70,6 +70,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
     const [consoles, setConsoles] = useState<TrackedSetConsole[]>(() => cachedConsoles() ?? []);
     const [consolesLoading, setConsolesLoading] = useState(() => cachedConsoles() === null);
     const [consolesError, setConsolesError] = useState<string | null>(null);
+    const [consolesRefreshing, setConsolesRefreshing] = useState(false);
 
     const [selectedConsole, setSelectedConsole] = useState<TrackedSetConsole | null>(null);
     const [games, setGames] = useState<TrackedSetPickerGame[]>([]);
@@ -235,6 +236,23 @@ export function GameSearchModal(props: GameSearchModalProps) {
         }
     };
 
+    async function handleRefreshConsoles() {
+        if (consolesRefreshing) {
+            return;
+        }
+        setConsolesRefreshing(true);
+        try {
+            const list = await loadConsoles(true);
+            if (list.length > 0) {
+                setConsoles(list);
+            }
+        } catch (e) {
+            logError("getSetConsoleList (search refresh)", e);
+        } finally {
+            setConsolesRefreshing(false);
+        }
+    }
+
     function handlePickConsole(item: TrackedSetConsole) {
         if (gamesLoading) {
             return;
@@ -344,9 +362,11 @@ export function GameSearchModal(props: GameSearchModalProps) {
                                 error={consolesError}
                                 loadingConsoleId={gamesLoading ? selectedConsole?.id ?? null : null}
                                 recentConsoleId={recentConsoleId}
+                                refreshing={consolesRefreshing}
                                 language={language}
                                 showIcons={showIcons}
                                 onPick={handlePickConsole}
+                                onRefresh={handleRefreshConsoles}
                             />
                         )}
 
@@ -399,13 +419,15 @@ type ConsoleStepProps = {
     error: string | null;
     loadingConsoleId: number | null;
     recentConsoleId: number;
+    refreshing: boolean;
     language: LanguageCode;
     showIcons: boolean;
     onPick: (item: TrackedSetConsole) => void;
+    onRefresh: () => void;
 };
 
 function ConsoleStep(props: ConsoleStepProps) {
-    const { consoles, loading, error, loadingConsoleId, recentConsoleId, language, showIcons, onPick } = props;
+    const { consoles, loading, error, loadingConsoleId, recentConsoleId, refreshing, language, showIcons, onPick, onRefresh } = props;
 
     const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
     const listedConsoles = useMemo(() => consolesWithoutRecent(consoles, recentConsole), [consoles, recentConsole]);
@@ -459,9 +481,19 @@ function ConsoleStep(props: ConsoleStepProps) {
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ ...modalBodyStyle(), fontWeight: 700 }}>
-                {t(language, "Pick a system")}
-            </div>
+            <Focusable
+                style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}
+                flow-children="row"
+            >
+                <div style={{ ...modalBodyStyle(), fontWeight: 700, flex: 1, minWidth: 0 }}>
+                    {t(language, "Pick a system")}
+                </div>
+                <div data-focus-key="searchsystems:refresh">
+                    <DialogButton onClick={onRefresh} disabled={refreshing} style={compactButtonStyle}>
+                        {refreshing ? t(language, "Refreshing...") : t(language, "Refresh list")}
+                    </DialogButton>
+                </div>
+            </Focusable>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 {recentConsole && (
                     <RecentConsoleSection language={language}>

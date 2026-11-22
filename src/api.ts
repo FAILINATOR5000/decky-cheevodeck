@@ -3343,7 +3343,7 @@ export const updateSetGameNote = callable<[string, number, string, NoteColor], T
 );
 export const reorderSetGames = callable<[string, (string | number)[], TrackedSetViewMode], TrackedSetResponse>("reorder_set_games");
 export const clearAllTrackedSets = callable<[], ClearAllTrackedSetsResponse>("clear_all_tracked_sets");
-export const getSetConsoleList = callable<[], TrackedSetConsoleListResponse>("get_set_console_list");
+export const getSetConsoleList = callable<[refresh?: boolean], TrackedSetConsoleListResponse>("get_set_console_list");
 export const getSetGameList = callable<[number, boolean?], TrackedSetGameListResponse>("get_set_game_list");
 export const myGamesList = callable<[], MyGamesList>("my_games_list");
 export const refreshMyGames = callable<[], MyGamesList>("refresh_my_games");

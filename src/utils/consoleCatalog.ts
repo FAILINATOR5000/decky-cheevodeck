@@ -24,11 +24,11 @@ function sameConsoles(a: TrackedSetConsole[], b: TrackedSetConsole[]) {
     return true;
 }
 
-export function loadConsoles(): Promise<TrackedSetConsole[]> {
+export function loadConsoles(refresh = false): Promise<TrackedSetConsole[]> {
     if (pending) {
-        return pending;
+        return refresh ? pending.then(() => loadConsoles(true), () => loadConsoles(true)) : pending;
     }
-    pending = getSetConsoleList()
+    pending = getSetConsoleList(refresh)
         .then((result) => {
             const list = result?.consoles ?? [];
             if (!result?.ok || list.length === 0) {

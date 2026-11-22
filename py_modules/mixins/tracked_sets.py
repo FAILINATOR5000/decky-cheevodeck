@@ -109,9 +109,9 @@ class TrackedSetsMixin(PluginContext):
     async def clear_all_tracked_sets(self):
         return self.tracked_sets_store.clear_all_tracked_sets()
 
-    async def get_set_console_list(self):
+    async def get_set_console_list(self, refresh: bool = False):
         cached = await asyncio.to_thread(self.cache_store.get_cached_consoles)
-        if cached is not None:
+        if cached is not None and not refresh:
             return {"ok": True, "consoles": cached, "cached": True}
 
         cfg = self.settings_store.ensure_display_settings(self.settings_store.load_config())
@@ -128,6 +128,8 @@ class TrackedSetsMixin(PluginContext):
             raw = await asyncio.to_thread(self.ra.get_console_ids, web_api_key)
 
         consoles = self._shape_console_list(raw)
+        if not consoles and cached is not None:
+            return {"ok": True, "consoles": cached, "cached": True}
         try:
             await asyncio.to_thread(self.cache_store.save_consoles, consoles)
         except Exception as e:

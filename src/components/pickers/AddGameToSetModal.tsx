@@ -51,6 +51,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
     const [consoles, setConsoles] = useState<TrackedSetConsole[]>(() => cachedConsoles() ?? []);
     const [consolesLoading, setConsolesLoading] = useState(() => cachedConsoles() === null);
     const [consolesError, setConsolesError] = useState<string | null>(null);
+    const [consolesRefreshing, setConsolesRefreshing] = useState(false);
 
     const [selectedConsole, setSelectedConsole] = useState<TrackedSetConsole | null>(null);
     const [games, setGames] = useState<TrackedSetPickerGame[]>([]);
@@ -174,6 +175,23 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
         }
     };
 
+    async function handleRefreshConsoles() {
+        if (consolesRefreshing) {
+            return;
+        }
+        setConsolesRefreshing(true);
+        try {
+            const list = await loadConsoles(true);
+            if (list.length > 0) {
+                setConsoles(list);
+            }
+        } catch (e) {
+            logError("getSetConsoleList (add-game refresh)", e);
+        } finally {
+            setConsolesRefreshing(false);
+        }
+    }
+
     function handlePickConsole(item: TrackedSetConsole) {
         if (gamesLoading) {
             return;
@@ -267,9 +285,11 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
                         error={consolesError}
                         loadingConsoleId={gamesLoading ? selectedConsole?.id ?? null : null}
                         recentConsoleId={recentConsoleId}
+                        refreshing={consolesRefreshing}
                         language={language}
                         showIcons={showIcons}
                         onPick={handlePickConsole}
+                        onRefresh={handleRefreshConsoles}
                     />
                 )}
 
@@ -322,13 +342,15 @@ type ConsoleStepProps = {
     error: string | null;
     loadingConsoleId: number | null;
     recentConsoleId: number;
+    refreshing: boolean;
     language: LanguageCode;
     showIcons: boolean;
     onPick: (item: TrackedSetConsole) => void;
+    onRefresh: () => void;
 };
 
 function ConsoleStep(props: ConsoleStepProps) {
-    const { consoles, loading, error, loadingConsoleId, recentConsoleId, language, showIcons, onPick } = props;
+    const { consoles, loading, error, loadingConsoleId, recentConsoleId, refreshing, language, showIcons, onPick, onRefresh } = props;
 
     const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
     const listedConsoles = useMemo(() => consolesWithoutRecent(consoles, recentConsole), [consoles, recentConsole]);
@@ -381,37 +403,52 @@ function ConsoleStep(props: ConsoleStepProps) {
     }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {recentConsole && (
-                <RecentConsoleSection language={language}>
-                    <ConsoleRow
-                        key={`setsconsole:recent:${recentConsole.id}`}
-                        item={recentConsole}
-                        dimmed={loadingConsoleId !== null && recentConsole.id !== loadingConsoleId}
-                        list={rowList}
-                    />
-                </RecentConsoleSection>
-            )}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <Focusable
-                flow-children="column"
-                resetNavOnEntry
-                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
-                style={{ display: "flex", flexDirection: "column" }}
+                style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}
+                flow-children="row"
             >
-                <SlidingWindowRows list={consoleWindow}>
-                    {consoleWindow.mountedItems.map((item, i) => (
-                        <div key={`setsconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
-                            <ConsoleRow
-                                item={item}
-                                dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
-                                list={rowList}
-                                index={consoleWindow.start + i}
-                                onGamepadDirection={consoleWindow.guardTopRow(consoleWindow.start + i)}
-                            />
-                        </div>
-                    ))}
-                </SlidingWindowRows>
+                <div style={{ ...modalBodyStyle(), fontWeight: 700, flex: 1, minWidth: 0 }}>
+                    {t(language, "Pick a system")}
+                </div>
+                <div data-focus-key="setssystems:refresh">
+                    <DialogButton onClick={onRefresh} disabled={refreshing} style={compactButtonStyle}>
+                        {refreshing ? t(language, "Refreshing...") : t(language, "Refresh list")}
+                    </DialogButton>
+                </div>
             </Focusable>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {recentConsole && (
+                    <RecentConsoleSection language={language}>
+                        <ConsoleRow
+                            key={`setsconsole:recent:${recentConsole.id}`}
+                            item={recentConsole}
+                            dimmed={loadingConsoleId !== null && recentConsole.id !== loadingConsoleId}
+                            list={rowList}
+                        />
+                    </RecentConsoleSection>
+                )}
+                <Focusable
+                    flow-children="column"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                    style={{ display: "flex", flexDirection: "column" }}
+                >
+                    <SlidingWindowRows list={consoleWindow}>
+                        {consoleWindow.mountedItems.map((item, i) => (
+                            <div key={`setsconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
+                                <ConsoleRow
+                                    item={item}
+                                    dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
+                                    list={rowList}
+                                    index={consoleWindow.start + i}
+                                    onGamepadDirection={consoleWindow.guardTopRow(consoleWindow.start + i)}
+                                />
+                            </div>
+                        ))}
+                    </SlidingWindowRows>
+                </Focusable>
+            </div>
         </div>
     );
 }
