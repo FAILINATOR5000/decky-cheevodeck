@@ -28,6 +28,7 @@ import { FocusTarget } from "../ui/FocusTarget";
 import { ProgressBar } from "../ui/ProgressBar";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { DolphinInstallLine } from "./DolphinInstallLine";
 import { showFolderSystemPicker, type FolderSystemPick } from "./FolderSystemPickerModal";
 
 const PROGRESS_POLL_MS = 1000;
@@ -35,6 +36,7 @@ const ROWS_INITIAL = 30;
 const ROWS_STEP = 30;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const HOME = "/home/deck";
+const DOLPHIN_SYSTEMS = [16, 19];
 
 const unsaved = new Map<string, Record<string, FolderSystemPick>>();
 let lastFolder: string | null = null;
@@ -142,6 +144,7 @@ type FolderSystemsProps = {
     root: string;
     offline: boolean;
     forward: "start" | "next";
+    dolphinInstalled: boolean;
     onConfirm: (root: string) => void;
     close: () => void;
 };
@@ -157,7 +160,9 @@ function FolderSystemsModal(props: FolderSystemsProps) {
     const [picks, setPicks] = useState<Record<string, FolderSystemPick>>(() => unsaved.get(props.root) ?? {});
     const [systems, setSystems] = useState<CheevoCheckSystem[]>(systemsCache ?? []);
     const [waiting, setWaiting] = useState(false);
+    const [dolphinInstalled, setDolphinInstalled] = useState(props.dolphinInstalled);
     const savedRef = useRef(false);
+    const movedRef = useRef(false);
     const draftRef = useRef({ root, picks });
     draftRef.current = { root, picks };
     lastFolder = root;
@@ -273,6 +278,7 @@ function FolderSystemsModal(props: FolderSystemsProps) {
     }
 
     function changeFolder() {
+        movedRef.current = true;
         openPathPicker({
             language,
             prompt: t(language, "Choose your ROMs collection folder"),
@@ -321,12 +327,12 @@ function FolderSystemsModal(props: FolderSystemsProps) {
         return (
             <Focusable flow-children="row" style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                 <FocusTarget focusKey={`cheevocheck:folders:start${suffix}`} style={{ display: "flex", flex: 1, minWidth: 0 }}>
-                    <DialogButton onClick={pressForward} disabled={waiting || missing} style={{ width: "100%" }}>
+                    <DialogButton onClick={pressForward} disabled={waiting || missing} onGamepadFocus={() => { movedRef.current = true; }} style={{ width: "100%" }}>
                         {t(language, forward === "next" ? "Next" : "Start Scan")}
                     </DialogButton>
                 </FocusTarget>
                 <FocusTarget focusKey={`cheevocheck:folders:cancel${suffix}`} style={{ display: "flex", flex: 1, minWidth: 0 }}>
-                    <DialogButton onClick={close} style={{ width: "100%" }}>
+                    <DialogButton onClick={close} onGamepadFocus={() => { movedRef.current = true; }} style={{ width: "100%" }}>
                         {t(language, "Cancel")}
                     </DialogButton>
                 </FocusTarget>
@@ -335,6 +341,14 @@ function FolderSystemsModal(props: FolderSystemsProps) {
     }
 
     const loading = rows === null;
+    const needsDolphin = !dolphinInstalled && (rows ?? NO_ROWS).some((row) => {
+        const answer = answerFor(row, picks[row.path], systems, dataConsoles);
+        if (answer.source === "skip") {
+            return false;
+        }
+        return DOLPHIN_SYSTEMS.includes(answer.consoleId) || (answer.source === "unsure" && row.guess.length > 0
+            && row.guess.every((system) => DOLPHIN_SYSTEMS.includes(system.consoleId)));
+    });
     const fraction = progress && progress.total > 0 ? progress.done / progress.total : 0;
 
     return (
@@ -353,6 +367,18 @@ function FolderSystemsModal(props: FolderSystemsProps) {
                         {t(language, "If this is the wrong folder for your library, select it to pick another.")}
                     </span>
                 </div>
+                {needsDolphin && (
+                    <DolphinInstallLine
+                        language={language}
+                        installed={dolphinInstalled}
+                        focusKey="cheevocheck:folders:dolphin"
+                        focusFallback={["cheevocheck:folders:folder", "cheevocheck:folders:start"]}
+                        textStyle={{ ...modalBodyStyle(14), lineHeight: 1.4 }}
+                        promptSize={modalSize(12)}
+                        autoFocus={!movedRef.current}
+                        onInstalled={() => setDolphinInstalled(true)}
+                    />
+                )}
                 <FocusableItem
                     focusKey="cheevocheck:folders:folder"
                     focusFallback={["cheevocheck:folders:start"]}
@@ -415,7 +441,10 @@ function FolderSystemsModal(props: FolderSystemsProps) {
                                     ]}
                                     outerStyle={{ width: "100%", minWidth: 0 }}
                                     onClick={() => openPicker(row)}
-                                    onGamepadFocus={() => list.onItemFocus(at)}
+                                    onGamepadFocus={() => {
+                                        movedRef.current = true;
+                                        list.onItemFocus(at);
+                                    }}
                                     onGamepadDirection={list.guardTopRow(at)}
                                     bottomSeparator="none"
                                 >
@@ -450,7 +479,7 @@ function rowKey(row: CheevoCheckFolderRow): string {
     return `cheevocheck:folders:row:${row.path}`;
 }
 
-export function confirmFolderSystems(options: { language: LanguageCode; root: string; offline: boolean; forward: "start" | "next" }): Promise<{ root: string } | null> {
+export function confirmFolderSystems(options: { language: LanguageCode; root: string; offline: boolean; forward: "start" | "next"; dolphinInstalled: boolean }): Promise<{ root: string } | null> {
     return new Promise((resolve) => {
         let chosen: { root: string } | null = null;
         showManagedModal(

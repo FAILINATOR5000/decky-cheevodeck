@@ -78,6 +78,7 @@ class CheevoCheckMixin(PluginContext):
             "error": status["error"],
             "progress": status["progress"],
             "hasherProblem": self.cheevo_check_service.hasher_problem(),
+            "dolphinInstalled": self.cheevo_check_service.dolphin_installed(),
             "results": self.cheevo_check_store.load_results(),
             "verifyResults": self.cheevo_check_store.load_verify_results(),
             "dataAvailable": summary["available"],

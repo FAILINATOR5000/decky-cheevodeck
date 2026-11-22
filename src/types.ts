@@ -236,6 +236,7 @@ export type CheevoCheckState = {
     hasLocalHashCache: boolean;
     startDir: string;
     startDirKnown: boolean;
+    dolphinInstalled: boolean;
 };
 
 type CheevoCheckFolderSource = "folder" | "override" | "guess" | "types" | "unsure" | "unsupported" | "skip";

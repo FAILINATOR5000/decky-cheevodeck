@@ -147,7 +147,8 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
                 language,
                 root,
                 offline,
-                forward: "start"
+                forward: "start",
+                dolphinInstalled: Boolean(state?.dolphinInstalled)
             });
             if (!choice) {
                 return;
@@ -160,7 +161,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         finally {
             setStarting(false);
         }
-    }, [language, reload, state?.startDir, state?.startDirKnown]);
+    }, [language, reload, state?.startDir, state?.startDirKnown, state?.dolphinInstalled]);
 
     const saveReport = useCallback(async (report: string) => {
         let folder: string | undefined;
@@ -213,6 +214,11 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         await reload();
     }, [reload]);
 
+    const dolphinInstalledNow = useCallback(() => {
+        setState((current) => current && { ...current, dolphinInstalled: true });
+        void reload();
+    }, [reload]);
+
     return {
         state,
         loaded,
@@ -222,6 +228,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         startScan,
         cancelScan,
         saveReport,
-        clearHashCache
+        clearHashCache,
+        dolphinInstalledNow
     };
 }

@@ -279,6 +279,9 @@ class CheevoCheckService:
             progress = dict(self._progress) if self._progress else None
         return {"running": self._running, "error": self._last_error, "progress": progress}
 
+    def dolphin_installed(self) -> bool:
+        return self._dolphin_available()
+
     def hasher_problem(self):
         if not self._hasher_path.exists():
             return ABORT_NO_HASHER
@@ -1896,19 +1899,17 @@ class CheevoCheckService:
             os.close(dir_fd)
 
     def _dolphin_available(self) -> bool:
-        if self._dolphin_ready or (self._dolphin_ready is False
-                                   and time.monotonic() - self._dolphin_checked < DOLPHIN_RECHECK_SECONDS):
-            return self._dolphin_ready
-        self._dolphin_checked = time.monotonic()
-
         for installed in (
             self._user_home / ".local" / "share" / "flatpak" / "app" / DOLPHIN_FLATPAK_APP_ID,
             Path("/var/lib/flatpak/app") / DOLPHIN_FLATPAK_APP_ID,
         ):
             if installed.is_dir():
-                self._dolphin_ready = True
                 return True
 
+        if self._dolphin_ready or (self._dolphin_ready is False
+                                   and time.monotonic() - self._dolphin_checked < DOLPHIN_RECHECK_SECONDS):
+            return self._dolphin_ready
+        self._dolphin_checked = time.monotonic()
         code, out, _ = subprocess_util.run_command(
             ["flatpak", "info", "--show-location", DOLPHIN_FLATPAK_APP_ID],
             timeout=FLATPAK_QUERY_TIMEOUT_SECONDS,

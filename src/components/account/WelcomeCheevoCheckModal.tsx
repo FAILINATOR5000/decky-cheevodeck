@@ -27,12 +27,16 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
     const [stage, setStage] = useState<Stage>("ask");
     const [start, setStart] = useState<string | null>(null);
     const [folder, setFolder] = useState<string | null>(null);
+    const [dolphinInstalled, setDolphinInstalled] = useState(true);
     const defaultRef = useRef<HTMLDivElement | null>(null);
     const pickingRef = useRef(false);
 
     useEffect(() => {
         void getCheevoCheckState()
-            .then((state) => setStart(state?.startDir || "/"))
+            .then((state) => {
+                setStart(state?.startDir || "/");
+                setDolphinInstalled(Boolean(state?.dolphinInstalled));
+            })
             .catch((e) => {
                 logError("read the Cheevo Check start folder for the welcome", e);
                 setStart("/");
@@ -73,12 +77,15 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
                 root = picked.realpath || picked.path;
                 setFolder(root);
             }
-            const choice = await confirmFolderSystems({ language, root, offline: false, forward: "next" });
+            const choice = await confirmFolderSystems({ language, root, offline: false, forward: "next", dolphinInstalled });
             if (choice) {
                 schedule(choice.root);
             }
             else {
                 setFolder(folderPickedThisSession() ?? root);
+                void getCheevoCheckState()
+                    .then((state) => setDolphinInstalled(Boolean(state?.dolphinInstalled)))
+                    .catch((e) => logError("read the Cheevo Check state after the folder list", e));
             }
         }
         catch {

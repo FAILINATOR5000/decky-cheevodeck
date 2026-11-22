@@ -1675,7 +1675,6 @@ const FR: LocaleTable = {
     "Extract to RAM": "Décompresser dans la RAM",
     "help_cheevo_check_extract_to_ram": "Décompresse les archives en mémoire plutôt que sur le disque. Mieux vaut laisser ça désactivé sauf si tu as de la RAM à revendre : un jeu sur disque dans un zip ou un 7z peut faire plusieurs gigaoctets, et cette mémoire est prise à ce qui tourne. Ce qui ne tient pas repasse tout seul par le disque, donc rien n'est ignoré.",
     "help_cheevo_check_clear_cache": "La prochaine analyse reprendra chaque fichier de zéro. Sur une grosse bibliothèque pleine d'archives, ça peut prendre des heures.",
-    "help_cheevo_check_dolphin": "Vérifier les fichiers Wii et GameCube demande le flatpak Dolphin. Sans lui, ces fichiers sont ignorés, et l'analyse t'indique combien.",
     "help_cheevo_check_scan": "Choisis le dossier de base de toute ta collection de ROMs, et l'analyse commence. Tes dossiers devraient de préférence porter les mêmes noms que ceux d'EmuDeck ou d'ES-DE, donc si tu utilises EmuDeck ou ES-DE, tout est déjà bon ! Sinon, choisis le bouton ? en haut de cette page pour voir les noms de dossier que Cheevo Check reconnaît. L'analyse tourne en arrière-plan, tu peux donc fermer la fenêtre latérale ou même mettre ton appareil en veille, elle reprendra là où elle s'était arrêtée.",
     "help_cheevo_check_offline_scan": "Comme Analyser, sauf qu'il utilise les empreintes RA déjà téléchargées lors des analyses précédentes et saute le téléchargement. Ne t'en sers que si tu as analysé récemment et que tu ne veux pas tout retélécharger depuis RA. Si tu as ajouté des jeux d'un nouveau système depuis, lance plutôt une analyse normale, car les données de ce système devront être téléchargées depuis RA.",
     "help_cheevo_check_unsupported": "RetroAchievements ne reconnaît pas du tout ces dumps. Un autre dump du même jeu pourrait très bien fonctionner. Ouvre la liste et appuie sur A sur un jeu pour le chercher sur RA dans le navigateur. S'il y est, tu as forcément un mauvais dump. S'il n'est pas encore sur RA, ton dump est sans doute bon, et quand RA ajoutera ton jeu, il devrait fonctionner.",
@@ -4015,11 +4014,13 @@ const FR: LocaleTable = {
     "Start Scan": "Lancer l'analyse",
     "Skip This Folder": "Ignorer ce dossier",
     "Likely": "Probables",
+    "cheevo_check_dolphin_install": "Pour analyser tes jeux Nintendo GameCube/Wii, le flatpak Dolphin est nécessaire pour les outils Dolphin, qui ne sont pas inclus dans l'AppImage. Sélectionne ici pour l'installer.",
     "That folder isn't there any more. Pick another with the Folder row.": "Ce dossier n'existe plus. Choisis-en un autre avec la ligne Dossier.",
     "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "Vérifie ci-dessous que tes dossiers sont associés au bon système avant d'appuyer sur « {{button}} ».",
     "{{button}} Change System": "{{button}} Changer de système",
     "Which system is this folder for?": "Pour quel système est ce dossier ?",
     "If this is the wrong folder for your library, select it to pick another.": "Si ce n'est pas le bon dossier pour ta bibliothèque, sélectionne-le pour en choisir un autre.",
+    "{{button}} Install": "{{button}} Installer",
 };
 
 export default FR;

@@ -244,6 +244,10 @@ async function startEmulatorJob(language: LanguageCode, name: string, start: (fo
     }
 }
 
+export function installEmulatorFlatpak(language: LanguageCode, kind: EmulatorKind, name: string, target: string) {
+    return startEmulatorJob(language, name, () => emulatorsInstallFlatpak(kind, target));
+}
+
 async function changeLines(language: LanguageCode, kind: EmulatorKind, name: string): Promise<string[]> {
     let changes: { system: string; current: string }[] = [];
     try {
@@ -389,7 +393,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             installCores: (cores: string[], target: string) => void installCores(language, cores, target),
             updateCores: (cores: string[], target: string) => void updateCores(language, cores, target),
             installFlatpak: (kind: EmulatorKind, name: string, target: string) =>
-                void startEmulatorJob(language, name, () => emulatorsInstallFlatpak(kind, target)),
+                void installEmulatorFlatpak(language, kind, name, target),
             updateFlatpak: (kind: EmulatorKind, name: string, target: string) =>
                 void startEmulatorJob(language, name, (force) => emulatorsUpdateFlatpak(kind, force, target)),
             installAppImage: (kind: EmulatorKind, name: string, target: string) =>

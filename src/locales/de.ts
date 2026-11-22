@@ -1675,7 +1675,6 @@ const DE: LocaleTable = {
     "Extract to RAM": "In den Arbeitsspeicher entpacken",
     "help_cheevo_check_extract_to_ram": "Entpackt Archive in den Arbeitsspeicher statt auf das Laufwerk. Lass das besser aus, wenn du nicht reichlich RAM übrig hast: ein Discspiel in einem ZIP oder 7z kann mehrere Gigabyte groß sein, und der Speicher fehlt dann dem, was gerade läuft. Was nicht hineinpasst, landet von selbst wieder auf dem Laufwerk — übersprungen wird also nichts.",
     "help_cheevo_check_clear_cache": "Die nächste Prüfung nimmt sich jede Datei wieder komplett vor. Bei einer großen Sammlung voller Archive kann das Stunden dauern.",
-    "help_cheevo_check_dolphin": "Für Wii- und GameCube-Dateien muss das Dolphin-Flatpak installiert sein. Ohne das werden diese Dateien übersprungen, und der Scan sagt dir, wie viele.",
     "help_cheevo_check_scan": "Wähle den Basisordner deiner gesamten ROM-Sammlung, dann beginnt die Prüfung. Deine Ordner sollten am besten so heißen wie die Ordner von EmuDeck oder ES-DE. Wenn du also EmuDeck oder ES-DE nutzt, bist du schon startklar! Andernfalls wähle den ?-Knopf oben auf dieser Seite, um zu sehen, welche Ordnernamen Cheevo Check erkennt. Die Prüfung läuft im Hintergrund, du kannst also das Seitenfenster schließen oder dein Gerät sogar in den Ruhezustand versetzen, und sie macht dort weiter, wo sie aufgehört hat.",
     "help_cheevo_check_offline_scan": "Wie Prüfen, nur dass die RA-Hashes aus früheren Prüfungen benutzt werden und der Download entfällt. Nutze das nur, wenn du vor Kurzem geprüft hast und nicht alles noch einmal von RA laden willst. Hast du seitdem Spiele für ein neues System hinzugefügt, mach stattdessen eine normale Prüfung, denn die Daten für dieses System müssen von RA geladen werden.",
     "help_cheevo_check_unsupported": "RetroAchievements erkennt diese Dumps überhaupt nicht. Ein anderer Dump desselben Spiels kann aber gut funktionieren. Öffne die Liste und drücke A auf einem Spiel, um im Browser auf RA danach zu suchen. Ist es dort, hast du ganz sicher den falschen Dump. Ist es noch nicht auf RA, ist dein Dump wahrscheinlich in Ordnung, und sobald RA dein Spiel aufnimmt, funktioniert es vermutlich.",
@@ -3982,11 +3981,13 @@ const DE: LocaleTable = {
     "Start Scan": "Prüfung starten",
     "Skip This Folder": "Diesen Ordner überspringen",
     "Likely": "Wahrscheinlich",
+    "cheevo_check_dolphin_install": "Um deine Nintendo-GameCube/Wii-Spiele zu prüfen, wird das Dolphin-Flatpak für die Dolphin-Tools benötigt, die nicht im AppImage enthalten sind. Hier auswählen, um es zu installieren.",
     "That folder isn't there any more. Pick another with the Folder row.": "Diesen Ordner gibt es nicht mehr. Wähle über die Ordner-Zeile einen anderen.",
     "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "Bitte prüfe unten, ob deine Ordner dem richtigen System zugeordnet sind, bevor du „{{button}}“ drückst.",
     "{{button}} Change System": "{{button}} System ändern",
     "Which system is this folder for?": "Für welches System ist dieser Ordner?",
     "If this is the wrong folder for your library, select it to pick another.": "Wenn das der falsche Ordner für deine Bibliothek ist, wähle ihn aus, um einen anderen zu nehmen.",
+    "{{button}} Install": "{{button}} Installieren",
 };
 
 export default DE;

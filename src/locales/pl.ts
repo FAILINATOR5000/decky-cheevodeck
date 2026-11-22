@@ -1722,7 +1722,6 @@ const PL: LocaleTable = {
     "Extract to RAM": "Rozpakuj do pamięci RAM",
     "help_cheevo_check_extract_to_ram": "Rozpakowuje archiwa do pamięci zamiast na dysk. Lepiej zostaw to wyłączone, chyba że masz RAM-u w zapasie: gra dyskowa w zipie albo 7z potrafi mieć kilka gigabajtów, a ta pamięć zabierana jest temu, w co akurat grasz. Co się nie zmieści, samo wróci na dysk, więc nic nie zostanie pominięte.",
     "help_cheevo_check_clear_cache": "Następne skanowanie sprawdzi każdy plik od zera. Przy dużej bibliotece pełnej archiwów to mogą być godziny.",
-    "help_cheevo_check_dolphin": "Sprawdzanie plików Wii i GameCube wymaga zainstalowanego flatpaka Dolphin. Bez niego takie pliki są pomijane, a skanowanie mówi ci, ile ich było.",
     "help_cheevo_check_scan": "Wybierz folder główny całej swojej kolekcji ROM-ów, a skanowanie się zacznie. Najlepiej, żeby twoje foldery nazywały się tak jak foldery EmuDeck albo ES-DE, więc jeśli korzystasz z EmuDeck albo ES-DE, wszystko jest już gotowe! Jeśli nie, wybierz przycisk ? na górze tej strony, żeby zobaczyć nazwy folderów, które rozpoznaje Cheevo Check. Skanowanie działa w tle, więc możesz zamknąć boczne okno, a nawet uśpić urządzenie, i ruszy dalej od miejsca, w którym skończyło.",
     "help_cheevo_check_offline_scan": "To samo co Skanuj, tyle że używa hashy RA pobranych przy poprzednich skanowaniach i pomija pobieranie. Używaj tego tylko po niedawnym skanowaniu, kiedy nie chcesz pobierać wszystkiego z RA od nowa. Jeśli od tamtej pory w bibliotece pojawiły się gry z nowego systemu, zrób zwykłe skanowanie, bo dane tego systemu trzeba będzie pobrać z RA.",
     "help_cheevo_check_unsupported": "RetroAchievements w ogóle nie rozpoznaje tych dumpów. Inny dump tej samej gry może jak najbardziej działać. Otwórz listę i naciśnij A na grze, żeby wyszukać ją na RA w przeglądarce. Jeśli tam jest, na pewno masz zły dump. Jeśli jeszcze jej nie ma na RA, twój dump jest pewnie w porządku, a kiedy RA doda twoją grę, najpewniej zadziała.",
@@ -4098,11 +4097,13 @@ const PL: LocaleTable = {
     "Start Scan": "Rozpocznij skanowanie",
     "Skip This Folder": "Pomiń ten folder",
     "Likely": "Prawdopodobne",
+    "cheevo_check_dolphin_install": "Aby skanować gry z Nintendo GameCube/Wii, potrzebny jest flatpak Dolphin z narzędziami Dolphin, których nie ma w AppImage. Wybierz tutaj, aby go zainstalować.",
     "That folder isn't there any more. Pick another with the Folder row.": "Tego folderu już nie ma. Wybierz inny w wierszu Folder.",
     "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "Zanim naciśniesz „{{button}}”, sprawdź poniżej, czy twoje foldery mają przypisany właściwy system.",
     "{{button}} Change System": "{{button}} Zmień system",
     "Which system is this folder for?": "Do jakiego systemu jest ten folder?",
     "If this is the wrong folder for your library, select it to pick another.": "Jeśli to zły folder twojej biblioteki, wybierz go, aby wskazać inny.",
+    "{{button}} Install": "{{button}} Zainstaluj",
 };
 
 export default PL;

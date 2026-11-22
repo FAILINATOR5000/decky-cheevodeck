@@ -17,6 +17,7 @@ import { ToggleRow } from "../components/ui/ToggleRow";
 import { fileWatcherSpeedLabel } from "../utils/fileWatcher";
 import { DarkenScreenRow } from "../components/darken/DarkenScreenRow";
 import { useCheevoCheck } from "../components/cheevocheck/CheevoCheckContext";
+import { DolphinInstallLine } from "../components/cheevocheck/DolphinInstallLine";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -35,6 +36,7 @@ import type {
 import { achievementGreen, bodyTextStyle, errorRed, faultViolet, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { subLandingAhead, usePageLanding } from "../focusRecords";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
+import { textSize } from "../utils/scale";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -129,7 +131,8 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
         startScan,
         cancelScan,
         saveReport,
-        clearHashCache
+        clearHashCache,
+        dolphinInstalledNow
     } = useCheevoCheck();
     const [showLoading, setShowLoading] = useState(false);
 
@@ -347,17 +350,19 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     {!settings.scanCollapsed && (
                     <>
 
-                    <PanelSectionRow>
-                        <div
-                            style={{
-                                ...bodyTextStyle(),
-                                color: warnAmber,
-                                opacity: 1
-                            }}
-                        >
-                            {t(language, "help_cheevo_check_dolphin")}
-                        </div>
-                    </PanelSectionRow>
+                    {cheevo && !cheevo.dolphinInstalled && (
+                        <PanelSectionRow>
+                            <DolphinInstallLine
+                                language={language}
+                                installed={cheevo.dolphinInstalled}
+                                focusKey="cheevocheck:dolphin:install"
+                                focusFallback={["cheevocheck:scan", ...SCAN_FALLBACK]}
+                                textStyle={{ ...bodyTextStyle(), opacity: 1 }}
+                                promptSize={textSize(12)}
+                                onInstalled={dolphinInstalledNow}
+                            />
+                        </PanelSectionRow>
+                    )}
 
                     {!results && (
                         <PanelSectionRow>

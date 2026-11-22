@@ -1686,7 +1686,6 @@ const ES: LocaleTable = {
     "Extract to RAM": "Descomprimir en la RAM",
     "help_cheevo_check_extract_to_ram": "Descomprime los archivos comprimidos en la memoria en vez de en la unidad. Mejor déjalo desactivado salvo que te sobre RAM: un juego de disco dentro de un zip o un 7z puede ocupar varios gigabytes, y esa memoria se la quitas a lo que estés jugando. Lo que no quepa vuelve solo a la unidad, así que no se salta nada.",
     "help_cheevo_check_clear_cache": "Hace que el siguiente análisis vuelva a revisar cada archivo desde cero. En una biblioteca grande llena de comprimidos eso puede llevar horas.",
-    "help_cheevo_check_dolphin": "Para revisar archivos de Wii y GameCube hace falta tener instalado el flatpak de Dolphin. Sin él, esos archivos se omiten, y el análisis te dice cuántos.",
     "help_cheevo_check_scan": "Elige la carpeta base de toda tu colección de ROMs y el análisis empezará. Lo ideal es que tus carpetas se llamen como las de EmuDeck o ES-DE, así que si usas EmuDeck o ES-DE, ¡ya está todo listo! Si no, elige el botón ? en la parte superior de esta página para ver los nombres de carpeta que reconoce Cheevo Check. Se ejecuta en segundo plano, así que puedes cerrar la ventana lateral o incluso suspender tu dispositivo, y seguirá donde lo dejó.",
     "help_cheevo_check_offline_scan": "Igual que Analizar, salvo que usa los hashes de RA que ya descargaste en análisis anteriores y se salta la descarga. Úsalo solo si analizaste hace poco y no quieres volver a descargarlo todo de RA. Si desde entonces añadiste juegos de un sistema nuevo, haz un análisis normal, porque habrá que descargar de RA los datos de ese sistema.",
     "help_cheevo_check_unsupported": "RetroAchievements no reconoce estos dumps en absoluto. Otro dump del mismo juego bien podría funcionar. Abre la lista y pulsa A sobre un juego para buscarlo en RA con el navegador. Si está, seguro que tienes un dump equivocado. Si todavía no está en RA, tu dump probablemente esté bien, y cuando RA añada tu juego, seguramente funcionará.",
@@ -4026,11 +4025,13 @@ const ES: LocaleTable = {
     "Start Scan": "Iniciar análisis",
     "Skip This Folder": "Omitir esta carpeta",
     "Likely": "Probables",
+    "cheevo_check_dolphin_install": "Para analizar tus juegos de Nintendo GameCube/Wii hace falta el flatpak de Dolphin por sus herramientas, que no vienen con la AppImage. Selecciona aquí para instalarlo.",
     "That folder isn't there any more. Pick another with the Folder row.": "Esa carpeta ya no está. Elige otra con la fila Carpeta.",
     "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "Comprueba abajo que tus carpetas están asociadas al sistema correcto antes de pulsar «{{button}}».",
     "{{button}} Change System": "{{button}} Cambiar sistema",
     "Which system is this folder for?": "¿De qué sistema es esta carpeta?",
     "If this is the wrong folder for your library, select it to pick another.": "Si esta no es la carpeta de tu biblioteca, selecciónala para elegir otra.",
+    "{{button}} Install": "{{button}} Instalar",
 };
 
 export default ES;

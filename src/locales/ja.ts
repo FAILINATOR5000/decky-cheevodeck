@@ -1653,7 +1653,6 @@ const JA: LocaleTable = {
     "Extract to RAM": "RAM に展開",
     "help_cheevo_check_extract_to_ram": "書庫をドライブではなくメモリー上に展開します。RAM に余裕がないかぎりオフのままがおすすめです。zip や 7z に入ったディスクゲームは数ギガバイトになることがあり、そのぶんのメモリーはプレイ中のゲームから取られます。入りきらないものは自動でドライブに切り替わるので、飛ばされることはありません。",
     "help_cheevo_check_clear_cache": "次のスキャンで全ファイルを最初から確認し直します。書庫の多い大きなライブラリでは数時間かかることもあります。",
-    "help_cheevo_check_dolphin": "Wii とゲームキューブのファイルを確認するには Dolphin の Flatpak が必要です。入っていない場合、それらのファイルはスキップされ、その件数はスキャンが知らせます。",
     "help_cheevo_check_scan": "ROM コレクション全体の親フォルダーを選ぶとスキャンが始まります。フォルダー名は EmuDeck や ES-DE と同じ名前にしておくのがおすすめです。EmuDeck や ES-DE を使っているなら、そのままで大丈夫！そうでない場合は、このページ上部の ? ボタンを選ぶと、Cheevo Check が認識するフォルダー名を確認できます。スキャンはバックグラウンドで動くので、サイドウィンドウを閉じても、デバイスをスリープさせても、止まったところから再開します。",
     "help_cheevo_check_offline_scan": "スキャンと同じですが、以前のスキャンでダウンロード済みの RA ハッシュを使い、ダウンロードを省きます。最近スキャンしたばかりで、RA から全部ダウンロードし直したくないときだけ使ってください。その後に新しい機種のゲームを追加したなら、その機種のデータを RA からダウンロードする必要があるので、通常のスキャンを行ってください。",
     "help_cheevo_check_unsupported": "RetroAchievements はこれらのダンプをまったく認識できません。同じゲームの別のダンプなら動く可能性は十分あります。リストを開いてゲームの上で A を押すと、ブラウザーで RA を検索できます。RA にあるなら、ダンプが間違っているのは確実です。まだ RA にないなら、ダンプはおそらく問題なく、RA にゲームが追加されれば動くでしょう。",
@@ -3839,11 +3838,13 @@ const JA: LocaleTable = {
     "Start Scan": "スキャン開始",
     "Skip This Folder": "このフォルダーをスキップ",
     "Likely": "候補",
+    "cheevo_check_dolphin_install": "Nintendo ゲームキューブ/Wii のゲームをスキャンするには、AppImage に含まれていない Dolphin のツールのために Dolphin の Flatpak が必要です。ここを選ぶとインストールします。",
     "That folder isn't there any more. Pick another with the Folder row.": "このフォルダーはもうありません。「フォルダー」の行から別のフォルダーを選んでください。",
     "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "「{{button}}」を押す前に、下のフォルダーが正しいシステムに対応しているか確認してください。",
     "{{button}} Change System": "{{button}} システムを変更",
     "Which system is this folder for?": "このフォルダーはどのシステム用ですか？",
     "If this is the wrong folder for your library, select it to pick another.": "ライブラリのフォルダーが違う場合は、それを選んで別のフォルダーを選んでください。",
+    "{{button}} Install": "{{button}} インストール",
 };
 
 export default JA;
