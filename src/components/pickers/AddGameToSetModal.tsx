@@ -14,6 +14,7 @@ import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
+import { ConsoleRow, type ConsoleRowListProps } from "./PickerConsoleRow";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type {
@@ -311,6 +312,12 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
     );
 }
 
+const NAV_ENTER_MAINTAIN_Y = 3;
+const INITIAL_CONSOLE_ROWS = 40;
+const CONSOLE_ROW_STEP = 40;
+const CONSOLE_ROW_LOAD_AHEAD = 12;
+const CONSOLE_SENTINEL_ROOT_MARGIN_PX = 600;
+
 type ConsoleStepProps = {
     consoles: TrackedSetConsole[];
     loading: boolean;
@@ -325,8 +332,28 @@ type ConsoleStepProps = {
 function ConsoleStep(props: ConsoleStepProps) {
     const { consoles, loading, error, loadingConsoleId, recentConsoleId, language, showIcons, onPick } = props;
 
+    const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
+    const listedConsoles = useMemo(() => consolesWithoutRecent(consoles, recentConsole), [consoles, recentConsole]);
+
+    const consoleWindow = useSlidingWindow({
+        items: listedConsoles,
+        itemKey: (item) => String(item.id),
+        focusKeyFor: (item) => `setsconsole:${item.id}`,
+        windowId: "setsconsole:consoles",
+        heightScope: ["setsconsole:consoles", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_CONSOLE_ROWS,
+        rowStep: CONSOLE_ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: CONSOLE_ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: CONSOLE_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `setsconsole:${listedConsoles.length > 0}`
+    });
+
     const consolePickRef = useRef(onPick);
     consolePickRef.current = onPick;
+    const consoleFocusRef = useRef(consoleWindow.onItemFocus);
+    consoleFocusRef.current = consoleWindow.onItemFocus;
 
     const rowList = useMemo<ConsoleRowListProps>(() => ({
         language,
@@ -334,11 +361,12 @@ function ConsoleStep(props: ConsoleStepProps) {
         metrics: pickerRowMetrics(),
         onPick: (item) => {
             consolePickRef.current(item);
+        },
+        keyPrefix: "setsconsole:",
+        onRowFocus: (index) => {
+            consoleFocusRef.current(index);
         }
     }), [language, showIcons]);
-
-    const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
-    const listedConsoles = consolesWithoutRecent(consoles, recentConsole);
 
     if (loading && consoles.length === 0) {
         return (
@@ -366,14 +394,26 @@ function ConsoleStep(props: ConsoleStepProps) {
                     />
                 </RecentConsoleSection>
             )}
-            {listedConsoles.map((item) => (
-                <ConsoleRow
-                    key={`setsconsole:${item.id}`}
-                    item={item}
-                    dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
-                    list={rowList}
-                />
-            ))}
+            <Focusable
+                flow-children="column"
+                resetNavOnEntry
+                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                style={{ display: "flex", flexDirection: "column" }}
+            >
+                <SlidingWindowRows list={consoleWindow}>
+                    {consoleWindow.mountedItems.map((item, i) => (
+                        <div key={`setsconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
+                            <ConsoleRow
+                                item={item}
+                                dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
+                                list={rowList}
+                                index={consoleWindow.start + i}
+                                onGamepadDirection={consoleWindow.guardTopRow(consoleWindow.start + i)}
+                            />
+                        </div>
+                    ))}
+                </SlidingWindowRows>
+            </Focusable>
         </div>
     );
 }
@@ -394,98 +434,6 @@ function pickerRowMetrics() {
 }
 
 type PickerRowMetrics = ReturnType<typeof pickerRowMetrics>;
-
-type ConsoleRowListProps = {
-    language: LanguageCode;
-    showIcons: boolean;
-    metrics: PickerRowMetrics;
-    onPick: (item: TrackedSetConsole) => void;
-};
-
-type ConsoleRowProps = {
-    item: TrackedSetConsole;
-    dimmed: boolean;
-    list: ConsoleRowListProps;
-};
-
-const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
-    const { item, dimmed, list } = props;
-    const { language, showIcons, metrics } = list;
-
-    const fallbackLetter = item.name.trim().charAt(0).toUpperCase() || "?";
-
-    function handleClick() {
-        list.onPick(item);
-    }
-
-    return (
-        <FocusableItem
-            focusKey={`setsconsole:${item.id}`}
-            onClick={handleClick}
-            outerStyle={{ width: "100%", minWidth: 0 }}
-        >
-            <div
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    gap: `${Math.max(8, metrics.iconGap - 2)}px`,
-                    alignItems: "center",
-                    padding: `${Math.max(3, Math.round(metrics.rowPaddingY * 0.42))}px 0`,
-                    minWidth: 0,
-                    opacity: dimmed ? 0.5 : 1
-                }}
-            >
-                {showIcons && (
-                    <div
-                        style={{
-                            width: `${metrics.iconSize}px`,
-                            height: `${metrics.iconSize}px`,
-                            borderRadius: "7px",
-                            overflow: "hidden",
-                            flexShrink: 0,
-                            background: "rgba(255,255,255,0.10)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                            fontWeight: 800
-                        }}
-                    >
-                        {item.iconUrl ? (
-                            <img
-                                src={item.iconUrl}
-                                alt=""
-                                decoding="async"
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "contain",
-                                    display: "block"
-                                }}
-                            />
-                        ) : (
-                            fallbackLetter
-                        )}
-                    </div>
-                )}
-                <div
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: `${metrics.titleFontSize}px`,
-                        lineHeight: metrics.titleLineHeight,
-                        fontWeight: 800,
-                        textAlign: "left",
-                        wordBreak: "break-word"
-                    }}
-                >
-                    {item.name || t(language, "Unknown console")}
-                </div>
-            </div>
-        </FocusableItem>
-    );
-});
 
 type GameStepProps = {
     consoleName: string;

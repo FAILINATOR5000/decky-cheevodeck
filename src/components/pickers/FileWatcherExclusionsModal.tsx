@@ -1,15 +1,23 @@
 import { DialogButton, Focusable, ModalRoot, ScrollPanelGroup, TextField } from "@decky/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ConfirmRow } from "../ui/ConfirmRow";
 import { FocusableItem } from "../ui/FocusableItem";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { FileWatcherRoot } from "../../types";
 import { errorLine } from "../../utils/fileWatcher";
 import { modalBodyStyle, warnAmber } from "../../utils/style";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+
+const NAV_ENTER_MAINTAIN_Y = 3;
+const INITIAL_ROWS = 40;
+const ROW_STEP = 40;
+const ROW_LOAD_AHEAD = 12;
+const SENTINEL_ROOT_MARGIN_PX = 600;
 
 const EXCLUSION_PRESETS: Array<{ key: string; label: string; blurb: string; patterns: string[] }> = [
     {
@@ -86,10 +94,29 @@ export function FileWatcherExclusionsModal(props: FileWatcherExclusionsModalProp
         return preset.patterns.every((pattern) => patterns.includes(pattern));
     }
 
-    const covered = new Set(
-        EXCLUSION_PRESETS.filter(presetIsOn).flatMap((preset) => preset.patterns)
-    );
-    const custom = patterns.filter((pattern) => !covered.has(pattern));
+    const custom = useMemo(() => {
+        const covered = new Set(
+            EXCLUSION_PRESETS
+                .filter((preset) => preset.patterns.every((pattern) => patterns.includes(pattern)))
+                .flatMap((preset) => preset.patterns)
+        );
+        return patterns.filter((pattern) => !covered.has(pattern));
+    }, [patterns]);
+
+    const customWindow = useSlidingWindow({
+        items: custom,
+        itemKey: (pattern) => pattern,
+        focusKeyFor: (pattern) => `filewatcher:exclude:custom:${pattern}`,
+        windowId: "filewatcher:exclude:custom",
+        heightScope: ["filewatcher:exclude:custom", getCurrentModalScale(), language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `filewatcher:exclude:custom:${custom.length > 0}`
+    });
 
     function togglePreset(preset: { patterns: string[] }) {
         if (presetIsOn(preset)) {
@@ -197,18 +224,29 @@ export function FileWatcherExclusionsModal(props: FileWatcherExclusionsModalProp
                     </DialogButton>
                 </Focusable>
 
-                {custom.map((pattern) => (
-                    <FocusableItem
-                        key={`custom:${pattern}`}
-                        focusKey={`filewatcher:exclude:custom:${pattern}`}
-                        disabled={locked}
-                        skipWhenDisabled
-                        onClick={() => setPatterns(patterns.filter((entry) => entry !== pattern))}
-                        bottomSeparator="none"
-                    >
-                        {`✕  ${pattern}`}
-                    </FocusableItem>
-                ))}
+                <Focusable
+                    flow-children="column"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                    style={{ display: "flex", flexDirection: "column" }}
+                >
+                    <SlidingWindowRows list={customWindow}>
+                        {customWindow.mountedItems.map((pattern, i) => (
+                            <FocusableItem
+                                key={`custom:${pattern}`}
+                                focusKey={`filewatcher:exclude:custom:${pattern}`}
+                                disabled={locked}
+                                skipWhenDisabled
+                                onClick={() => setPatterns(patterns.filter((entry) => entry !== pattern))}
+                                onGamepadFocus={() => customWindow.onItemFocus(customWindow.start + i)}
+                                onGamepadDirection={customWindow.guardTopRow(customWindow.start + i)}
+                                bottomSeparator="none"
+                            >
+                                {`✕  ${pattern}`}
+                            </FocusableItem>
+                        ))}
+                    </SlidingWindowRows>
+                </Focusable>
 
                 {
 }

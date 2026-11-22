@@ -45,6 +45,8 @@ const FETCH_PAGE_ROWS = 1000;
 const MAX_LOADED_ROWS = 20000;
 
 const ALL_ROOTS_ID = -1;
+const NAV_ENTER_MAINTAIN_Y = 3;
+const NO_ROOT_GROUPS: RootGroup[] = [];
 
 const NO_ROWS: FileWatcherListRow[] = [];
 
@@ -365,32 +367,13 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
                 )}
 
                 {bucket !== "skipped" && showRootStep && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <div style={{ ...modalBodyStyle(), fontWeight: 700 }}>
-                            {t(language, "Pick a directory")}
-                        </div>
-                        <RootRow
-                            group={{
-                                rootId: ALL_ROOTS_ID,
-                                label: t(language, "All files"),
-                                count: (rootGroups ?? []).reduce((total, group) => total + group.count, 0),
-                                dirs: (rootGroups ?? []).reduce((total, group) => total + group.dirs, 0),
-                                files: (rootGroups ?? []).reduce((total, group) => total + group.files, 0)
-                            }}
-                            language={language}
-                            showFolders={bucket === "excluded"}
-                            onPick={handlePickRoot}
-                        />
-                        {(rootGroups ?? []).map((group) => (
-                            <RootRow
-                                key={group.rootId}
-                                group={group}
-                                language={language}
-                                showFolders={bucket === "excluded"}
-                                onPick={handlePickRoot}
-                            />
-                        ))}
-                    </div>
+                    <RootStep
+                        groups={rootGroups ?? NO_ROOT_GROUPS}
+                        language={language}
+                        showFolders={bucket === "excluded"}
+                        openFirst={returnRootKeyRef.current ?? undefined}
+                        onPick={handlePickRoot}
+                    />
                 )}
 
                 {bucket !== "skipped" && step === "rows" && (
@@ -467,11 +450,84 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     );
 }
 
+type RootStepProps = {
+    groups: RootGroup[];
+    language: LanguageCode;
+    showFolders: boolean;
+    openFirst?: string;
+    onPick: (group: RootGroup) => void;
+};
+
+function RootStep(props: RootStepProps) {
+    const { groups, language, showFolders, onPick } = props;
+
+    const rootWindow = useSlidingWindow({
+        items: groups,
+        itemKey: (group) => String(group.rootId),
+        focusKeyFor: (group) => `filewatcher:findroot:${group.rootId}`,
+        windowId: "filewatcher:findroots",
+        heightScope: ["filewatcher:findroots", getCurrentModalScale(), language, showFolders].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `filewatcher:findroots:${groups.length > 0}`,
+        openFirst: props.openFirst
+    });
+
+    const allFiles = useMemo<RootGroup>(() => ({
+        rootId: ALL_ROOTS_ID,
+        label: t(language, "All files"),
+        count: groups.reduce((total, group) => total + group.count, 0),
+        dirs: groups.reduce((total, group) => total + group.dirs, 0),
+        files: groups.reduce((total, group) => total + group.files, 0)
+    }), [groups, language]);
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ ...modalBodyStyle(), fontWeight: 700 }}>
+                {t(language, "Pick a directory")}
+            </div>
+            <RootRow
+                group={allFiles}
+                language={language}
+                showFolders={showFolders}
+                onPick={onPick}
+            />
+            <Focusable
+                flow-children="column"
+                resetNavOnEntry
+                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                style={{ display: "flex", flexDirection: "column" }}
+            >
+                <SlidingWindowRows list={rootWindow}>
+                    {rootWindow.mountedItems.map((group, i) => (
+                        <div key={group.rootId} style={{ paddingBottom: "4px" }}>
+                            <RootRow
+                                group={group}
+                                language={language}
+                                showFolders={showFolders}
+                                onPick={onPick}
+                                onGamepadFocus={() => rootWindow.onItemFocus(rootWindow.start + i)}
+                                onGamepadDirection={rootWindow.guardTopRow(rootWindow.start + i)}
+                            />
+                        </div>
+                    ))}
+                </SlidingWindowRows>
+            </Focusable>
+        </div>
+    );
+}
+
 type RootRowProps = {
     group: RootGroup;
     language: LanguageCode;
     showFolders: boolean;
     onPick: (group: RootGroup) => void;
+    onGamepadFocus?: () => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 function RootRow(props: RootRowProps) {
@@ -483,6 +539,8 @@ function RootRow(props: RootRowProps) {
         <FocusableItem
             focusKey={`filewatcher:findroot:${group.rootId}`}
             onClick={() => props.onPick(group)}
+            onGamepadFocus={props.onGamepadFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
             bottomSeparator="none"
         >
@@ -584,41 +642,66 @@ type SkippedListProps = {
 function SkippedList(props: SkippedListProps) {
     const { language, skipped, labelsById, pathsById } = props;
 
+    const skippedWindow = useSlidingWindow({
+        items: skipped,
+        itemKey: (row) => String(row.rootId),
+        focusKeyFor: (row) => `filewatcher:skipped:${row.rootId}`,
+        windowId: "filewatcher:skipped",
+        heightScope: ["filewatcher:skipped", getCurrentModalScale(), language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `filewatcher:skipped:${skipped.length > 0}`
+    });
+
     if (skipped.length === 0) {
         return <div style={modalBodyStyle()}>{t(language, "Every directory was reachable.")}</div>;
     }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {skipped.map((row) => (
-                <FocusableItem
-                    key={row.rootId}
-                    focusKey={`filewatcher:skipped:${row.rootId}`}
-                    outerStyle={{ width: "100%", minWidth: 0 }}
-                    bottomSeparator="none"
-                >
-                    <div
-                        style={{
-                            width: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "2px",
-                            textAlign: "left",
-                            minWidth: 0
-                        }}
-                    >
-                        <div style={{ fontWeight: 800, minWidth: 0, wordBreak: "break-word" }}>
-                            {labelsById.get(row.rootId) ?? String(row.rootId)}
-                        </div>
-                        <div style={{ ...smallTextStyle(), minWidth: 0, wordBreak: "break-all" }}>
-                            {pathsById.get(row.rootId) ?? ""}
-                        </div>
-                        <div style={{ ...smallTextStyle(), opacity: 1 }}>
-                            {`${skipReasonLabel(row.reason, language)} · ${t(language, "{{count}} files", { count: row.fileCount })} · ${verifiedAgoLabel(row.lastOkAt, language)}`}
-                        </div>
+        <Focusable
+            flow-children="column"
+            resetNavOnEntry
+            navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+            style={{ display: "flex", flexDirection: "column" }}
+        >
+            <SlidingWindowRows list={skippedWindow}>
+                {skippedWindow.mountedItems.map((row, i) => (
+                    <div key={row.rootId} style={{ paddingBottom: "4px" }}>
+                        <FocusableItem
+                            focusKey={`filewatcher:skipped:${row.rootId}`}
+                            onGamepadFocus={() => skippedWindow.onItemFocus(skippedWindow.start + i)}
+                            onGamepadDirection={skippedWindow.guardTopRow(skippedWindow.start + i)}
+                            outerStyle={{ width: "100%", minWidth: 0 }}
+                            bottomSeparator="none"
+                        >
+                            <div
+                                style={{
+                                    width: "100%",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "2px",
+                                    textAlign: "left",
+                                    minWidth: 0
+                                }}
+                            >
+                                <div style={{ fontWeight: 800, minWidth: 0, wordBreak: "break-word" }}>
+                                    {labelsById.get(row.rootId) ?? String(row.rootId)}
+                                </div>
+                                <div style={{ ...smallTextStyle(), minWidth: 0, wordBreak: "break-all" }}>
+                                    {pathsById.get(row.rootId) ?? ""}
+                                </div>
+                                <div style={{ ...smallTextStyle(), opacity: 1 }}>
+                                    {`${skipReasonLabel(row.reason, language)} · ${t(language, "{{count}} files", { count: row.fileCount })} · ${verifiedAgoLabel(row.lastOkAt, language)}`}
+                                </div>
+                            </div>
+                        </FocusableItem>
                     </div>
-                </FocusableItem>
-            ))}
-        </div>
+                ))}
+            </SlidingWindowRows>
+        </Focusable>
     );
 }

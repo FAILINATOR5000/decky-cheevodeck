@@ -48,6 +48,8 @@ type Step = "console" | "games";
 
 type SearchTab = MyGamesList["searchTab"];
 
+const NAV_ENTER_MAINTAIN_Y = 3;
+
 function openingTab(listing: MyGamesList | null): SearchTab | null {
     if (listing === null) {
         return null;
@@ -388,6 +390,11 @@ export function GameSearchModal(props: GameSearchModalProps) {
     );
 }
 
+const INITIAL_CONSOLE_ROWS = 40;
+const CONSOLE_ROW_STEP = 40;
+const CONSOLE_ROW_LOAD_AHEAD = 12;
+const CONSOLE_SENTINEL_ROOT_MARGIN_PX = 600;
+
 type ConsoleStepProps = {
     consoles: TrackedSetConsole[];
     loading: boolean;
@@ -402,8 +409,28 @@ type ConsoleStepProps = {
 function ConsoleStep(props: ConsoleStepProps) {
     const { consoles, loading, error, loadingConsoleId, recentConsoleId, language, showIcons, onPick } = props;
 
+    const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
+    const listedConsoles = useMemo(() => consolesWithoutRecent(consoles, recentConsole), [consoles, recentConsole]);
+
+    const consoleWindow = useSlidingWindow({
+        items: listedConsoles,
+        itemKey: (item) => String(item.id),
+        focusKeyFor: (item) => `searchconsole:${item.id}`,
+        windowId: "gamesearch:consoles",
+        heightScope: ["gamesearch:consoles", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_CONSOLE_ROWS,
+        rowStep: CONSOLE_ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: CONSOLE_ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: CONSOLE_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `searchconsole:${listedConsoles.length > 0}`
+    });
+
     const consolePickRef = useRef(onPick);
     consolePickRef.current = onPick;
+    const consoleFocusRef = useRef(consoleWindow.onItemFocus);
+    consoleFocusRef.current = consoleWindow.onItemFocus;
 
     const rowList = useMemo<ConsoleRowListProps>(() => ({
         language,
@@ -412,11 +439,11 @@ function ConsoleStep(props: ConsoleStepProps) {
         onPick: (item) => {
             consolePickRef.current(item);
         },
-        keyPrefix: "searchconsole:"
+        keyPrefix: "searchconsole:",
+        onRowFocus: (index) => {
+            consoleFocusRef.current(index);
+        }
     }), [language, showIcons]);
-
-    const recentConsole = resolveRecentConsole(consoles, recentConsoleId);
-    const listedConsoles = consolesWithoutRecent(consoles, recentConsole);
 
     if (loading && consoles.length === 0) {
         return (
@@ -448,14 +475,26 @@ function ConsoleStep(props: ConsoleStepProps) {
                         />
                     </RecentConsoleSection>
                 )}
-                {listedConsoles.map((item) => (
-                    <ConsoleRow
-                        key={`searchconsole:${item.id}`}
-                        item={item}
-                        dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
-                        list={rowList}
-                    />
-                ))}
+                <Focusable
+                    flow-children="column"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                    style={{ display: "flex", flexDirection: "column" }}
+                >
+                    <SlidingWindowRows list={consoleWindow}>
+                        {consoleWindow.mountedItems.map((item, i) => (
+                            <div key={`searchconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
+                                <ConsoleRow
+                                    item={item}
+                                    dimmed={loadingConsoleId !== null && item.id !== loadingConsoleId}
+                                    list={rowList}
+                                    index={consoleWindow.start + i}
+                                    onGamepadDirection={consoleWindow.guardTopRow(consoleWindow.start + i)}
+                                />
+                            </div>
+                        ))}
+                    </SlidingWindowRows>
+                </Focusable>
             </div>
         </div>
     );

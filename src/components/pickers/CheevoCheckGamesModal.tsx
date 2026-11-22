@@ -51,6 +51,7 @@ const INITIAL_ROWS = 40;
 const ROW_STEP = 40;
 const ROW_LOAD_AHEAD = 12;
 const SENTINEL_ROOT_MARGIN_PX = 600;
+const NAV_ENTER_MAINTAIN_Y = 3;
 
 const VERIFY_HEADINGS: Record<string, string> = {
     verified: "Verified",
@@ -342,8 +343,29 @@ type ConsoleStepProps = {
 function ConsoleStep(props: ConsoleStepProps) {
     const { systems, recentSystemId, consoleIcons, language, showIcons, onPick } = props;
 
+    const realSystems = useMemo(() => systems.slice(1), [systems]);
+    const recentSystem = resolveRecentConsole(realSystems, recentSystemId);
+    const listedSystems = useMemo(() => consolesWithoutRecent(realSystems, recentSystem), [realSystems, recentSystem]);
+
+    const systemWindow = useSlidingWindow({
+        items: listedSystems,
+        itemKey: (item) => String(item.id),
+        focusKeyFor: (item) => `searchconsole:${item.id}`,
+        windowId: "cheevocheck:browse:systems",
+        heightScope: ["cheevocheck:browse:systems", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `cheevocheck:browse:systems:${listedSystems.length > 0}`
+    });
+
     const systemPickRef = useRef(onPick);
     systemPickRef.current = onPick;
+    const systemFocusRef = useRef(systemWindow.onItemFocus);
+    systemFocusRef.current = systemWindow.onItemFocus;
 
     const rowList = useMemo<ConsoleRowListProps>(() => ({
         language,
@@ -351,6 +373,9 @@ function ConsoleStep(props: ConsoleStepProps) {
         metrics: pickerRowMetrics(),
         onPick: (item) => {
             systemPickRef.current(item);
+        },
+        onRowFocus: (index) => {
+            systemFocusRef.current(index);
         }
     }), [language, showIcons]);
 
@@ -361,9 +386,6 @@ function ConsoleStep(props: ConsoleStepProps) {
     }
 
     const allSystems = systems[0];
-    const realSystems = systems.slice(1);
-    const recentSystem = resolveRecentConsole(realSystems, recentSystemId);
-    const listedSystems = consolesWithoutRecent(realSystems, recentSystem);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -389,14 +411,26 @@ function ConsoleStep(props: ConsoleStepProps) {
                         />
                     </RecentConsoleSection>
                 )}
-                {listedSystems.map((item) => (
-                    <ConsoleRow
-                        key={`searchconsole:${item.id}`}
-                        item={item}
-                        iconUrl={consoleIcons[item.id] ?? null}
-                        list={rowList}
-                    />
-                ))}
+                <Focusable
+                    flow-children="column"
+                    resetNavOnEntry
+                    navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                    style={{ display: "flex", flexDirection: "column" }}
+                >
+                    <SlidingWindowRows list={systemWindow}>
+                        {systemWindow.mountedItems.map((item, i) => (
+                            <div key={`searchconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
+                                <ConsoleRow
+                                    item={item}
+                                    iconUrl={consoleIcons[item.id] ?? null}
+                                    list={rowList}
+                                    index={systemWindow.start + i}
+                                    onGamepadDirection={systemWindow.guardTopRow(systemWindow.start + i)}
+                                />
+                            </div>
+                        ))}
+                    </SlidingWindowRows>
+                </Focusable>
             </div>
         </div>
     );
@@ -422,12 +456,15 @@ type ConsoleRowListProps = {
     showIcons: boolean;
     metrics: PickerRowMetrics;
     onPick: (item: SystemGroup) => void;
+    onRowFocus: (index: number) => void;
 };
 
 type ConsoleRowProps = {
     item: SystemGroup;
     iconUrl: string | null;
     list: ConsoleRowListProps;
+    index?: number;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
@@ -440,10 +477,18 @@ const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
         list.onPick(item);
     }
 
+    function handleFocus() {
+        if (props.index !== undefined) {
+            list.onRowFocus(props.index);
+        }
+    }
+
     return (
         <FocusableItem
             focusKey={`searchconsole:${item.id}`}
             onClick={handleClick}
+            onGamepadFocus={props.index !== undefined ? handleFocus : undefined}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

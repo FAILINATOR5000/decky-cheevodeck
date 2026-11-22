@@ -224,6 +224,7 @@ export function FriendGamesSearchModal(props: FriendGamesSearchModalProps) {
                     <ConsoleStep
                         consoles={consoleGroups}
                         consoleIcons={resolvedConsoleIcons}
+                        openFirst={returnKeyRef.current ?? undefined}
                         language={language}
                         showIcons={showIcons}
                         onPick={handlePickConsole}
@@ -263,9 +264,16 @@ export function FriendGamesSearchModal(props: FriendGamesSearchModalProps) {
     );
 }
 
+const NAV_ENTER_MAINTAIN_Y = 3;
+const INITIAL_CONSOLE_ROWS = 40;
+const CONSOLE_ROW_STEP = 40;
+const CONSOLE_ROW_LOAD_AHEAD = 12;
+const CONSOLE_SENTINEL_ROOT_MARGIN_PX = 600;
+
 type ConsoleStepProps = {
     consoles: ConsoleGroup[];
     consoleIcons?: Record<number, string>;
+    openFirst?: string;
     language: LanguageCode;
     showIcons: boolean;
     onPick: (item: ConsoleGroup) => void;
@@ -274,8 +282,26 @@ type ConsoleStepProps = {
 function ConsoleStep(props: ConsoleStepProps) {
     const { consoles, consoleIcons, language, showIcons, onPick } = props;
 
+    const consoleWindow = useSlidingWindow({
+        items: consoles,
+        itemKey: (item) => String(item.id),
+        focusKeyFor: (item) => `searchconsole:${item.id}`,
+        windowId: "friendsearch:consoles",
+        heightScope: ["friendsearch:consoles", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_CONSOLE_ROWS,
+        rowStep: CONSOLE_ROW_STEP,
+        fullSteps: true,
+        prefetchDistance: CONSOLE_ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: CONSOLE_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `friendsearch:consoles:${consoles.length > 0}`,
+        openFirst: props.openFirst
+    });
+
     const consolePickRef = useRef(onPick);
     consolePickRef.current = onPick;
+    const consoleFocusRef = useRef(consoleWindow.onItemFocus);
+    consoleFocusRef.current = consoleWindow.onItemFocus;
 
     const rowList = useMemo<ConsoleRowListProps>(() => ({
         language,
@@ -283,6 +309,9 @@ function ConsoleStep(props: ConsoleStepProps) {
         metrics: pickerRowMetrics(),
         onPick: (item) => {
             consolePickRef.current(item);
+        },
+        onRowFocus: (index) => {
+            consoleFocusRef.current(index);
         }
     }), [language, showIcons]);
 
@@ -297,16 +326,26 @@ function ConsoleStep(props: ConsoleStepProps) {
             <div style={{ ...modalBodyStyle(), fontWeight: 700 }}>
                 {t(language, "Pick a system")}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {consoles.map((item) => (
-                    <ConsoleRow
-                        key={`searchconsole:${item.id}`}
-                        item={item}
-                        iconUrl={consoleIcons?.[item.id] ?? null}
-                        list={rowList}
-                    />
-                ))}
-            </div>
+            <Focusable
+                flow-children="column"
+                resetNavOnEntry
+                navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
+                style={{ display: "flex", flexDirection: "column" }}
+            >
+                <SlidingWindowRows list={consoleWindow}>
+                    {consoleWindow.mountedItems.map((item, i) => (
+                        <div key={`searchconsole:${item.id}`} style={{ paddingBottom: "4px" }}>
+                            <ConsoleRow
+                                item={item}
+                                iconUrl={consoleIcons?.[item.id] ?? null}
+                                list={rowList}
+                                index={consoleWindow.start + i}
+                                onGamepadDirection={consoleWindow.guardTopRow(consoleWindow.start + i)}
+                            />
+                        </div>
+                    ))}
+                </SlidingWindowRows>
+            </Focusable>
         </div>
     );
 }
@@ -333,12 +372,15 @@ type ConsoleRowListProps = {
     showIcons: boolean;
     metrics: PickerRowMetrics;
     onPick: (item: ConsoleGroup) => void;
+    onRowFocus: (index: number) => void;
 };
 
 type ConsoleRowProps = {
     item: ConsoleGroup;
     iconUrl: string | null;
     list: ConsoleRowListProps;
+    index: number;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
@@ -351,10 +393,16 @@ const ConsoleRow = React.memo(function ConsoleRow(props: ConsoleRowProps) {
         list.onPick(item);
     }
 
+    function handleFocus() {
+        list.onRowFocus(props.index);
+    }
+
     return (
         <FocusableItem
             focusKey={`searchconsole:${item.id}`}
             onClick={handleClick}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div
