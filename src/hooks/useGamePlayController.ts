@@ -160,7 +160,7 @@ export function useGamePlayController(props: {
         }
     }
     else if (mode === "backups") {
-        label = t(language, "Backups");
+        label = t(language, "play_mode_backups");
         if (gameId != null) {
             const about = { language, gameId, title: props.title };
             press = () => showSaveBackups(about);

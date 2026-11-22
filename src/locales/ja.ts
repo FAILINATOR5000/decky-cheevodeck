@@ -3786,6 +3786,7 @@ const JA: LocaleTable = {
     "CheevoDeck converted this game's clock from {{from}}'s format to {{to}}'s here. Restoring this puts back the {{from}} clock, and CheevoDeck converts it again the next time it launches the game.": "ここでCheevoDeckはこのゲームの時計を{{from}}の形式から{{to}}の形式に変換しました。復元すると{{from}}の時計に戻り、次にゲームを起動するときにCheevoDeckがもう一度変換します。",
     "This backup's game clock is in {{core}}'s format. Restoring it puts that clock back, and CheevoDeck converts it the next time it launches the game.": "このバックアップのゲーム時計は{{core}}の形式です。復元するとその時計に戻り、次にゲームを起動するときにCheevoDeckが変換します。",
     "Save Backups": "セーブデータのバックアップ",
+    "play_mode_backups": "バックアップ",
     "Play Backups": "プレイ時のバックアップ",
     "Play Together Backups": "Play Together のバックアップ",
     "Clear All Backups": "すべてのバックアップを消去",

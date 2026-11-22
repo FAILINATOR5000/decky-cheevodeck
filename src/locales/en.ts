@@ -3940,6 +3940,7 @@ export const EN: LocaleTable = {
     "CheevoDeck converted this game's clock from {{from}}'s format to {{to}}'s here. Restoring this puts back the {{from}} clock, and CheevoDeck converts it again the next time it launches the game.": "CheevoDeck converted this game's clock from {{from}}'s format to {{to}}'s here. Restoring this puts back the {{from}} clock, and CheevoDeck converts it again the next time it launches the game.",
     "This backup's game clock is in {{core}}'s format. Restoring it puts that clock back, and CheevoDeck converts it the next time it launches the game.": "This backup's game clock is in {{core}}'s format. Restoring it puts that clock back, and CheevoDeck converts it the next time it launches the game.",
     "Save Backups": "Save Backups",
+    "play_mode_backups": "Save Backups",
     "Play Backups": "Play Backups",
     "Play Together Backups": "Play Together Backups",
     "Clear All Backups": "Clear All Backups",

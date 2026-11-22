@@ -163,7 +163,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
                 const body = result.ok
                     ? t(language, "Save restored")
                     : t(language, RESTORE_ERRORS[result.error ?? ""] ?? "Couldn't restore this backup.");
-                showToastAfter({ title: t(language, "Backups"), body }, PRESS_TOAST_DELAY_MS);
+                showToastAfter({ title: t(language, "Save Backups"), body }, PRESS_TOAST_DELAY_MS);
             })
             .catch((e) => logError("save backups: the restore threw", e))
             .finally(() => {
@@ -185,7 +185,7 @@ function SaveBackupsModal(props: SaveBackupsProps) {
             <SnapshotHotkey language={language} />
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
                 <HeadingStop focusKey="savebackups:title" autoFocus style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
-                    {t(language, "Backups")}
+                    {t(language, "Save Backups")}
                 </HeadingStop>
                 <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{title}</div>
                 {info?.systemId ? (

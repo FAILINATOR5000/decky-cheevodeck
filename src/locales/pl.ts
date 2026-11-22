@@ -4043,6 +4043,7 @@ const PL: LocaleTable = {
     "CheevoDeck converted this game's clock from {{from}}'s format to {{to}}'s here. Restoring this puts back the {{from}} clock, and CheevoDeck converts it again the next time it launches the game.": "Tutaj CheevoDeck przekonwertował zegar tej gry z formatu {{from}} na format {{to}}. Przywrócenie przywraca zegar {{from}}, a CheevoDeck przekonwertuje go ponownie przy następnym uruchomieniu gry.",
     "This backup's game clock is in {{core}}'s format. Restoring it puts that clock back, and CheevoDeck converts it the next time it launches the game.": "Zegar gry w tej kopii jest w formacie {{core}}. Przywrócenie przywraca ten zegar, a CheevoDeck przekonwertuje go przy następnym uruchomieniu gry.",
     "Save Backups": "Kopie zapasowe zapisów",
+    "play_mode_backups": "Kopie zapasowe",
     "Play Backups": "Kopie przy graniu",
     "Play Together Backups": "Kopie Play Together",
     "Clear All Backups": "Wyczyść wszystkie kopie",
