@@ -12,9 +12,9 @@ When **Verify Dump** is toggled on, you will get even more info after a scan. Th
 
 ## How it Works
 
-To run the basic out-of-the-box Cheevo Check scan, just select **Scan** and then select the base folder for your entire ROM collection. Please do note that your folders should preferably be named the way EmuDeck or ES-DE folders are named. So if you are using EmuDeck or ES-DE, you are already good! Otherwise, see the [Folder Naming Conventions](#folder-naming-conventions) section below.
+To run the basic out-of-the-box Cheevo Check scan, just select **Scan**. A list pops up first, showing each folder it found in your ROM collection and the system it thinks that folder is. If you are using EmuDeck or ES-DE, everything should already be right, so just select **Start Scan**! Otherwise, see the [Checking Your Systems](#checking-your-systems) section below.
 
-Anyway, once you select the base folder, the scan will begin. It first pulls all the necessary data from RetroAchievements for each system. Then it checks your files under each system against known RA hashes to determine which bucket they are categorized under.
+Anyway, once you select **Start Scan**, the scan will begin. It first pulls all the necessary data from RetroAchievements for each system. Then it checks your files under each system against known RA hashes to determine which bucket they are categorized under.
 
 While it's running, you are perfectly fine closing the side window, going back and looking at your achievements, etc., as it runs in the background. You can even sleep your Deck if needed and it will resume upon turning back on. Now, if you have a huge library and need to leave your Deck sitting for a while running the scan unattended, I recommend toggling the **Darken Screen** option below to **On** and then closing the QAM. This prevents OLED burn-in. Also, expect each scan after to become faster as your local hashes are cached. So when you add new games, the scan shouldn't take too long.
 
@@ -53,9 +53,13 @@ Now, you can take the results even further to super-user mode by toggling on **V
 
 The only difference here is that this uses your already downloaded RA hashes from your previous scans, which skips the RA download. Only do this if you scanned recently and don't want to re-download it again from RA. Also, if you have added games for a new system since, you should skip this and do a standard **Scan**, as the data for the new system will need to be downloaded from RA.
 
+## Checking Your Systems
+
+Every scan starts with a pre-check, looking over your game library and tries to determine what systems are associated with your folder names. You will be presented with a list of your folders with the assumed game system it is for. If you see anything wrong here, simply select it to select the system that the files in the folder are truly for. If you have EmuDeck, chances are almost all of your folders are named correct and the assumed systems should be correct. After reviewing them and fixing any if needed, select **Start Scan** to continue to the scan.
+
 ## Folder Naming Conventions
 
-Cheevo Check works out which system a game belongs to from the name of the folder it's in. Capital letters, spaces and punctuation don't matter, so "Mega CD", "mega-cd" and "MEGACD" all work. A maker's name in front works too, so "Sega Saturn" and "Nintendo 64" are fine.
+If you'd rather not name your folders following the naming conventions, it's not a problem as before each scan, you can associate the system to each of your folders. Cheevo Check works out which system a game belongs to from the name of the folder it's in. Capital letters, spaces and punctuation don't matter, so "Mega CD", "mega-cd" and "MEGACD" all work. A maker's name in front works too, so "Sega Saturn" and "Nintendo 64" are fine.
 
 Folder names recognized for each system:
 

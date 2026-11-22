@@ -107,6 +107,7 @@ Every page in CheevoDeck with a **?** button next to the bell opens its guide he
   - [How it Works](tutorials/cheevo-check.md#how-it-works)
   - [Useful Settings](tutorials/cheevo-check.md#useful-settings)
   - [Offline Scan](tutorials/cheevo-check.md#offline-scan)
+  - [Checking Your Systems](tutorials/cheevo-check.md#checking-your-systems)
   - [Folder Naming Conventions](tutorials/cheevo-check.md#folder-naming-conventions)
 - [File Watcher Page](tutorials/file-watcher.md)
 - [Stormbreaker Page](tutorials/stormbreaker.md)
