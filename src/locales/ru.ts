@@ -4073,6 +4073,7 @@ const RU: LocaleTable = {
     "Which system is this folder for?": "Для какой системы эта папка?",
     "If this is the wrong folder for your library, select it to pick another.": "Если это не та папка с твоей библиотекой, выбери её, чтобы указать другую.",
     "{{button}} Install": "{{button}} Установить",
+    "No folders in here.": "Здесь нет папок.",
 };
 
 export default RU;

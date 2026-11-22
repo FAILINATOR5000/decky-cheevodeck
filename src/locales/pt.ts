@@ -4021,6 +4021,7 @@ const PT: LocaleTable = {
     "Which system is this folder for?": "De qual sistema é esta pasta?",
     "If this is the wrong folder for your library, select it to pick another.": "Se esta não for a pasta certa da sua biblioteca, selecione-a para escolher outra.",
     "{{button}} Install": "{{button}} Instalar",
+    "No folders in here.": "Não há pastas aqui.",
 };
 
 export default PT;

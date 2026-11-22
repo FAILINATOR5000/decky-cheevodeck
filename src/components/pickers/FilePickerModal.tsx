@@ -498,7 +498,7 @@ function FilePickerModal(props: FilePickerModalProps) {
                 <div style={smallTextStyle()}>{t(language, "Loading...")}</div>
             )}
             {!loading && listing?.ok && rows.entries.length === 0 && (
-                <div style={smallTextStyle()}>{t(language, "This folder is empty")}</div>
+                <div style={smallTextStyle()}>{t(language, includeFiles ? "This folder is empty" : "No folders in here.")}</div>
             )}
 
             {fetched < total && (

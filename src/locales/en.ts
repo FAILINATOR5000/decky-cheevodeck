@@ -4000,4 +4000,5 @@ export const EN: LocaleTable = {
     "Which system is this folder for?": "Which system is this folder for?",
     "If this is the wrong folder for your library, select it to pick another.": "If this is the wrong folder for your library, select it to pick another.",
     "{{button}} Install": "{{button}} Install",
+    "No folders in here.": "No folders in here.",
 };

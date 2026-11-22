@@ -3845,6 +3845,7 @@ const JA: LocaleTable = {
     "Which system is this folder for?": "このフォルダーはどのシステム用ですか？",
     "If this is the wrong folder for your library, select it to pick another.": "ライブラリのフォルダーが違う場合は、それを選んで別のフォルダーを選んでください。",
     "{{button}} Install": "{{button}} インストール",
+    "No folders in here.": "ここにフォルダーはありません。",
 };
 
 export default JA;

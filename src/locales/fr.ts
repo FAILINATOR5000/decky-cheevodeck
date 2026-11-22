@@ -4021,6 +4021,7 @@ const FR: LocaleTable = {
     "Which system is this folder for?": "Pour quel système est ce dossier ?",
     "If this is the wrong folder for your library, select it to pick another.": "Si ce n'est pas le bon dossier pour ta bibliothèque, sélectionne-le pour en choisir un autre.",
     "{{button}} Install": "{{button}} Installer",
+    "No folders in here.": "Aucun dossier ici.",
 };
 
 export default FR;
