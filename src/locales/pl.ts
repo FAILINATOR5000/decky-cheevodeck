@@ -211,7 +211,6 @@ const PL: LocaleTable = {
     "welcome_global_controllers": "Globalne przyciski działają z wbudowanym sterowaniem Steam Deck, ROG Ally i Ally X oraz ze Steam Controller, DualSense, Switch Pro Controller, Xbox Series X|S Wireless Controller i DualShock 4 przez Bluetooth.",
     "welcome_cheevo_check_intro": "Podstawowe funkcje tego nie wymagają, ale większość flagowych funkcji CheevoDeck opiera się na wynikach skanowania Cheevo Check, które poznaje twoją bibliotekę gier. Ustalenie, które pliki obsługuje RetroAchievements, oraz poznanie ich hashy i nazw pozwala Play Together (gra wieloosobowa), kopiom zapasowym i przywracaniu zapisów, uruchamianiu gier z aplikacji, odznakom w bibliotece Steam i innym działać w pełni. Chcesz teraz uruchomić skanowanie? Jeśli tak, wybierz poniżej folder główny całej swojej biblioteki ROM-ów.",
     "welcome_cheevo_check_layouts": "To zostało zrobione z myślą o dobrej współpracy z EmuDeck, więc jeśli go masz, twój folder ROM-ów z EmuDeck powinien być domyślnie zaznaczony, gdy wybierasz folder poniżej. Nie masz EmuDeck? Nie ma problemu. Nadal możesz wybrać własny folder główny swojej biblioteki gier, ale w następnym oknie być może trzeba będzie wskazać, który folder jest dla jakiego systemu. Po skonfigurowaniu wszystko gotowe!",
-    "welcome_cheevo_check_choose": "Aby wykonać skanowanie, wybierz folder główny całej swojej kolekcji ROM-ów.",
     "welcome_cheevo_check_skip": "Możesz je uruchomić w dowolnej chwili w <b>Szybkim menu</b> > <b>Cheevo Check</b>.",
     "welcome_cheevo_check_scheduled": "Skanowanie zacznie się za około 2 minuty, gdy konfiguracja się ustabilizuje, a po jego zakończeniu dostaniesz powiadomienie. Postęp możesz śledzić w <b>Szybkim menu</b>.",
     "Choose Folder": "Wybierz folder",
@@ -1680,7 +1679,7 @@ const PL: LocaleTable = {
     "Finding your files...": "Szukam twoich plików...",
     "Downloading achievement data...": "Pobieram dane osiągnięć...",
     "{{done}} of {{total}} files": "{{done}} z {{total}} plików",
-    "Nothing checked yet. Press Scan to pick your ROM folder.": "Nic jeszcze nie sprawdzone. Naciśnij „Skanuj” i wskaż folder z ROM-ami.",
+    "Nothing checked yet. Press Scan to start.": "Nic jeszcze nie sprawdzone. Naciśnij „Skanuj”, aby zacząć.",
     "Checked on {{date}}.": "Sprawdzono {{date}}.",
     "Checked {{count}} files against RA on {{date}}.": {
         one: "Sprawdzono {{count}} plik względem RA dnia {{date}}.",

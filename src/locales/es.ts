@@ -211,7 +211,6 @@ const ES: LocaleTable = {
     "welcome_global_controllers": "Botones globales funciona con los controles integrados de la Steam Deck, los del ROG Ally y el Ally X, el Steam Controller, el DualSense, el Switch Pro Controller, el Xbox Series X|S Wireless Controller y el DualShock 4 por Bluetooth.",
     "welcome_cheevo_check_intro": "Las funciones básicas no lo necesitan, pero la mayoría de las funciones estrella de CheevoDeck dependen de los resultados de un análisis de Cheevo Check, que llega a conocer tu biblioteca de juegos. Saber qué archivos admite RetroAchievements y obtener sus hashes y nombres permite que Play Together (multijugador), las copias de seguridad y restauración de partidas, iniciar juegos desde la app, las insignias de la biblioteca de Steam y más funcionen a pleno rendimiento. ¿Quieres hacer un análisis ahora? Si es así, elige abajo la carpeta base de toda tu biblioteca de ROMs.",
     "welcome_cheevo_check_layouts": "Esto se hizo para integrarse bien con EmuDeck, así que si lo tienes, tu carpeta de ROMs de EmuDeck debería estar seleccionada por defecto al elegir una carpeta abajo. ¿No tienes EmuDeck? No pasa nada. Puedes elegir igualmente tu propia carpeta base para tu biblioteca de juegos, aunque quizá tengas que indicar qué carpeta es de qué sistema en la siguiente ventana. Una vez configurado, ¡todo listo!",
-    "welcome_cheevo_check_choose": "Para hacer un escaneo, selecciona la carpeta base de toda tu colección de ROMs.",
     "welcome_cheevo_check_skip": "Puedes ejecutarlo cuando quieras desde <b>Menú rápido</b> > <b>Cheevo Check</b>.",
     "welcome_cheevo_check_scheduled": "Tu escaneo empezará en unos 2 minutos, cuando la configuración se haya asentado, y recibirás una notificación cuando termine. Puedes ver su progreso en el <b>Menú rápido</b>.",
     "Choose Folder": "Elegir carpeta",
@@ -1648,7 +1647,7 @@ const ES: LocaleTable = {
     "Finding your files...": "Buscando tus archivos...",
     "Downloading achievement data...": "Descargando datos de logros...",
     "{{done}} of {{total}} files": "{{done}} de {{total}} archivos",
-    "Nothing checked yet. Press Scan to pick your ROM folder.": "Aún no hay nada analizado. Pulsa Analizar y elige tu carpeta de ROMs.",
+    "Nothing checked yet. Press Scan to start.": "Aún no hay nada analizado. Pulsa Analizar para empezar.",
     "Checked on {{date}}.": "Comprobado el {{date}}.",
     "Checked {{count}} files against RA on {{date}}.": {
         one: "{{count}} archivo comparado con RA el {{date}}.",

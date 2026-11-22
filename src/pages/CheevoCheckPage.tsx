@@ -367,7 +367,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     {!results && (
                         <PanelSectionRow>
                             <div style={{ ...bodyTextStyle(), marginTop: "12px" }}>
-                                {t(language, "Nothing checked yet. Press Scan to pick your ROM folder.")}
+                                {t(language, "Nothing checked yet. Press Scan to start.")}
                             </div>
                         </PanelSectionRow>
                     )}

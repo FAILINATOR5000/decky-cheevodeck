@@ -159,9 +159,6 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
                 <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
                     {withInlineTags(t(language, "welcome_cheevo_check_layouts"))}
                 </div>
-                <div style={{ ...modalBodyStyle(), marginBottom: "8px", opacity: 1 }}>
-                    {t(language, "welcome_cheevo_check_choose")}
-                </div>
                 {start && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         {button("choose", t(language, "Choose Folder"), () => void choose(), portable)}

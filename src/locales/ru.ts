@@ -211,7 +211,6 @@ const RU: LocaleTable = {
     "welcome_global_controllers": "Глобальные кнопки работают со встроенным управлением Steam Deck, ROG Ally и Ally X, а также со Steam Controller, DualSense, Switch Pro Controller, Xbox Series X|S Wireless Controller и DualShock 4 по Bluetooth.",
     "welcome_cheevo_check_intro": "Основным функциям это не нужно, но большинство главных функций CheevoDeck опираются на результаты проверки Cheevo Check, которая знакомится с твоей библиотекой игр. Знание того, какие файлы поддерживает RetroAchievements, а также их хеши и названия позволяют Play Together (мультиплеер), резервным копиям и восстановлению сохранений, запуску игр из приложения, значкам в библиотеке Steam и другим функциям работать в полную силу. Запустить проверку сейчас? Если да, выбери ниже корневую папку всей своей библиотеки ROM-ов.",
     "welcome_cheevo_check_layouts": "Всё сделано так, чтобы хорошо работать с EmuDeck: если он у тебя есть, папка ROM-ов EmuDeck должна быть выбрана по умолчанию, когда ты выбираешь папку ниже. Нет EmuDeck? Не беда. Ты всё равно можешь выбрать свою корневую папку библиотеки игр, но в следующем окне, возможно, придётся указать, какая папка для какой системы. После настройки всё готово!",
-    "welcome_cheevo_check_choose": "Чтобы запустить сканирование, выбери основную папку всей своей коллекции ROM-ов.",
     "welcome_cheevo_check_skip": "Его можно запустить в любой момент в <b>Быстром меню</b> > <b>Cheevo Check</b>.",
     "welcome_cheevo_check_scheduled": "Сканирование начнётся примерно через 2 минуты, когда настройка устоится, и ты получишь уведомление, когда оно закончится. Следить за ходом можно в <b>Быстром меню</b>.",
     "Choose Folder": "Выбрать папку",
@@ -1640,7 +1639,7 @@ const RU: LocaleTable = {
     "Finding your files...": "Ищем твои файлы...",
     "Downloading achievement data...": "Загружаем данные достижений...",
     "{{done}} of {{total}} files": "{{done}} из {{total}} файлов",
-    "Nothing checked yet. Press Scan to pick your ROM folder.": "Пока ничего не проверено. Нажми «Проверить» и укажи папку с ROM-ами.",
+    "Nothing checked yet. Press Scan to start.": "Пока ничего не проверено. Нажми «Проверить», чтобы начать.",
     "Checked on {{date}}.": "Проверено {{date}}.",
     "Checked {{count}} files against RA on {{date}}.": {
         one: "Проверен {{count}} файл по RA — {{date}}.",

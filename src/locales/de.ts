@@ -211,7 +211,6 @@ const DE: LocaleTable = {
     "welcome_global_controllers": "Globale Tasten funktionieren mit der integrierten Steuerung des Steam Deck, der integrierten Steuerung von ROG Ally und Ally X, dem Steam Controller, dem DualSense, dem Switch Pro Controller, dem Xbox Series X|S Wireless Controller sowie dem DualShock 4 über Bluetooth.",
     "welcome_cheevo_check_intro": "Die Grundfunktionen brauchen ihn nicht, aber die meisten Vorzeigefunktionen von CheevoDeck stützen sich auf die Ergebnisse einer Cheevo-Check-Prüfung, die deine Spielebibliothek kennenlernt. Zu wissen, welche Dateien von RetroAchievements unterstützt werden, und ihre Hashes und Namen zu kennen, lässt Play Together (Mehrspieler), Spielstand-Backups & Wiederherstellen, das Starten von Spielen in der App, Steam-Bibliotheksabzeichen und mehr ihr volles Potenzial entfalten. Möchtest du jetzt eine Prüfung starten? Dann wähle unten den Basisordner deiner gesamten ROM-Bibliothek.",
     "welcome_cheevo_check_layouts": "Das ist darauf ausgelegt, gut mit EmuDeck zusammenzuarbeiten: Wenn du es nutzt, sollte dein EmuDeck-ROM-Ordner schon ausgewählt sein, sobald du unten einen Ordner wählst. Kein EmuDeck? Kein Problem. Du kannst trotzdem deinen eigenen Basisordner für deine Spielebibliothek wählen, musst aber im nächsten Fenster eventuell angeben, welcher Ordner zu welchem System gehört. Einmal eingerichtet, bist du startklar!",
-    "welcome_cheevo_check_choose": "Wähle für einen Scan den Basisordner deiner gesamten ROM-Sammlung.",
     "welcome_cheevo_check_skip": "Du kannst ihn jederzeit unter <b>Schnellmenü</b> > <b>Cheevo Check</b> starten.",
     "welcome_cheevo_check_scheduled": "Dein Scan startet in etwa 2 Minuten, sobald die Einrichtung zur Ruhe gekommen ist, und du bekommst eine Benachrichtigung, wenn er fertig ist. Den Fortschritt siehst du im <b>Schnellmenü</b>.",
     "Choose Folder": "Ordner wählen",
@@ -1637,7 +1636,7 @@ const DE: LocaleTable = {
     "Finding your files...": "Deine Dateien werden gesucht...",
     "Downloading achievement data...": "Erfolgsdaten werden geladen...",
     "{{done}} of {{total}} files": "{{done}} von {{total}} Dateien",
-    "Nothing checked yet. Press Scan to pick your ROM folder.": "Noch nichts geprüft. Drücke „Prüfen“ und wähle deinen ROM-Ordner.",
+    "Nothing checked yet. Press Scan to start.": "Noch nichts geprüft. Drücke „Prüfen“, um zu beginnen.",
     "Checked on {{date}}.": "Geprüft am {{date}}.",
     "Checked {{count}} files against RA on {{date}}.": {
         one: "{{count}} Datei am {{date}} gegen RA geprüft.",
