@@ -28,7 +28,7 @@ import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionMod
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
 import { showToastAfter } from "../utils/delayedToast";
-import { noteEmulatorJobStarted, useEmulatorJobs } from "../utils/emulatorJobs";
+import { noteEmulatorJobStarted, onEmulatorJobEnded, useEmulatorJobs } from "../utils/emulatorJobs";
 import { addEmulatorShortcut, steamCollections, type EmulatorInstall } from "../utils/emulatorShortcuts";
 import { logError } from "../utils/errors";
 
@@ -60,11 +60,13 @@ function subscribe(listener: () => void): () => void {
 
 let loadAgain = false;
 let refreshAgain = false;
+let seenAgain = 0;
 
 async function loadInventory(refresh: boolean, seen = loaded.seen) {
     if (loaded.loading) {
         loadAgain = true;
         refreshAgain = refreshAgain || refresh;
+        seenAgain = Math.max(seenAgain, seen);
         return;
     }
     publish({ loading: true, refreshing: refresh, seen });
@@ -84,11 +86,19 @@ async function loadInventory(refresh: boolean, seen = loaded.seen) {
     }
     if (loadAgain) {
         const again = refreshAgain;
+        const seenNext = Math.max(seenAgain, loaded.seen);
         loadAgain = false;
         refreshAgain = false;
-        await loadInventory(again);
+        seenAgain = 0;
+        await loadInventory(again, seenNext);
     }
 }
+
+onEmulatorJobEnded((finished) => {
+    if (loaded.inventory !== null) {
+        void loadInventory(false, finished);
+    }
+});
 
 async function pointTo(language: LanguageCode, kind: EmulatorKind, name: string) {
     let picked: PickedPath;

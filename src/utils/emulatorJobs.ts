@@ -21,6 +21,7 @@ let endedJob = "";
 let poll = 0;
 const listeners = new Set<() => void>();
 const watchers = new Set<(state: EmulatorJobState) => void>();
+const enders = new Set<(finished: number) => void>();
 
 const ERROR_LINES: Record<string, string> = {
     no_space: "Not enough free space.",
@@ -56,7 +57,13 @@ function publish(state: EmulatorJobState | null, busy: boolean, live?: string[])
             active.delete(job);
         }
     }
+    const endedNow = finished !== jobs.finished;
     jobs = { state, busy, finished, active: [...active.values()] };
+    if (endedNow) {
+        for (const ender of [...enders]) {
+            ender(finished);
+        }
+    }
     for (const listener of listeners) {
         listener();
     }
@@ -131,6 +138,13 @@ export function noteEmulatorJobStarted() {
 
 export function useEmulatorJobs(): EmulatorJobs {
     return useSyncExternalStore(subscribe, () => jobs);
+}
+
+export function onEmulatorJobEnded(ender: (finished: number) => void): () => void {
+    enders.add(ender);
+    return () => {
+        enders.delete(ender);
+    };
 }
 
 export function useEmulatorJobsFinished(): number {
