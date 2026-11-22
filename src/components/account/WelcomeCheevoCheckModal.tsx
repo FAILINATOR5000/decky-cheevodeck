@@ -6,6 +6,7 @@ import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 import { openPathPicker } from "../pickers/FilePickerModal";
+import { confirmFolderSystems, folderPickedThisSession } from "../cheevocheck/FolderSystemsModal";
 import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -25,6 +26,7 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
 
     const [stage, setStage] = useState<Stage>("ask");
     const [start, setStart] = useState<string | null>(null);
+    const [folder, setFolder] = useState<string | null>(null);
     const defaultRef = useRef<HTMLDivElement | null>(null);
     const pickingRef = useRef(false);
 
@@ -53,23 +55,37 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
             });
     }
 
-    function choose() {
+    async function choose() {
         if (!start || pickingRef.current) {
             return;
         }
         pickingRef.current = true;
-        openPathPicker({
-            language,
-            prompt: t(language, "Choose your ROMs collection folder"),
-            startPath: start,
-            includeFiles: false,
-            includeFolders: true
-        })
-            .then((picked) => schedule(picked.realpath || picked.path))
-            .catch(() => { })
-            .finally(() => {
-                pickingRef.current = false;
-            });
+        try {
+            let root = folder;
+            if (!root) {
+                const picked = await openPathPicker({
+                    language,
+                    prompt: t(language, "Choose your ROMs collection folder"),
+                    startPath: start,
+                    includeFiles: false,
+                    includeFolders: true
+                });
+                root = picked.realpath || picked.path;
+                setFolder(root);
+            }
+            const choice = await confirmFolderSystems({ language, root, offline: false, forward: "next" });
+            if (choice) {
+                schedule(choice.root);
+            }
+            else {
+                setFolder(folderPickedThisSession() ?? root);
+            }
+        }
+        catch {
+        }
+        finally {
+            pickingRef.current = false;
+        }
     }
 
     const title = (
@@ -148,7 +164,7 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
                 </Focusable>
                 {start && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {button("choose", t(language, "Choose Folder"), choose, true)}
+                        {button("choose", t(language, "Choose Folder"), () => void choose(), true)}
                         {button("skip", t(language, "Skip for Now"), finish, false)}
                     </div>
                 )}
