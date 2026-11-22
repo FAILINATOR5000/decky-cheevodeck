@@ -71,6 +71,7 @@ class CheevoCheckMixin(PluginContext):
     def _read_cheevo_check_state(self) -> dict:
         summary = self.cheevo_check_store.ra_data_summary()
         status = self.cheevo_check_service.status()
+        start = self._cheevo_check_start_dir()
         return {
             "running": status["running"],
             "scheduled": self._cheevo_check_schedule is not None,
@@ -82,7 +83,8 @@ class CheevoCheckMixin(PluginContext):
             "dataAvailable": summary["available"],
             "dataBuiltAt": summary["builtAt"],
             "hasLocalHashCache": self.cheevo_check_store.has_hash_cache(),
-            "startDir": self._cheevo_check_start_dir(),
+            "startDir": start,
+            "startDirKnown": start != str(self.user_home),
         }
 
     async def cancel_cheevo_check_scan(self):

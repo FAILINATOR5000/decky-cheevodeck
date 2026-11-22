@@ -14,6 +14,7 @@ import { logError } from "../utils/errors";
 import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 import { quickAccessIsHidden } from "../utils/quickAccess";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
+import { confirmFolderSystems, folderPickedThisSession } from "../components/cheevocheck/FolderSystemsModal";
 import { landOnTop, lastFocusedKey } from "../focusRecords";
 import { useLatestRef } from "./useLatestRef";
 
@@ -128,18 +129,30 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
     const startScan = useCallback(async (offline: boolean) => {
         setStarting(true);
         try {
-            const picked = await openPathPicker({
-                language,
-                prompt: t(language, "Choose your ROMs collection folder"),
-                startPath: state?.startDir ?? "/home/deck",
-                includeFiles: false,
-                includeFolders: true
-            });
-            const root = picked.realpath || picked.path;
+            let root = folderPickedThisSession() ?? (state?.startDirKnown ? state.startDir : "");
+            if (!root) {
+                const picked = await openPathPicker({
+                    language,
+                    prompt: t(language, "Choose your ROMs collection folder"),
+                    startPath: state?.startDir ?? "/home/deck",
+                    includeFiles: false,
+                    includeFolders: true
+                });
+                root = picked.realpath || picked.path;
+            }
             if (!root) {
                 return;
             }
-            await startCheevoCheckScan(root, offline);
+            const choice = await confirmFolderSystems({
+                language,
+                root,
+                offline,
+                forward: "start"
+            });
+            if (!choice) {
+                return;
+            }
+            await startCheevoCheckScan(choice.root, offline);
             await reload();
         }
         catch {
@@ -147,7 +160,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         finally {
             setStarting(false);
         }
-    }, [language, reload, state?.startDir]);
+    }, [language, reload, state?.startDir, state?.startDirKnown]);
 
     const saveReport = useCallback(async (report: string) => {
         let folder: string | undefined;

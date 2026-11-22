@@ -235,7 +235,42 @@ export type CheevoCheckState = {
     dataBuiltAt: number;
     hasLocalHashCache: boolean;
     startDir: string;
+    startDirKnown: boolean;
 };
+
+type CheevoCheckFolderSource = "folder" | "override" | "guess" | "types" | "unsure" | "unsupported" | "skip";
+
+export type CheevoCheckFolderAnswer = {
+    source: CheevoCheckFolderSource;
+    consoleId: number;
+    name: string;
+    noData: boolean;
+};
+
+export type CheevoCheckFolderRow = CheevoCheckFolderAnswer & {
+    path: string;
+    label: string;
+    auto: CheevoCheckFolderAnswer | null;
+    guess: { consoleId: number; name: string }[];
+    files: number;
+    extensions: string[];
+};
+
+export type CheevoCheckSystem = {
+    consoleId: number;
+    name: string;
+    folders: string[];
+};
+
+export type CheevoCheckPreviewProgress = {
+    done: number;
+    total: number;
+    files: number;
+    folders: number;
+    running: boolean;
+};
+
+export type CheevoCheckFolderChoice = { consoleId: number } | { skip: true } | null;
 
 // Path picker
 export type DirectorySort = "name_asc" | "name_desc" | "modified_desc" | "modified_asc";

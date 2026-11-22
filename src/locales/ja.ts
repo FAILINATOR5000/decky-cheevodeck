@@ -3817,6 +3817,33 @@ const JA: LocaleTable = {
     "CheevoDeck couldn't draw this window.": "CheevoDeck はこのウィンドウを表示できませんでした。",
     "Close the menu and open it again. The full error is in the CheevoDeck log.": "メニューを閉じてもう一度開いてください。エラーの詳細は CheevoDeck のログに記録されています。",
     "Press B to close it and try again. The full error is in the CheevoDeck log.": "B で閉じてから、もう一度お試しください。エラーの詳細は CheevoDeck のログに記録されています。",
+    "Check Your Systems": "システムを確認",
+    "cheevo_check_folders_heading": "事前スキャンでライブラリ内に見つかったフォルダーの一覧です。",
+    "cheevo_check_folders_correct": "フォルダーに対応するシステムが違っていたら直してください。",
+    "Folder: {{folder}}": "フォルダー: {{folder}}",
+    "{{count}} files in {{folders}} folders so far": {
+        other: "これまでに {{folders}} フォルダーで {{count}} 件のファイル"
+    },
+    "No game files were found in this folder.": "このフォルダーにゲームファイルは見つかりませんでした。",
+    "This folder": "このフォルダー",
+    "Not Sure": "不明",
+    "Not on RetroAchievements": "RetroAchievements 非対応",
+    "cheevo_check_folder_skipped": "スキップ",
+    "Needs an online scan first": "先にオンラインスキャンが必要",
+    "From the folder name": "フォルダー名から",
+    "Set by you": "自分で設定",
+    "Guessed from the folder name": "フォルダー名から推測",
+    "From file types ({{types}})": "ファイルの種類から ({{types}})",
+    "Could be {{systems}} +{{more}}": "候補: {{systems}} ほか {{more}} 件",
+    "Could be {{systems}}": "候補: {{systems}}",
+    "Start Scan": "スキャン開始",
+    "Skip This Folder": "このフォルダーをスキップ",
+    "Likely": "候補",
+    "That folder isn't there any more. Pick another with the Folder row.": "このフォルダーはもうありません。「フォルダー」の行から別のフォルダーを選んでください。",
+    "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".": "「{{button}}」を押す前に、下のフォルダーが正しいシステムに対応しているか確認してください。",
+    "{{button}} Change System": "{{button}} システムを変更",
+    "Which system is this folder for?": "このフォルダーはどのシステム用ですか？",
+    "If this is the wrong folder for your library, select it to pick another.": "ライブラリのフォルダーが違う場合は、それを選んで別のフォルダーを選んでください。",
 };
 
 export default JA;

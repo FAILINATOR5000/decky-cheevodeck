@@ -145,8 +145,12 @@ import type {
     SmbShare,
     SmbSharePayload,
     SmbShareStatus,
+    CheevoCheckFolderChoice,
+    CheevoCheckFolderRow,
+    CheevoCheckPreviewProgress,
     CheevoCheckScanProgress,
     CheevoCheckState,
+    CheevoCheckSystem,
     DirectoryListing,
     DirectorySort,
     FileWatcherBucket,
@@ -616,6 +620,23 @@ export const startCheevoCheckScan = callable<
 export const scheduleCheevoCheckScan = callable<[string, number], { ok: boolean }>(
     "schedule_cheevo_check_scan"
 );
+export const getCheevoCheckSystems = callable<[], { ok: boolean; systems: CheevoCheckSystem[] }>(
+    "get_cheevo_check_systems"
+);
+export const previewCheevoCheckFolders = callable<
+    [string, boolean],
+    { ok: boolean; error?: string; cancelled?: boolean; root?: string; rows?: CheevoCheckFolderRow[]; dataConsoles?: number[] }
+>("preview_cheevo_check_folders");
+export const getCheevoCheckPreviewProgress = callable<[], { ok: boolean; progress: CheevoCheckPreviewProgress | null }>(
+    "get_cheevo_check_preview_progress"
+);
+export const cancelCheevoCheckPreview = callable<[], { ok: boolean; running: boolean }>(
+    "cancel_cheevo_check_preview"
+);
+export const saveCheevoCheckFolderSystems = callable<
+    [string, Record<string, CheevoCheckFolderChoice>],
+    { ok: boolean }
+>("save_cheevo_check_folder_systems");
 export const saveCheevoCheckCacheHashes = callable<
     [boolean],
     { ok: boolean; cheevoCheckCacheHashes: boolean }
