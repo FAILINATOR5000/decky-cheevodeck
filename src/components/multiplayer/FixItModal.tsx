@@ -111,6 +111,13 @@ export function fixStepLabel(language: LanguageCode, step: FixStep): string {
     }
 }
 
+function plannedStepLabel(language: LanguageCode, step: FixStep): string {
+    if (step.do === "pick_game_file" && !step.path) {
+        return t(language, "Open a dialog for you to choose the game's file, bypassing running a Cheevo Check scan by just scanning the file instead.");
+    }
+    return fixStepLabel(language, step);
+}
+
 function fixDoneLine(language: LanguageCode, step: FixStep): string {
     const name = step.name ?? "";
     switch (step.do) {
@@ -492,7 +499,7 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                     <Focusable key={`fix:steps:${waiting ? ended?.startedAt : "first"}`} flow-children="column">
                         {steps.map((step, index) => (
                             <div key={index} style={{ marginBottom: "8px", paddingLeft: "4px" }}>
-                                <div style={{ fontSize: `${modalSize(15)}px` }}>{`${index + 1}. ${fixStepLabel(language, step)}`}</div>
+                                <div style={{ fontSize: `${modalSize(15)}px` }}>{`${index + 1}. ${plannedStepLabel(language, step)}`}</div>
                                 {renderChoices(step, index)}
                             </div>
                         ))}

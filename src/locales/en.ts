@@ -3716,6 +3716,7 @@ export const EN: LocaleTable = {
     "Emulator Shortcuts was enabled.": "Emulator Shortcuts was enabled.",
     "Streaming was set up.": "Streaming was set up.",
     "Pick the Game's File": "Pick the Game's File",
+    "Open a dialog for you to choose the game's file, bypassing running a Cheevo Check scan by just scanning the file instead.": "Open a dialog for you to choose the game's file, bypassing running a Cheevo Check scan by just scanning the file instead.",
     "Forget This File": "Forget This File",
     "Checking {{file}} with RetroAchievements...": "Checking {{file}} with RetroAchievements...",
     "Big games, like GameCube and Wii discs, can take a few minutes. You can close this and keep going.": "Big games, like GameCube and Wii discs, can take a few minutes. You can close this and keep going.",

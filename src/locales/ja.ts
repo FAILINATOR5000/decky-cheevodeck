@@ -3562,6 +3562,7 @@ const JA: LocaleTable = {
     "Emulator Shortcuts was enabled.": "エミュレーターのショートカットをオンにしました。",
     "Streaming was set up.": "ストリーミングを設定しました。",
     "Pick the Game's File": "ゲームのファイルを選ぶ",
+    "Open a dialog for you to choose the game's file, bypassing running a Cheevo Check scan by just scanning the file instead.": "ゲームのファイルを選ぶダイアログを開きます。Cheevo Checkでスキャンする代わりに、そのファイルだけをスキャンします。",
     "Forget This File": "このファイルを忘れる",
     "Checking {{file}} with RetroAchievements...": "{{file}}をRetroAchievementsで確認中...",
     "Big games, like GameCube and Wii discs, can take a few minutes. You can close this and keep going.": "ゲームキューブやWiiのディスクなど大きなゲームは数分かかることがあります。閉じて先に進んでも大丈夫です。",
