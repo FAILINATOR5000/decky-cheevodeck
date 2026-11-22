@@ -15,6 +15,7 @@ import type {
     AchievementStyle,
     ButtonSpacing,
     FriendAchievementFilter,
+    HeaderStyle,
     MainAchievementFilter,
     Payload,
     TrackedColor,
@@ -110,6 +111,7 @@ export function AchievementList(props: {
         onSpent: () => void;
     };
     titleOverride?: string;
+    titleHeaderStyle?: HeaderStyle;
     preRows?: React.ReactNode;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
@@ -833,7 +835,7 @@ export function AchievementList(props: {
     }
 
     return (
-        <PanelSection title={panelTitle}>
+        <PanelSection title={panelTitle} headerStyle={props.titleHeaderStyle}>
             <div ref={listRootRef}>
                 <style>{FADE_IN_KEYFRAMES}</style>
                 <style>{POINTS_LABEL_STYLES}</style>

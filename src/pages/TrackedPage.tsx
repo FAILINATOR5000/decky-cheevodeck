@@ -515,7 +515,7 @@ function TrackedPage(props: TrackedPageProps) {
     function renderThisGameBody() {
         if (!payload) {
             return (
-                <PanelSection title={t(language, "Tracked")}>
+                <PanelSection title={t(language, "Tracked")} headerStyle={trackedHeaderStyle}>
                     <PanelSectionRow>
                         <div style={bodyTextStyle()}>
                             {t(language, "No current game. Open a game to track achievements here.")}

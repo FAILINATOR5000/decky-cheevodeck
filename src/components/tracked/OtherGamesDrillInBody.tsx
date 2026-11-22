@@ -201,7 +201,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
     function renderBody() {
         if (payloadError) {
             return (
-                <PanelSection title={t(language, "Tracked")}>
+                <PanelSection title={t(language, "Tracked")} headerStyle={trackedHeaderStyle}>
                     <PanelSectionRow>
                         <ErrorText>{localizeRuntimeText(language, payloadError)}</ErrorText>
                     </PanelSectionRow>

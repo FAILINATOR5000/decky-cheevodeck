@@ -201,7 +201,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
 
     if (!trackedReady) {
         return (
-            <PanelSection title={t(language, "Tracked")}>
+            <PanelSection title={t(language, "Tracked")} headerStyle={headerStyle}>
                 <PanelSectionRow>
                     <InlineSpinner label={t(language, "Validating tracked achievements...")} />
                 </PanelSectionRow>
@@ -238,6 +238,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
             notesByAchievementId={notesByAchievementId}
             notesColorByAchievementId={notesColorByAchievementId}
             titleOverride={groups.length === 0 ? title : ""}
+            titleHeaderStyle={headerStyle}
             sections={sections}
             renderSectionHeader={(section, row) => {
                 const group = groups.find((candidate) => collapseKeyForGroup(candidate) === section.key);
