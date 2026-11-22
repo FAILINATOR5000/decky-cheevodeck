@@ -3,7 +3,6 @@ import { definePlugin, addEventListener, removeEventListener } from "@decky/api"
 import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
 import { ErrorBoundary } from "./components/panel/ErrorBoundary";
-import { MountWhileShown } from "./components/panel/MountWhileShown";
 import { logStartupEvent, refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
@@ -130,9 +129,7 @@ export default definePlugin(() => {
         title: <div className={quickAccessMenuClasses.Title}>CheevoDeck</div>,
         content: (
             <ErrorBoundary where="panel">
-                <MountWhileShown>
-                    <AchievementsRoot />
-                </MountWhileShown>
+                <AchievementsRoot />
             </ErrorBoundary>
         ),
         icon: <FaTrophy />,
