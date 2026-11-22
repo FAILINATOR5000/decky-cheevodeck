@@ -32,7 +32,7 @@ import type {
 } from "../../types";
 import { cachedConsoles, getCurrentLastConsoleId, loadConsoles, setCurrentLastConsoleId } from "../../utils/consoleCatalog";
 import { logError } from "../../utils/errors";
-import { fetchMyGames, readMyGames, useMyGames } from "../../utils/myGames";
+import { fetchMyGames, myGamesLoading, readMyGames, rememberSearchTab, useMyGames } from "../../utils/myGames";
 import { modalBodyStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
@@ -46,18 +46,13 @@ export type GameSearchModalProps = {
 
 type Step = "console" | "games";
 
-type SearchTab = "mine" | "all";
-
-let rememberedTab: SearchTab | null = null;
+type SearchTab = MyGamesList["searchTab"];
 
 function openingTab(listing: MyGamesList | null): SearchTab | null {
-    if (rememberedTab === "all") {
-        return "all";
-    }
     if (listing === null) {
         return null;
     }
-    return listing.scanned || listing.cached ? "mine" : "all";
+    return listing.searchTab === "all" ? "all" : "mine";
 }
 
 export function GameSearchModal(props: GameSearchModalProps) {
@@ -66,7 +61,6 @@ export function GameSearchModal(props: GameSearchModalProps) {
     const myGames = useMyGames();
     const [tab, setTab] = useState<SearchTab | null>(() => openingTab(myGames.listing));
     const [tabFromOpen, setTabFromOpen] = useState(true);
-    const tabPressedRef = useRef(false);
     const myGamesStepBackRef = useRef<() => boolean>(() => false);
     const [openSettled, setOpenSettled] = useState(false);
 
@@ -89,8 +83,10 @@ export function GameSearchModal(props: GameSearchModalProps) {
 
     const gamesRunIdRef = useRef(0);
 
+    const tabsRef = useRef<HTMLDivElement | null>(null);
+    const tabFocusedRef = useRef(false);
     const bodyRef = useRef<HTMLDivElement | null>(null);
-    const focusedTopForStepRef = useRef<Step | null>(null);
+    const focusedTopForStepRef = useRef<Step | null>("console");
     const returnKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -128,11 +124,8 @@ export function GameSearchModal(props: GameSearchModalProps) {
                 return;
             }
             setOpenSettled(true);
-            if (listing === null) {
-                return;
-            }
-            setTab((current) => (tabPressedRef.current ? current : openingTab(listing) ?? current));
-            if (listing.stale && (listing.scanned || listing.cached)) {
+            setTab((current) => current ?? openingTab(listing) ?? "mine");
+            if (listing?.stale && (listing.scanned || listing.cached)) {
                 fetchMyGames(false);
             }
         })();
@@ -158,6 +151,20 @@ export function GameSearchModal(props: GameSearchModalProps) {
         };
     }, []);
 
+    useLayoutEffect(function focusActiveTabOnOpen() {
+        if (tab === null || tabFocusedRef.current) {
+            return;
+        }
+        const button = tabsRef.current?.querySelector(
+            `[data-focus-key="mygames:tab:${tab}"] button, [data-focus-key="mygames:tab:${tab}"] [tabindex]`
+        ) as HTMLElement | null;
+        if (!button) {
+            return;
+        }
+        tabFocusedRef.current = true;
+        button.focus();
+    }, [tab]);
+
     useLayoutEffect(function focusTopOfListWhenReady() {
         if (tab !== "all" || focusedTopForStepRef.current === step) {
             return;
@@ -179,8 +186,10 @@ export function GameSearchModal(props: GameSearchModalProps) {
     }, [tab, step, consoles, games]);
 
     function handlePickTab(next: SearchTab) {
-        rememberedTab = next;
-        tabPressedRef.current = true;
+        if (next === tab) {
+            return;
+        }
+        rememberSearchTab(next);
         focusedTopForStepRef.current = step;
         setTabFromOpen(false);
         setTab(next);
@@ -284,6 +293,10 @@ export function GameSearchModal(props: GameSearchModalProps) {
         return games.filter((_game, index) => titleKeys[index].includes(trimmed));
     }, [games, titleKeys, query]);
 
+    const listReady = tab === "all"
+        ? !(consolesLoading && consoles.length === 0)
+        : tab === "mine" && openSettled && !myGamesLoading(myGames);
+
     return (
         <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
@@ -292,7 +305,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
                 {t(language, "Select a Game")}
             </div>
 
-            <Focusable flow-children="row" style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+            <Focusable ref={tabsRef} flow-children="row" style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
                 <SubTabButton
                     label={t(language, "My Games")}
                     active={tab === "mine"}
@@ -313,7 +326,6 @@ export function GameSearchModal(props: GameSearchModalProps) {
                         <MyGamesSearch
                             language={language}
                             showIcons={showIcons}
-                            focusOnOpen={tabFromOpen}
                             canLoad={openSettled || !tabFromOpen}
                             consoles={consoles}
                             stepBackRef={myGamesStepBackRef}
@@ -368,7 +380,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
                 }}
                 flow-children="row"
             >
-                <DialogButton onClick={close}>
+                <DialogButton onClick={close} focusable={listReady}>
                     {t(language, "Cancel")}
                 </DialogButton>
             </Focusable>

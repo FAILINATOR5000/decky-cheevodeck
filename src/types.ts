@@ -1990,6 +1990,7 @@ export type MyGamesList = {
     stale: boolean;
     games: MyGame[];
     recentSystemId: number;
+    searchTab: "mine" | "all";
     needsSettings?: boolean;
     error?: string;
 };

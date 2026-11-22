@@ -735,6 +735,7 @@ _KNOBS = (
     Knob("lastConsoleId", default=0),
     Knob("cheevoCheckLastSystemId", default=0),
     Knob("myGamesLastSystemId", default=0),
+    Knob("gameSearchTab", default="mine"),
     Knob("socialEntryDefault", default="friends", normalize=True),
     Knob("savedCommentsPrefs", factory=_default_saved_comments_prefs, normalize=True),
     Knob("activityCardAction", default="achievement", normalize=True),
@@ -2821,6 +2822,24 @@ class SettingsStore:
             cfg["myGamesLastSystemId"] = next_id
             self.save_config(cfg)
             return next_id
+
+    _GAME_SEARCH_TABS = ("mine", "all")
+
+    def get_game_search_tab(self, cfg: dict | None = None) -> str:
+        source = self.load_config() if cfg is None else cfg
+        value = str(source.get("gameSearchTab", "mine") or "mine")
+        return value if value in self._GAME_SEARCH_TABS else "mine"
+
+    def update_game_search_tab(self, value) -> str:
+        next_tab = str(value or "")
+        if next_tab not in self._GAME_SEARCH_TABS:
+            next_tab = "mine"
+
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            cfg["gameSearchTab"] = next_tab
+            self.save_config(cfg)
+            return next_tab
 
     _SOCIAL_ENTRY_DEFAULT_OPTIONS = ("friends", "favorites", "activity", "subscribedDiscussions", "newsEvents", "lastUsed")
 

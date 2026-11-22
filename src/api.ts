@@ -3350,6 +3350,9 @@ export const refreshMyGames = callable<[], MyGamesList>("refresh_my_games");
 export const saveMyGamesLastSystemId = callable<[number], { ok: boolean; myGamesLastSystemId: number }>(
     "save_my_games_last_system_id"
 );
+export const saveGameSearchTab = callable<[MyGamesList["searchTab"]], { ok: boolean; gameSearchTab: string }>(
+    "save_game_search_tab"
+);
 export const checkSetCompletion = callable<[string, boolean], TrackedSetResponse>("check_set_completion");
 export const checkAllSetsCompletion = callable<[], CheckAllSetsResponse>("check_all_sets_completion");
 export const saveTrackedSetsAutoCheck = callable<[boolean], { ok: boolean; trackedSetsAutoCheck: boolean }>(

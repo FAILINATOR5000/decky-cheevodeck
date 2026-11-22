@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import { myGamesList, refreshMyGames, saveMyGamesLastSystemId } from "../api";
+import { myGamesList, refreshMyGames, saveGameSearchTab, saveMyGamesLastSystemId } from "../api";
 import type { MyGamesList } from "../types";
 import { logError } from "./errors";
 
@@ -40,6 +40,14 @@ function usable(result: MyGamesList | null | undefined): result is MyGamesList {
     return Boolean(result?.ok) && Array.isArray(result?.games);
 }
 
+export function myGamesLoading(state: MyGamesStore): boolean {
+    if (state.listing === null) {
+        return false;
+    }
+    const nothingToShow = !state.listing.scanned && !state.listing.cached;
+    return nothingToShow && !state.failure && (state.fetching !== "" || !state.settled);
+}
+
 export async function readMyGames(): Promise<MyGamesList | null> {
     const startedAt = fetchesDone;
     try {
@@ -59,6 +67,13 @@ export function rememberMyGamesSystem(systemId: number): void {
         publish({ listing: { ...store.listing, recentSystemId: systemId } });
     }
     void saveMyGamesLastSystemId(systemId).catch((e) => logError("saveMyGamesLastSystemId", e));
+}
+
+export function rememberSearchTab(tab: MyGamesList["searchTab"]): void {
+    if (store.listing) {
+        publish({ listing: { ...store.listing, searchTab: tab } });
+    }
+    void saveGameSearchTab(tab).catch((e) => logError("saveGameSearchTab", e));
 }
 
 export function fetchMyGames(loud: boolean): void {

@@ -44,12 +44,19 @@ class MyGamesMixin(PluginContext):
             "stale": rows is None or int(time.time()) - cached_at > MY_GAMES_STALE_SECONDS,
             "games": games,
             "recentSystemId": self.settings_store.get_my_games_last_system_id(cfg),
+            "searchTab": self.settings_store.get_game_search_tab(cfg),
         }
 
     async def save_my_games_last_system_id(self, system_id):
         return {
             "ok": True,
             "myGamesLastSystemId": self.settings_store.update_my_games_last_system_id(system_id),
+        }
+
+    async def save_game_search_tab(self, tab):
+        return {
+            "ok": True,
+            "gameSearchTab": self.settings_store.update_game_search_tab(tab),
         }
 
     async def refresh_my_games(self):

@@ -6,7 +6,7 @@ import { t, type LanguageCode } from "../../locales";
 import { highestAwardLabel } from "../../pages/AllGamesPage";
 import type { MyGame, TrackedSetConsole, TrackedSetPickerGame } from "../../types";
 import { formatInteger } from "../../utils/format";
-import { fetchMyGames, rememberMyGamesSystem, useMyGames } from "../../utils/myGames";
+import { fetchMyGames, myGamesLoading, rememberMyGamesSystem, useMyGames } from "../../utils/myGames";
 import { requestRoute } from "../../utils/pendingPanelEntry";
 import { getCurrentModalScale } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
@@ -95,7 +95,6 @@ function indexMyGames(games: MyGame[]): MyGamesIndex {
 type MyGamesSearchProps = {
     language: LanguageCode;
     showIcons: boolean;
-    focusOnOpen: boolean;
     canLoad: boolean;
     consoles: TrackedSetConsole[];
     stepBackRef: MutableRefObject<() => boolean>;
@@ -105,7 +104,8 @@ type MyGamesSearchProps = {
 
 export function MyGamesSearch(props: MyGamesSearchProps) {
     const { language, showIcons, onPick, close } = props;
-    const { listing, fetching, failure, settled } = useMyGames();
+    const myGames = useMyGames();
+    const { listing, fetching, failure } = myGames;
 
     const [systemKey, setSystemKey] = useState<string | null>(null);
     const [query, setQuery] = useState("");
@@ -113,7 +113,7 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
     const [recentSystemId, setRecentSystemId] = useState<number | null>(null);
 
     const rootRef = useRef<HTMLDivElement | null>(null);
-    const pendingFocusRef = useRef<string | null>(props.focusOnOpen ? `mygames:system:${ALL}` : null);
+    const pendingFocusRef = useRef<string | null>(null);
 
     const games = listing?.games ?? NO_GAMES;
     const index = useMemo(() => indexMyGames(games), [games]);
@@ -197,7 +197,7 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
     const failureText = failure === "needsSettings"
         ? t(language, "Please enter your RetroAchievements username and Web API key.")
         : t(language, "Couldn't load your games.");
-    const waiting = nothingToShow && !failure && (fetching !== "" || !settled);
+    const waiting = myGamesLoading(myGames);
     const failedFirst = nothingToShow && failure !== "";
 
     const refreshRow = (
