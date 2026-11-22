@@ -21,7 +21,7 @@ const FRIEND_ERRORS: Record<string, string> = {
     pending: "A request is already waiting",
     limit: "Too many requests. Try again in an hour.",
     offline: "Couldn't reach the lobby server",
-    friends_off: "Turn on Friends in Options first",
+    friends_off: "Turn on Play Together Service in Options first",
     ra_unreachable: "Couldn't reach RetroAchievements",
     host_gone: "Lost the host",
     not_friends: "They aren't friends with you on this device",

@@ -147,7 +147,7 @@ If the picture stutters or breaks up, turn on **Slow Connection** in the **Strea
 
 The **Friends** tab is its own friends list, separate from your RetroAchievements friends. Press **Add Friend** and type their RetroAchievements name, and once they accept you'll see when they're online, what they're playing and which room they're in. From a friend's card you can **Invite to My Room**, **Join Their Room** or open the **Message Center**, and inside a room, **Invite Friends** sends invites to as many as you like. Invites skip any password.
 
-You can switch your status between Online and Hidden at the top of the tab, and **Friends**, **Show Me Online** and **Suggest RA Friends** live in [Options](options.md) under **Social > Play Together**.
+You can switch your status between Online and Hidden at the top of the tab, and **Play Together Service**, **Show Me Online** and **Suggest RA Friends** live in [Options](options.md) under **Social > Play Together**.
 
 ## The Play Together Card
 

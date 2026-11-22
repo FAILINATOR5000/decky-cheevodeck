@@ -2175,7 +2175,7 @@ function SocialTab(props: TabContentProps) {
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 focusKey="options:toggle:mpFriendsEnabled"
-                label={t(state.language, "Friends")}
+                label={t(state.language, "Play Together Service")}
                 value={state.mpFriendsEnabled}
                 onChange={actions.onToggleMpFriendsEnabled}
                 disabled={disabled}
