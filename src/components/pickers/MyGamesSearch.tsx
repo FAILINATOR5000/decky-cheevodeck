@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { DialogButton, Focusable, TextField } from "@decky/ui";
 
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
@@ -200,25 +200,16 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
     const waiting = myGamesLoading(myGames);
     const failedFirst = nothingToShow && failure !== "";
 
-    const refreshRow = (
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <Focusable
-                style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center", flexWrap: "wrap" }}
-                flow-children="grid"
-            >
-                <FocusTarget focusKey="mygames:refresh">
-                    <DialogButton onClick={refresh} disabled={fetching === "loud"} style={compactButtonStyle}>
-                        {fetching === "loud" ? t(language, "Refreshing...") : t(language, "Refresh list")}
-                    </DialogButton>
-                </FocusTarget>
-                {fetching === "loud" && <InlineSpinner />}
-                {fetching === "" && refreshNote === "done" && !failure && (
-                    <span style={modalBodyStyle()}>{t(language, "Updated")}</span>
-                )}
-            </Focusable>
-            {fetching === "" && refreshNote === "done" && failure && <ErrorText modal>{failureText}</ErrorText>}
-        </div>
+    const refreshButton = (
+        <FocusTarget focusKey="mygames:refresh">
+            <DialogButton onClick={refresh} disabled={fetching === "loud"} style={compactButtonStyle}>
+                {fetching === "loud" ? t(language, "Refreshing...") : t(language, "Refresh list")}
+            </DialogButton>
+        </FocusTarget>
     );
+    const refreshStatus = fetching === "" && refreshNote === "done" && failure
+        ? <ErrorText modal>{failureText}</ErrorText>
+        : null;
 
     const selectedRows = systemKey !== null ? index.rowsBySystem.get(systemKey) ?? NO_ROWS : NO_ROWS;
     const selectedEntry = index.systems.find((entry) => entry.key === systemKey);
@@ -259,9 +250,10 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
                         language={language}
                         showIcons={showIcons}
                         openFirst={pendingFocusRef.current ?? undefined}
+                        refresh={refreshButton}
+                        refreshStatus={refreshStatus}
                         onOpen={openSystem}
                     />
-                    {refreshRow}
                 </Focusable>
             )}
 
@@ -278,10 +270,11 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
                         onQueryChange={setQuery}
                         language={language}
                         showIcons={showIcons}
+                        refresh={refreshButton}
+                        refreshStatus={refreshStatus}
                         onPick={onPick}
                         onBack={backToSystems}
                     />
-                    {refreshRow}
                 </Focusable>
             )}
         </div>
@@ -295,6 +288,8 @@ type MyGamesSystemsProps = {
     language: LanguageCode;
     showIcons: boolean;
     openFirst?: string;
+    refresh: ReactNode;
+    refreshStatus: ReactNode;
     onOpen: (key: string) => void;
 };
 
@@ -359,9 +354,16 @@ function MyGamesSystems(props: MyGamesSystemsProps) {
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }}>
-            <div style={{ ...modalBodyStyle(), fontWeight: 700 }}>
-                {t(language, "Pick a system")}
-            </div>
+            <Focusable
+                style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}
+                flow-children="row"
+            >
+                <div style={{ ...modalBodyStyle(), fontWeight: 700, flex: 1, minWidth: 0 }}>
+                    {t(language, "Pick a system")}
+                </div>
+                {props.refresh}
+            </Focusable>
+            {props.refreshStatus}
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <ConsoleRow
                     item={rows.all.item}
@@ -420,6 +422,8 @@ type MyGamesGameListProps = {
     onQueryChange: (next: string) => void;
     language: LanguageCode;
     showIcons: boolean;
+    refresh: ReactNode;
+    refreshStatus: ReactNode;
     onPick: (game: TrackedSetPickerGame) => void;
     onBack: () => void;
 };
@@ -520,12 +524,19 @@ function MyGamesGameList(props: MyGamesGameListProps) {
                 </div>
             </Focusable>
 
-            <div data-focus-key="mygames:filter">
-                <TextField
-                    value={query}
-                    onChange={(e: any) => onQueryChange(e?.target?.value ?? "")}
-                />
-            </div>
+            <Focusable
+                style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}
+                flow-children="row"
+            >
+                <div data-focus-key="mygames:filter" style={{ flex: 1, minWidth: 0 }}>
+                    <TextField
+                        value={query}
+                        onChange={(e: any) => onQueryChange(e?.target?.value ?? "")}
+                    />
+                </div>
+                {props.refresh}
+            </Focusable>
+            {props.refreshStatus}
 
             {query.trim() !== "" && filtered.length === 0 && (
                 <div style={modalBodyStyle()}>{t(language, "No games match that search.")}</div>

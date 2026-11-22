@@ -1331,8 +1331,6 @@ export const EN: LocaleTable = {
     "Done": "Done",
     "Added": "Added",
     "Refresh list": "Refresh list",
-    "Updated": "Updated",
-    "No new games found": "No new games found",
     "← Consoles": "← Consoles",
     "All Systems": "All Systems",
     "← Systems": "← Systems",

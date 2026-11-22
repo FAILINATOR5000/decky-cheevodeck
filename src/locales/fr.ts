@@ -1337,8 +1337,6 @@ const FR: LocaleTable = {
     "Done": "Terminé",
     "Added": "Ajouté",
     "Refresh list": "Actualiser la liste",
-    "Updated": "Mis à jour",
-    "No new games found": "Aucun nouveau jeu trouvé",
     "← Consoles": "← Consoles",
     "All Systems": "Tous les systèmes",
     "← Systems": "← Systèmes",

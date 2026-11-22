@@ -1337,8 +1337,6 @@ const PT: LocaleTable = {
     "Done": "Pronto",
     "Added": "Adicionado",
     "Refresh list": "Atualizar lista",
-    "Updated": "Atualizado",
-    "No new games found": "Nenhum jogo novo encontrado",
     "← Consoles": "← Consoles",
     "All Systems": "Todos os sistemas",
     "← Systems": "← Sistemas",

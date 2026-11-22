@@ -1336,8 +1336,6 @@ const RU: LocaleTable = {
     "Done": "Готово",
     "Added": "Добавлено",
     "Refresh list": "Обновить список",
-    "Updated": "Обновлено",
-    "No new games found": "Новых игр не найдено",
     "← Consoles": "← Консоли",
     "All Systems": "Все системы",
     "← Systems": "← Системы",

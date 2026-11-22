@@ -1348,8 +1348,6 @@ const ES: LocaleTable = {
     "Done": "Listo",
     "Added": "Añadido",
     "Refresh list": "Actualizar lista",
-    "Updated": "Actualizado",
-    "No new games found": "No se encontraron juegos nuevos",
     "← Consoles": "← Consolas",
     "All Systems": "Todos los sistemas",
     "← Systems": "← Sistemas",

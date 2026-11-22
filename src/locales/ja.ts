@@ -1327,8 +1327,6 @@ const JA: LocaleTable = {
     "Done": "完了",
     "Added": "追加しました",
     "Refresh list": "一覧を更新",
-    "Updated": "更新しました",
-    "No new games found": "新しいゲームは見つかりませんでした",
     "← Consoles": "← 機種",
     "All Systems": "すべての機種",
     "← Systems": "← 機種",

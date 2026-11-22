@@ -13,7 +13,6 @@ import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
-import { InlineSpinner } from "../ui/InlineSpinner";
 import { ConsoleRow, type ConsoleRowListProps } from "./PickerConsoleRow";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
@@ -60,7 +59,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
 
     const [query, setQuery] = useState("");
 
-    const [refreshState, setRefreshState] = useState<"idle" | "refreshing" | "updated" | "nonew">("idle");
+    const [refreshState, setRefreshState] = useState<"idle" | "refreshing">("idle");
 
     const [addedGameIds, setAddedGameIds] = useState<Set<number>>(new Set());
 
@@ -146,7 +145,6 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
             setGamesError(null);
         }
         try {
-            const before = games.length;
             const result = await getSetGameList(consoleId, refresh);
             if (gamesRunIdRef.current !== runId) {
                 return;
@@ -154,7 +152,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
             const next = result.games ?? [];
             setGames(next);
             if (refresh) {
-                setRefreshState(next.length > before ? "updated" : "nonew");
+                setRefreshState("idle");
             } else {
                 setStep("games");
             }
@@ -443,7 +441,7 @@ type GameStepProps = {
     error: string | null;
     query: string;
     onQueryChange: (next: string) => void;
-    refreshState: "idle" | "refreshing" | "updated" | "nonew";
+    refreshState: "idle" | "refreshing";
     onRefresh: () => void;
     addedGameIds: Set<number>;
     language: LanguageCode;
@@ -550,36 +548,18 @@ function GameStep(props: GameStepProps) {
         }
     }), [language, showIcons]);
 
-    const refreshRow = (
-        <Focusable
-            style={{
-                display: "flex",
-                flexDirection: "row",
-                gap: "8px",
-                alignItems: "center",
-                flexWrap: "wrap"
-            }}
-            flow-children="grid"
-        >
-            <div data-focus-key="setsgame:refresh">
-                <DialogButton
-                    onClick={onRefresh}
-                    disabled={refreshState === "refreshing"}
-                    style={compactButtonStyle}
-                >
-                    {refreshState === "refreshing"
-                        ? t(language, "Refreshing...")
-                        : t(language, "Refresh list")}
-                </DialogButton>
-            </div>
-            {refreshState === "refreshing" && <InlineSpinner />}
-            {refreshState === "updated" && (
-                <span style={modalBodyStyle()}>{t(language, "Updated")}</span>
-            )}
-            {refreshState === "nonew" && (
-                <span style={modalBodyStyle()}>{t(language, "No new games found")}</span>
-            )}
-        </Focusable>
+    const refreshButton = (
+        <div data-focus-key="setsgame:refresh">
+            <DialogButton
+                onClick={onRefresh}
+                disabled={loading || refreshState === "refreshing"}
+                style={compactButtonStyle}
+            >
+                {refreshState === "refreshing"
+                    ? t(language, "Refreshing...")
+                    : t(language, "Refresh list")}
+            </DialogButton>
+        </div>
     );
 
     return (
@@ -606,11 +586,25 @@ function GameStep(props: GameStepProps) {
                 </div>
             </Focusable>
 
-            <TextField
-                value={query}
-                onChange={(e: any) => onQueryChange(e?.target?.value ?? "")}
-                disabled={loading}
-            />
+            <Focusable
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: "8px",
+                    alignItems: "center"
+                }}
+                flow-children="row"
+            >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <TextField
+                        value={query}
+                        onChange={(e: any) => onQueryChange(e?.target?.value ?? "")}
+                        disabled={loading}
+                    />
+                </div>
+                {refreshButton}
+            </Focusable>
+
 
             {loading && totalGames === 0 && (
                 <div style={modalBodyStyle()}>{t(language, "Loading games...")}</div>
@@ -619,13 +613,10 @@ function GameStep(props: GameStepProps) {
             {error && <ErrorText>{localizeRuntimeText(language, error)}</ErrorText>}
 
             {!loading && !error && games.length === 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={modalBodyStyle()}>
-                        {totalGames === 0
-                            ? t(language, "Nothing found for this system. It seems this system has no games with RetroAchievements yet.")
-                            : t(language, "Not found. The game may not have achievements yet, or may be listed under a different console.")}
-                    </div>
-                    {refreshRow}
+                <div style={modalBodyStyle()}>
+                    {totalGames === 0
+                        ? t(language, "Nothing found for this system. It seems this system has no games with RetroAchievements yet.")
+                        : t(language, "Not found. The game may not have achievements yet, or may be listed under a different console.")}
                 </div>
             )}
 
@@ -644,7 +635,6 @@ function GameStep(props: GameStepProps) {
                             </div>
                         ))}
                     </SlidingWindowRows>
-                    {refreshRow}
                 </div>
             )}
         </div>
