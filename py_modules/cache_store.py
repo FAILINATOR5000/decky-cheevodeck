@@ -475,10 +475,18 @@ class CacheStore:
             return {"consoles": [], "gameLists": {}}
         consoles = raw.get("consoles")
         game_lists = raw.get("gameLists")
+        fetched_at = raw.get("fetchedAt")
         return {
             "consoles": consoles if isinstance(consoles, list) else [],
             "gameLists": game_lists if isinstance(game_lists, dict) else {},
+            "fetchedAt": fetched_at if isinstance(fetched_at, dict) else {},
         }
+
+    def sets_list_fetched_at(self, key: str) -> int:
+        return to_int(self.load_sets_list().get("fetchedAt", {}).get(key), 0)
+
+    def _stamp_sets_list(self, data: dict, key: str) -> None:
+        data["fetchedAt"] = {**data.get("fetchedAt", {}), key: int(time.time())}
 
     def get_cached_consoles(self):
         data = self.load_sets_list()
@@ -489,6 +497,7 @@ class CacheStore:
         with self._sets_list_lock:
             data = dict(self.load_sets_list())
             data["consoles"] = consoles if isinstance(consoles, list) else []
+            self._stamp_sets_list(data, "consoles")
             self._write_sets_list(data)
 
     def get_cached_game_list(self, console_id):
@@ -499,6 +508,7 @@ class CacheStore:
         with self._sets_list_lock:
             data = dict(self.load_sets_list())
             data["gameLists"] = {**data["gameLists"], str(console_id): games if isinstance(games, list) else []}
+            self._stamp_sets_list(data, str(console_id))
             self._write_sets_list(data)
 
     def load_card_collage(self):

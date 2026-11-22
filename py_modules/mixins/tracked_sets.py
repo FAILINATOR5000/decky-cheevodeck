@@ -1,8 +1,13 @@
 import asyncio
+import time
+
 import decky
 from utils import to_int
 
 from mixins._context import PluginContext
+
+GAME_LIST_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+CONSOLE_LIST_MAX_AGE_SECONDS = 60 * 24 * 60 * 60
 
 
 class TrackedSetsMixin(PluginContext):
@@ -111,12 +116,14 @@ class TrackedSetsMixin(PluginContext):
 
     async def get_set_console_list(self, refresh: bool = False):
         cached = await asyncio.to_thread(self.cache_store.get_cached_consoles)
-        if cached is not None and not refresh:
+        if cached is not None and not refresh and not await self._sets_list_expired("consoles", CONSOLE_LIST_MAX_AGE_SECONDS):
             return {"ok": True, "consoles": cached, "cached": True}
 
         cfg = self.settings_store.ensure_display_settings(self.settings_store.load_config())
         web_api_key = str(cfg.get("webApiKey", "")).strip()
         if not web_api_key:
+            if cached is not None:
+                return {"ok": True, "consoles": cached, "cached": True}
             return {
                 "ok": False,
                 "needsSettings": True,
@@ -124,8 +131,14 @@ class TrackedSetsMixin(PluginContext):
                 "consoles": [],
             }
 
-        async with self._ra_slot():
-            raw = await asyncio.to_thread(self.ra.get_console_ids, web_api_key)
+        try:
+            async with self._ra_slot():
+                raw = await asyncio.to_thread(self.ra.get_console_ids, web_api_key)
+        except Exception as e:
+            if cached is None:
+                raise
+            decky.logger.warning("get_console_ids: fetch failed, keeping the saved list: %s", type(e).__name__)
+            return {"ok": True, "consoles": cached, "cached": True}
 
         consoles = self._shape_console_list(raw)
         if not consoles and cached is not None:
@@ -141,14 +154,15 @@ class TrackedSetsMixin(PluginContext):
         if normalized <= 0:
             return {"ok": False, "error": "invalid_console_id", "games": []}
 
-        if not refresh:
-            cached = await asyncio.to_thread(self.cache_store.get_cached_game_list, normalized)
-            if cached is not None:
-                return {"ok": True, "games": cached, "cached": True}
+        cached = await asyncio.to_thread(self.cache_store.get_cached_game_list, normalized)
+        if cached is not None and not refresh and not await self._sets_list_expired(str(normalized), GAME_LIST_MAX_AGE_SECONDS):
+            return {"ok": True, "games": cached, "cached": True}
 
         cfg = self.settings_store.ensure_display_settings(self.settings_store.load_config())
         web_api_key = str(cfg.get("webApiKey", "")).strip()
         if not web_api_key:
+            if cached is not None:
+                return {"ok": True, "games": cached, "cached": True}
             return {
                 "ok": False,
                 "needsSettings": True,
@@ -156,8 +170,14 @@ class TrackedSetsMixin(PluginContext):
                 "games": [],
             }
 
-        async with self._ra_slot():
-            raw = await asyncio.to_thread(self.ra.get_game_list, normalized, web_api_key)
+        try:
+            async with self._ra_slot():
+                raw = await asyncio.to_thread(self.ra.get_game_list, normalized, web_api_key)
+        except Exception as e:
+            if cached is None:
+                raise
+            decky.logger.warning("get_set_game_list: fetch failed, keeping the saved list: %s", type(e).__name__)
+            return {"ok": True, "games": cached, "cached": True}
 
         games = self._shape_game_list(raw)
         try:
@@ -238,6 +258,10 @@ class TrackedSetsMixin(PluginContext):
             )
             self.tracked_sets_monitor_service.announce_completed(outcome.get("completedSets") or [])
         return outcome
+
+    async def _sets_list_expired(self, key: str, max_age: int) -> bool:
+        fetched_at = await asyncio.to_thread(self.cache_store.sets_list_fetched_at, key)
+        return int(time.time()) - fetched_at > max_age
 
     def _shape_console_list(self, raw) -> list:
         if not isinstance(raw, list):
