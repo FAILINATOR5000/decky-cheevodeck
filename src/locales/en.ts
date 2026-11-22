@@ -1336,7 +1336,7 @@ export const EN: LocaleTable = {
     "← Consoles": "← Consoles",
     "All Systems": "All Systems",
     "← Systems": "← Systems",
-    "From your RetroAchievements profile. Run Cheevo Check to list the games on this device.": "From your RetroAchievements profile. Run Cheevo Check to list the games on this device.",
+    "Currently showing games that RetroAchievements reports you have played. To populate this with your other RA-supported games in your local library, run a Cheevo Check scan.": "Currently showing games that RetroAchievements reports you have played. To populate this with your other RA-supported games in your local library, run a Cheevo Check scan.",
     "Couldn't load your games.": "Couldn't load your games.",
     "Not on this device": "Not on this device",
     "Loading consoles...": "Loading consoles...",

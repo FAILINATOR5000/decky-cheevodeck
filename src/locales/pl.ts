@@ -1370,7 +1370,7 @@ const PL: LocaleTable = {
     "← Consoles": "← Konsole",
     "All Systems": "Wszystkie systemy",
     "← Systems": "← Systemy",
-    "From your RetroAchievements profile. Run Cheevo Check to list the games on this device.": "Z Twojego profilu RetroAchievements. Uruchom Cheevo Check, aby wyświetlić gry na tym urządzeniu.",
+    "Currently showing games that RetroAchievements reports you have played. To populate this with your other RA-supported games in your local library, run a Cheevo Check scan.": "Teraz widzisz gry, w które według RetroAchievements grałeś. Aby dodać tu pozostałe gry z Twojej lokalnej biblioteki obsługiwane przez RA, uruchom skanowanie w Cheevo Check.",
     "Couldn't load your games.": "Nie udało się wczytać Twoich gier.",
     "Not on this device": "Nie ma na tym urządzeniu",
     "Loading consoles...": "Ładowanie konsol...",

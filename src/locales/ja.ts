@@ -1332,7 +1332,7 @@ const JA: LocaleTable = {
     "← Consoles": "← 機種",
     "All Systems": "すべての機種",
     "← Systems": "← 機種",
-    "From your RetroAchievements profile. Run Cheevo Check to list the games on this device.": "RetroAchievementsのプロフィールから表示しています。Cheevo Checkを実行すると、このデバイスのゲームが一覧になります。",
+    "Currently showing games that RetroAchievements reports you have played. To populate this with your other RA-supported games in your local library, run a Cheevo Check scan.": "現在、RetroAchievementsでプレイ済みとされているゲームを表示しています。ローカルライブラリにある他のRA対応ゲームも表示するには、Cheevo Checkでスキャンしてください。",
     "Couldn't load your games.": "ゲームを読み込めませんでした。",
     "Not on this device": "このデバイスにはありません",
     "Loading consoles...": "機種を読み込み中...",

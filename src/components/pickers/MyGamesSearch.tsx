@@ -231,7 +231,7 @@ export function MyGamesSearch(props: MyGamesSearchProps) {
             {!listing.scanned && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={modalBodyStyle()}>
-                        {t(language, "From your RetroAchievements profile. Run Cheevo Check to list the games on this device.")}
+                        {t(language, "Currently showing games that RetroAchievements reports you have played. To populate this with your other RA-supported games in your local library, run a Cheevo Check scan.")}
                     </div>
                     <FocusTarget focusKey="mygames:scan">
                         <DialogButton onClick={runCheevoCheck} style={compactButtonStyle}>
