@@ -7,7 +7,6 @@ import { FocusTarget } from "./FocusTarget";
 import { useQuickGuide } from "../../utils/quickGuide";
 import { useNotificationsChrome } from "../notifications/NotificationsContext";
 import type { ButtonSpacing } from "../../types";
-import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { openExternalUrl } from "../../utils/navigation";
 import { useMultiplayerRoomRole } from "../../utils/multiplayerRoomState";
@@ -160,7 +159,6 @@ export function PageNavStrip(props: PageNavStripProps) {
         >
             <div
                 style={{
-                    fontSize: `${scaleMultiplier(getCurrentTitleScale())}em`,
                     textTransform: headerCase(),
                     fontWeight: 700,
                     color: "#ffffff",
