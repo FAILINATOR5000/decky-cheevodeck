@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getCheevoCheckScanStatus, getFileWatcherPassStatus } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
+import { playOkSound } from "../../utils/navSound";
 import { textSize } from "../../utils/scale";
 import { bodyTextStyle } from "../../utils/style";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
@@ -152,7 +153,10 @@ function StatusRow(props: {
                 >
                     <Focusable
                         className="da-qm-scan"
-                        onActivate={props.onPress}
+                        onActivate={() => {
+                            playOkSound();
+                            props.onPress();
+                        }}
                         noFocusRing
                         onGamepadFocus={() => setFocused(true)}
                         onGamepadBlur={() => setFocused(false)}
