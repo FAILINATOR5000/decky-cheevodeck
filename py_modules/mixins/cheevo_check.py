@@ -181,6 +181,17 @@ class CheevoCheckMixin(PluginContext):
         rows.sort(key=lambda row: row["name"].lower())
         return {"ok": True, "systems": rows}
 
+    async def preview_cheevo_check_folders(self, root, offline: bool = False):
+        return await asyncio.to_thread(
+            self.cheevo_check_service.preview_folders, str(root or ""), bool(offline)
+        )
+
+    async def get_cheevo_check_preview_progress(self):
+        return {"ok": True, "progress": self.cheevo_check_service.preview_progress()}
+
+    async def cancel_cheevo_check_preview(self):
+        return self.cheevo_check_service.cancel_preview()
+
     async def save_cheevo_check_folder_systems(self, root, changes):
         saved = await asyncio.to_thread(
             self.cheevo_check_store.save_folder_systems, str(root or ""), changes

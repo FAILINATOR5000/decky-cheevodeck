@@ -213,6 +213,8 @@ class CheevoCheckService:
         self._progress = None
         self._cancel = threading.Event()
         self._folder_systems = {}
+        self._preview_cancel = threading.Event()
+        self._preview_progress = None
         self._dolphin_ready = None
         self._dolphin_checked = 0.0
         self._room_cache_lock = threading.Lock()
@@ -765,6 +767,194 @@ class CheevoCheckService:
             [name for name, _ in names], peek=self._archive_peek(path, kind)
         )
         return Path(picked).suffix.lower() if picked else None
+
+    def preview_folders(self, root_text: str, offline: bool) -> dict:
+        root = Path(str(root_text or "").strip())
+        if not root.is_dir():
+            return {"ok": False, "error": "bad_root"}
+        cancel = threading.Event()
+        with self._lock:
+            self._preview_cancel.set()
+            self._preview_cancel = cancel
+            self._preview_progress = {"done": 0, "total": 0, "files": 0, "folders": 0, "running": True}
+        started = time.monotonic()
+        try:
+            found = self._preview_walk(root, cancel)
+        finally:
+            with self._lock:
+                if self._preview_cancel is cancel:
+                    self._preview_progress["running"] = False
+        if found is None:
+            decky.logger.info("cheevocheck: prescan of %s cancelled", root)
+            return {"ok": True, "cancelled": True}
+        stored = None
+        if offline:
+            stored = (self._store.load_ra_data() or {}).get("consoles") or {}
+        rows = self._preview_rows(root, found, stored)
+        decky.logger.info(
+            "cheevocheck: prescan of %s: %d row(s) from %d folder(s) in %.2fs",
+            root, len(rows), len(found), time.monotonic() - started,
+        )
+        result = {"ok": True, "root": str(root), "rows": rows}
+        if stored is not None:
+            result["dataConsoles"] = sorted(to_int(key, 0) for key in stored)
+        return result
+
+    def preview_progress(self):
+        with self._lock:
+            return dict(self._preview_progress) if self._preview_progress else None
+
+    def cancel_preview(self) -> dict:
+        with self._lock:
+            running = bool(self._preview_progress and self._preview_progress["running"])
+            self._preview_cancel.set()
+        decky.logger.info("cheevocheck: prescan cancel requested (running=%s)", running)
+        return {"ok": True, "running": running}
+
+    def _preview_walk(self, root: Path, cancel: threading.Event):
+        found = {}
+        seen = set()
+        counts = {"files": 0, "folders": 0}
+        try:
+            stat = root.stat()
+        except OSError:
+            return found
+        seen.add((stat.st_dev, stat.st_ino))
+
+        level = root
+        while True:
+            subdirs = self._preview_dir(level, seen, found, counts)
+            if len(subdirs) != 1:
+                break
+            level = subdirs[0]
+        self._set_preview_progress(cancel, 0, len(subdirs), counts)
+
+        for done, unit in enumerate(subdirs, 1):
+            pending = [unit]
+            walked = 0
+            while pending:
+                if cancel.is_set():
+                    return None
+                pending.extend(self._preview_dir(pending.pop(), seen, found, counts))
+                walked += 1
+                if walked % 200 == 0:
+                    self._set_preview_progress(cancel, done - 1, len(subdirs), counts)
+            self._set_preview_progress(cancel, done, len(subdirs), counts)
+        if cancel.is_set():
+            return None
+        return found
+
+    def _preview_dir(self, current: Path, seen: set, found: dict, counts: dict) -> list:
+        try:
+            entries = list(os.scandir(current))
+        except OSError:
+            return []
+        if systems.is_container_dump(entry.name for entry in entries):
+            return []
+        counts["folders"] += 1
+        subdirs = []
+        suffixes = []
+        for entry in entries:
+            try:
+                if entry.is_dir(follow_symlinks=True):
+                    stat = entry.stat()
+                    key = (stat.st_dev, stat.st_ino)
+                    if key not in seen:
+                        seen.add(key)
+                        subdirs.append(Path(entry.path))
+                elif entry.is_file(follow_symlinks=True):
+                    suffix = os.path.splitext(entry.name)[1].lower()
+                    if suffix in systems.ROM_EXTENSIONS or suffix in systems.CONTAINER_EXTENSIONS:
+                        suffixes.append(suffix)
+            except OSError:
+                continue
+        if suffixes:
+            found[current] = suffixes
+            counts["files"] += len(suffixes)
+        return subdirs
+
+    def _set_preview_progress(self, cancel, done: int, total: int, counts: dict) -> None:
+        with self._lock:
+            if self._preview_cancel is cancel:
+                self._preview_progress = {"done": done, "total": total, "running": True, **counts}
+
+    def _preview_rows(self, root: Path, found: dict, stored) -> list:
+        overrides = self._store.load_folder_systems()
+
+        rows = {}
+        undecided = {}
+        for directory, suffixes in found.items():
+            folder, source, system = self._preview_decides(root, directory, overrides, suffixes)
+            if folder is None:
+                undecided[directory] = suffixes
+                continue
+            row = rows.setdefault(folder, _preview_row(source, system))
+            _preview_add(row, suffixes)
+
+        own = {directory: _extension_keys(suffixes) for directory, suffixes in undecided.items()}
+        below = {}
+        for directory, keys in own.items():
+            current = directory
+            while True:
+                below.setdefault(current, set()).update(keys)
+                if current == root or current.parent == current:
+                    break
+                current = current.parent
+        for directory, suffixes in undecided.items():
+            folder = directory
+            if len(own[directory]) == 1:
+                key = next(iter(own[directory]))
+                while folder != root and folder.parent != root and below.get(folder.parent) == {key}:
+                    folder = folder.parent
+            _preview_add(rows.setdefault(folder, _preview_row(None, None)), suffixes)
+
+        def answer(source, system):
+            return {
+                "source": source,
+                "consoleId": system.console_id if system else 0,
+                "name": system.name if system else "",
+                "noData": bool(stored is not None and system and str(system.console_id) not in stored),
+            }
+
+        out = []
+        for folder, row in rows.items():
+            source, system = row["source"], row["system"]
+            if source is None:
+                source, system = _types_answer(row["keys"])
+            auto = None
+            if source in ("override", "skip"):
+                others = {path: chosen for path, chosen in overrides.items() if path != str(folder)}
+                _decider, auto_source, auto_system = self._preview_decides(root, folder, others, row["extensions"])
+                if auto_source is None:
+                    auto_source, auto_system = _types_answer(row["keys"])
+                auto = answer(auto_source, auto_system)
+            likely = [item for item in systems.SYSTEMS if item.console_id in row["likely"]]
+            out.append({
+                **answer(source, system),
+                "path": str(folder),
+                "label": "" if folder == root else str(folder.relative_to(root)),
+                "auto": auto,
+                "guess": [{"consoleId": item.console_id, "name": item.name} for item in likely],
+                "files": row["files"],
+                "extensions": sorted(row["extensions"]),
+            })
+        out.sort(key=lambda item: item["label"].casefold())
+        return out
+
+    def _preview_decides(self, root: Path, directory: Path, overrides: dict, suffixes):
+        folder, source, system = self._deciding_folder(root, directory, overrides)
+        if source is not None:
+            return folder, source, system
+        current = directory
+        while True:
+            guessed = _word_guess(current.name)
+            if guessed is not None and any(
+                suffix in guessed.extensions or suffix in systems.CONTAINER_EXTENSIONS for suffix in suffixes
+            ):
+                return current, "guess", guessed
+            if current == root or current.parent == current:
+                return None, None, None
+            current = current.parent
 
     def _fetch(self, console_ids: list, web_api_key: str):
         consoles = {}
@@ -3108,6 +3298,60 @@ def _folder_decides(folder: Path, overrides: dict):
     if match is not None:
         return "folder", match
     return None, None
+
+
+_WEAK_WORDS = frozenset(("cpc", "cps", "fba", "gen", "ngc", "ngp", "pce", "scd", "sfc", "sgb", "sgx", "sms", "wsc"))
+
+
+def _word_guess(name: str):
+    words = re.findall(r"[a-z0-9]+", str(name or "").lower())
+    for length in range(len(words), 0, -1):
+        found = set()
+        for start in range(len(words) - length + 1):
+            run = "".join(words[start:start + length])
+            if len(run) <= 2 or (length == 1 and run in _WEAK_WORDS):
+                continue
+            if systems.folder_is_unsupported(run):
+                found.add(None)
+                continue
+            system = systems.by_folder_name(run)
+            if system is not None:
+                found.add(system)
+        if len(found) == 1:
+            return found.pop()
+        if found:
+            return None
+    return None
+
+
+def _extension_keys(suffixes: list) -> set:
+    sheet = any(suffix in _CUE_EXTENSIONS for suffix in suffixes)
+    keys = set()
+    for suffix in suffixes:
+        if suffix in systems.CONTAINER_EXTENSIONS:
+            keys.add(())
+        elif not (sheet and suffix in _TRACK_EXTENSIONS):
+            keys.add(tuple(system.console_id for system in systems.by_extension(suffix)))
+    return keys
+
+
+def _types_answer(keys: set):
+    named = {key for key in keys if key}
+    if len(named) == 1 and len(next(iter(named))) == 1:
+        return "types", systems.by_console_id(next(iter(named))[0])
+    return "unsure", None
+
+
+def _preview_row(source, system) -> dict:
+    return {"source": source, "system": system, "files": 0, "extensions": set(), "keys": set(), "likely": set()}
+
+
+def _preview_add(row: dict, suffixes: list) -> None:
+    row["files"] += len(suffixes)
+    row["extensions"].update(suffixes)
+    for key in _extension_keys(suffixes):
+        row["keys"].add(key)
+        row["likely"].update(key)
 
 
 def _arcade_set_directory(path: Path):
