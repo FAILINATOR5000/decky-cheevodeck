@@ -2098,6 +2098,12 @@ class Plugin(
 
         await asyncio.to_thread(self.file_watcher_service.quiesce)
 
+        pending = self._cheevo_check_schedule
+        if pending is not None:
+            pending.cancel()
+            self._cheevo_check_schedule = None
+        await asyncio.to_thread(self.cheevo_check_service.quiesce)
+
         try:
             await asyncio.to_thread(self._clear_downloads_for_reset)
         except Exception as exc:

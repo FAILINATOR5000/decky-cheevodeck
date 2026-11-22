@@ -353,6 +353,18 @@ class CheevoCheckService:
         decky.logger.info("cheevocheck: cancel requested (running=%s)", running)
         return {"ok": True, "running": running}
 
+    def quiesce(self, timeout_seconds: float = 30.0) -> bool:
+        self.cancel()
+        self.cancel_preview()
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            with self._lock:
+                if not self._running:
+                    return True
+            time.sleep(0.05)
+        decky.logger.warning("cheevocheck: scan still running %.1fs after a cancel", timeout_seconds)
+        return False
+
     def _run(self, root: Path, offline: bool, web_api_key: str) -> None:
         started = time.monotonic()
         results = None
