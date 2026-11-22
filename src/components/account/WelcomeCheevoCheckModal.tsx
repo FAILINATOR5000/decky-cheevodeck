@@ -69,7 +69,7 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
                 root = picked.realpath || picked.path;
                 setFolder(root);
             }
-            const choice = await confirmFolderSystems({ language, root, offline: false, forward: "next", dolphinInstalled });
+            const choice = await confirmFolderSystems({ language, root, offline: false, dolphinInstalled });
             if (choice) {
                 schedule(choice.root);
             }

@@ -147,7 +147,6 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
                 language,
                 root,
                 offline,
-                forward: "start",
                 dolphinInstalled: Boolean(state?.dolphinInstalled)
             });
             if (!choice) {

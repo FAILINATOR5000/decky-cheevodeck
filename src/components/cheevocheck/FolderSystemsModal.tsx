@@ -143,14 +143,13 @@ type FolderSystemsProps = {
     language: LanguageCode;
     root: string;
     offline: boolean;
-    forward: "start" | "next";
     dolphinInstalled: boolean;
     onConfirm: (root: string) => void;
     close: () => void;
 };
 
 function FolderSystemsModal(props: FolderSystemsProps) {
-    const { language, offline, forward, onConfirm, close } = props;
+    const { language, offline, onConfirm, close } = props;
 
     const [root, setRoot] = useState(props.root);
     const [rows, setRows] = useState<CheevoCheckFolderRow[] | null>(null);
@@ -328,7 +327,7 @@ function FolderSystemsModal(props: FolderSystemsProps) {
             <Focusable flow-children="row" style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                 <FocusTarget focusKey={`cheevocheck:folders:start${suffix}`} style={{ display: "flex", flex: 1, minWidth: 0 }}>
                     <DialogButton onClick={pressForward} disabled={waiting || missing} onGamepadFocus={() => { movedRef.current = true; }} style={{ width: "100%" }}>
-                        {t(language, forward === "next" ? "Next" : "Start Scan")}
+                        {t(language, "Start Scan")}
                     </DialogButton>
                 </FocusTarget>
                 <FocusTarget focusKey={`cheevocheck:folders:cancel${suffix}`} style={{ display: "flex", flex: 1, minWidth: 0 }}>
@@ -395,7 +394,7 @@ function FolderSystemsModal(props: FolderSystemsProps) {
                 {rows && rows.length > 0 && (
                     <div style={{ ...modalBodyStyle(14), lineHeight: 1.4, color: warnAmber, opacity: 1 }}>
                         {t(language, "Please verify your folders are associated with the correct system below before hitting \"{{button}}\".", {
-                            button: t(language, forward === "next" ? "Next" : "Start Scan")
+                            button: t(language, "Start Scan")
                         })}
                     </div>
                 )}
@@ -479,7 +478,7 @@ function rowKey(row: CheevoCheckFolderRow): string {
     return `cheevocheck:folders:row:${row.path}`;
 }
 
-export function confirmFolderSystems(options: { language: LanguageCode; root: string; offline: boolean; forward: "start" | "next"; dolphinInstalled: boolean }): Promise<{ root: string } | null> {
+export function confirmFolderSystems(options: { language: LanguageCode; root: string; offline: boolean; dolphinInstalled: boolean }): Promise<{ root: string } | null> {
     return new Promise((resolve) => {
         let chosen: { root: string } | null = null;
         showManagedModal(
