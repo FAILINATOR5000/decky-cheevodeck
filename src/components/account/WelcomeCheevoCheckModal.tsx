@@ -3,7 +3,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { getCheevoCheckState, scheduleCheevoCheckScan } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 import { openPathPicker } from "../pickers/FilePickerModal";
 import { confirmFolderSystems, folderPickedThisSession } from "../cheevocheck/FolderSystemsModal";
@@ -28,7 +28,6 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
     const [start, setStart] = useState<string | null>(null);
     const [folder, setFolder] = useState<string | null>(null);
     const [dolphinInstalled, setDolphinInstalled] = useState(true);
-    const defaultRef = useRef<HTMLDivElement | null>(null);
     const pickingRef = useRef(false);
 
     useEffect(() => {
@@ -42,13 +41,6 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
                 setStart("/");
             });
     }, []);
-
-    useEffect(function seedFocusOnDefault() {
-        const target = defaultRef.current?.querySelector("button, [tabindex]") as HTMLElement | null;
-        if (target) {
-            target.focus();
-        }
-    }, [stage, start]);
 
     function schedule(folder: string) {
         void scheduleCheevoCheckScan(folder, SCAN_DELAY_SECONDS)
@@ -109,20 +101,21 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
 
     const buttonStyle = { width: "100%", fontSize: `${modalSize(14)}px` };
 
-    function button(key: string, label: string, onClick: () => void, isDefault: boolean) {
+    function button(key: string, label: string, onClick: () => void, autoFocus = false) {
         return (
             <FocusTarget
                 key={key}
                 focusKey={`welcome-cc:${key}`}
-                ref={isDefault ? defaultRef : undefined}
                 style={{ display: "flex" }}
             >
-                <DialogButton onClick={onClick} style={buttonStyle}>
+                <DialogButton onClick={onClick} autoFocus={autoFocus || undefined} style={buttonStyle}>
                     {label}
                 </DialogButton>
             </FocusTarget>
         );
     }
+
+    const portable = getCurrentModalScale() === "normal";
 
     let body;
     if (stage === "scheduled") {
@@ -130,10 +123,10 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
             <Focusable key="welcome-cc:scheduled" style={{ display: "flex", flexDirection: "column" }}>
                 <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome-cc:heading">
                     {title}
-                    <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "12px" }}>
-                        {withInlineTags(t(language, "welcome_cheevo_check_scheduled"))}
-                    </div>
                 </Focusable>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "12px" }}>
+                    {withInlineTags(t(language, "welcome_cheevo_check_scheduled"))}
+                </div>
                 {button("continue", t(language, "Continue"), finish, true)}
             </Focusable>
         );
@@ -141,15 +134,15 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
     else if (stage === "failed") {
         body = (
             <Focusable key="welcome-cc:failed" style={{ display: "flex", flexDirection: "column" }}>
-                <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome-cc:heading">
+                <Focusable onActivate={() => { }} noFocusRing={true} autoFocus data-focus-key="welcome-cc:heading">
                     {title}
-                    <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4 }}>
-                        {t(language, "Something went wrong")}
-                    </div>
-                    {skipLine}
                 </Focusable>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4 }}>
+                    {t(language, "Something went wrong")}
+                </div>
+                {skipLine}
                 <div style={{ marginTop: "12px", display: "flex", flexDirection: "column" }}>
-                    {button("skip", t(language, "Skip for Now"), finish, true)}
+                    {button("skip", t(language, "Skip for Now"), finish)}
                 </div>
             </Focusable>
         );
@@ -157,22 +150,22 @@ export function WelcomeCheevoCheckModal(props: WelcomeCheevoCheckModalProps) {
     else {
         body = (
             <Focusable key="welcome-cc:ask" style={{ display: "flex", flexDirection: "column" }}>
-                <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome-cc:heading">
+                <Focusable onActivate={() => { }} noFocusRing={true} autoFocus={!portable || undefined} data-focus-key="welcome-cc:heading">
                     {title}
-                    <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "8px" }}>
-                        {t(language, "welcome_cheevo_check_intro")}
-                    </div>
-                    <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
-                        {withInlineTags(t(language, "welcome_cheevo_check_layouts"))}
-                    </div>
-                    <div style={{ ...modalBodyStyle(), marginBottom: "8px", opacity: 1 }}>
-                        {t(language, "welcome_cheevo_check_choose")}
-                    </div>
                 </Focusable>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "8px" }}>
+                    {t(language, "welcome_cheevo_check_intro")}
+                </div>
+                <div style={{ ...modalBodyStyle(), marginBottom: "8px" }}>
+                    {withInlineTags(t(language, "welcome_cheevo_check_layouts"))}
+                </div>
+                <div style={{ ...modalBodyStyle(), marginBottom: "8px", opacity: 1 }}>
+                    {t(language, "welcome_cheevo_check_choose")}
+                </div>
                 {start && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {button("choose", t(language, "Choose Folder"), () => void choose(), true)}
-                        {button("skip", t(language, "Skip for Now"), finish, false)}
+                        {button("choose", t(language, "Choose Folder"), () => void choose(), portable)}
+                        {button("skip", t(language, "Skip for Now"), finish)}
                     </div>
                 )}
                 {skipLine}
