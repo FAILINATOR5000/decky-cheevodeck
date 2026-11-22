@@ -109,6 +109,7 @@ class CheevoCheckMixin(PluginContext):
             **self.cheevo_check_service.status(),
             "scheduled": self._cheevo_check_schedule is not None,
             "scheduledAt": self._cheevo_check_scheduled_at(),
+            "scheduledFrom": int(self._cheevo_check_made) if self._cheevo_check_schedule is not None else 0,
         }
 
     def _cheevo_check_scheduled_at(self) -> int:
@@ -137,7 +138,8 @@ class CheevoCheckMixin(PluginContext):
         folder = str(root or "").strip()
         delay = max(0, to_int(delay_seconds, 120))
         cfg = self.settings_store.load_config()
-        self._cheevo_check_due = time.time() + delay
+        self._cheevo_check_made = time.time()
+        self._cheevo_check_due = self._cheevo_check_made + delay
         self._cheevo_check_schedule = self._spawn_background_task(
             self._run_scheduled_cheevo_check(folder, time.time(), str(cfg.get("activeUlid") or ""), delay)
         )

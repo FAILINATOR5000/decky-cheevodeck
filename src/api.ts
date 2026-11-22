@@ -609,6 +609,7 @@ export const getCheevoCheckScanStatus = callable<
         running: boolean;
         scheduled: boolean;
         scheduledAt: number;
+        scheduledFrom: number;
         error: string | null;
         progress: CheevoCheckScanProgress | null;
     }

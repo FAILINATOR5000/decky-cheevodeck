@@ -950,6 +950,7 @@ class Plugin(
 
         self._cheevo_check_schedule = None
         self._cheevo_check_due = 0.0
+        self._cheevo_check_made = 0.0
 
         self._welcome_owed = False
 

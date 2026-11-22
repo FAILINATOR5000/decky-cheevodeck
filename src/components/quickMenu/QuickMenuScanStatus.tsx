@@ -69,7 +69,9 @@ function cheevoRow(status: CheevoStatus, prev: Row | null): Row | null {
         return { state, fraction: ratio(status.progress?.done, status.progress?.total), dueAt: 0 };
     }
     if (status?.scheduled) {
-        return { state: "scheduled", fraction: 0, dueAt: Number(status.scheduledAt) || 0 };
+        const dueAt = Number(status.scheduledAt) || 0;
+        const from = Number(status.scheduledFrom) || 0;
+        return { state: "scheduled", fraction: ratio(Date.now() / 1000 - from, dueAt - from) ?? 0, dueAt };
     }
     if (prev === null) {
         return null;
