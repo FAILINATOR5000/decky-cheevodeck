@@ -1,6 +1,5 @@
 import { routerHook } from "@decky/api";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
 
 import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
 import { FadeImage } from "../ui/FadeImage";
@@ -347,37 +346,8 @@ function ClipLayer(props: { clip: ClipSource; startAt: number | null; language: 
     );
 }
 
-let deckyMounted = 0;
-
-const mountListeners = new Set<() => void>();
-
-function useDeckyMounted(): boolean {
-    const [mounted, setMounted] = useState(deckyMounted > 0);
-    useEffect(() => {
-        const update = () => setMounted(deckyMounted > 0);
-        mountListeners.add(update);
-        update();
-        return () => {
-            mountListeners.delete(update);
-        };
-    }, []);
-    return mounted;
-}
-
-function MemoryFullscreen(props: { standIn?: boolean }) {
+function MemoryFullscreen() {
     const picture = useShown();
-
-    useEffect(() => {
-        if (props.standIn) {
-            return undefined;
-        }
-        deckyMounted += 1;
-        mountListeners.forEach((update) => update());
-        return () => {
-            deckyMounted -= 1;
-            mountListeners.forEach((update) => update());
-        };
-    }, [props.standIn]);
     const fullBoxRef = useRef<HTMLDivElement | null>(null);
     const clip = picture?.clip ?? null;
     const full = clip ? null : (picture?.full ?? null);
@@ -476,25 +446,8 @@ function MemoryFullscreen(props: { standIn?: boolean }) {
     );
 }
 
-export function MemoryFullscreenStandIn() {
-    const deckyHasIt = useDeckyMounted();
-    const probeRef = useRef<HTMLSpanElement | null>(null);
-    const [body, setBody] = useState<HTMLElement | null>(null);
-
-    useEffect(() => {
-        setBody(probeRef.current?.ownerDocument?.body ?? null);
-    }, []);
-
-    return (
-        <>
-            <span ref={probeRef} style={{ display: "none" }} />
-            {!deckyHasIt && body ? createPortal(<MemoryFullscreen standIn />, body) : null}
-        </>
-    );
-}
-
 export function registerMemoryFullscreen() {
-    routerHook.addGlobalComponent(GLOBAL_COMPONENT, () => <MemoryFullscreen />);
+    routerHook.addGlobalComponent(GLOBAL_COMPONENT, MemoryFullscreen);
 }
 
 export function unregisterMemoryFullscreen() {

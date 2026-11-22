@@ -1,7 +1,7 @@
 import { routerHook } from "@decky/api";
 import { useEffect, useState } from "react";
 
-import { CompositionHold, hasCompositionHold, holdComposition } from "../ui/compositionHold";
+import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
 import { playToggleSound } from "../../utils/navSound";
 
 const GLOBAL_COMPONENT = "CheevoDeckScreenDarken";
@@ -19,37 +19,6 @@ function setDarkened(on: boolean) {
     }
     darkened = on;
     listeners.forEach((listener) => listener(on));
-    syncStandIn();
-}
-
-let deckyMounted = 0;
-
-let standIn: (() => void) | null = null;
-
-function syncStandIn() {
-    const wanted = darkened && deckyMounted === 0;
-    if (wanted && !standIn) {
-        standIn = mountStandIn();
-    }
-    else if (!wanted && standIn) {
-        standIn();
-        standIn = null;
-    }
-}
-
-function mountStandIn(): (() => void) | null {
-    const doc = SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.BrowserWindow?.document;
-    if (!doc?.body) {
-        return null;
-    }
-    const blackout = doc.createElement("div");
-    blackout.style.cssText = `position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000000; z-index: ${BLACKOUT_Z_INDEX}`;
-    doc.body.appendChild(blackout);
-    const release = holdComposition(`${GLOBAL_COMPONENT}StandIn`);
-    return () => {
-        release();
-        blackout.remove();
-    };
 }
 
 function useDarkened(): boolean {
@@ -68,15 +37,6 @@ function useDarkened(): boolean {
 
 function ScreenDarken() {
     const on = useDarkened();
-
-    useEffect(() => {
-        deckyMounted += 1;
-        syncStandIn();
-        return () => {
-            deckyMounted -= 1;
-            syncStandIn();
-        };
-    }, []);
 
     if (!on) {
         return null;

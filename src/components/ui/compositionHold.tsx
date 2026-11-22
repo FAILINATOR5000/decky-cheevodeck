@@ -22,14 +22,12 @@ export function hasCompositionHold(): boolean {
 
 // Holds Steam's composition request for as long as it stays mounted.
 export function CompositionHold(props: { owner: string }) {
-    useEffect(() => holdComposition(props.owner), [props.owner]);
+    useEffect(() => {
+        const store = compositionStore();
+        store?.AddMinimumCompositionStateRequest(OVERLAY_COMPOSITION, props.owner);
+        return () => {
+            store?.RemoveMinimumCompositionStateRequest(OVERLAY_COMPOSITION, props.owner);
+        };
+    }, [props.owner]);
     return null;
-}
-
-export function holdComposition(owner: string): () => void {
-    const store = compositionStore();
-    store?.AddMinimumCompositionStateRequest(OVERLAY_COMPOSITION, owner);
-    return () => {
-        store?.RemoveMinimumCompositionStateRequest(OVERLAY_COMPOSITION, owner);
-    };
 }

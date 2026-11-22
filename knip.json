@@ -8,9 +8,9 @@
     ],
     "ignoreDependencies": [
         "react",
-        "react-dom",
         "tslib",
         "@rollup/rollup-linux-x64-musl",
+        "@types/react-dom",
         "@types/webpack"
     ]
 }

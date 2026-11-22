@@ -35,7 +35,6 @@ import {
     announceMemoryBookmark,
     beginMemorySeek,
     endMemorySeek,
-    MemoryFullscreenStandIn,
     memoryPlaybackMediaTime,
     nudgeMemoryTransport,
     seekMemoryPlayback,
@@ -899,7 +898,6 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 modalClassName="cheevo-memory-fullpos"
             >
                 <SnapshotHotkey language={language} reservedButtons={reservedButtons} />
-                <MemoryFullscreenStandIn />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <Focusable
                     onActivate={clipSource
