@@ -1,11 +1,13 @@
+import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import threading
 import time
 from types import MappingProxyType
 
 import decky
+import cheevo_check_systems as systems
 
 from utils import (
     NewerSchemaFile,
@@ -30,6 +32,9 @@ MAX_NO_SET_ROWS = 25000
 PICKED_SCHEMA_VERSION = 1
 MAX_PICKED_GAMES = 500
 _PICKED_HASH = re.compile(r"^[0-9a-f]{32}$")
+
+FOLDER_SYSTEMS_SCHEMA_VERSION = 1
+MAX_FOLDER_SYSTEMS = 5000
 
 
 class CheevoCheckStore:
@@ -113,6 +118,9 @@ class CheevoCheckStore:
 
     def _picked_path(self) -> Path:
         return self._dir() / "picked_games.json"
+
+    def _folder_systems_path(self) -> Path:
+        return self._dir() / "folder_systems.json"
 
     _SECTIONS = (
         ("unsupported", MAX_ROWS_PER_SECTION),
@@ -242,6 +250,40 @@ class CheevoCheckStore:
 
     def forget_picked(self, game_id: int) -> bool:
         return self._write_picked(lambda games: games.pop(str(game_id), None))
+
+    def load_folder_systems(self) -> dict:
+        raw = load_json_file(self._folder_systems_path(), {})
+        if is_newer_schema(raw, FOLDER_SYSTEMS_SCHEMA_VERSION):
+            report_newer_schema(self._folder_systems_path())
+            return {}
+        return _clean_folder_systems(raw.get("folders") if isinstance(raw, dict) else None)
+
+    def save_folder_systems(self, root: str, changes: dict) -> bool:
+        with self._lock:
+            raw = load_json_file(self._folder_systems_path(), {})
+            folders = _clean_folder_systems(raw.get("folders") if isinstance(raw, dict) else None)
+            for path, value in (changes if isinstance(changes, dict) else {}).items():
+                key = _folder_key(path)
+                if not key:
+                    continue
+                if value is None:
+                    folders.pop(key, None)
+                    continue
+                entry = _clean_folder_entry(value)
+                if entry is not None:
+                    folders[key] = entry
+            _prune_folder_systems(folders, _folder_key(root))
+            try:
+                refuse_newer_file(self._folder_systems_path(), FOLDER_SYSTEMS_SCHEMA_VERSION)
+                ensure_dir(self._dir())
+                save_json_file(self._folder_systems_path(), {"schemaVersion": FOLDER_SYSTEMS_SCHEMA_VERSION,
+                                                             "folders": _clean_folder_systems(folders)})
+            except NewerSchemaFile:
+                return False
+            except OSError as e:
+                decky.logger.warning("cheevocheck: couldn't save the folder systems (%s)", type(e).__name__)
+                return False
+        return True
 
     _VERIFY_SECTIONS = (
         "verified",
@@ -434,6 +476,56 @@ class CheevoCheckStore:
             except (FileNotFoundError, OSError):
                 return []
         return [path.name]
+
+
+def _folder_key(value) -> str:
+    text = value if isinstance(value, str) else ""
+    if not text.startswith("/") or "\0" in text or len(text) > 4096:
+        return ""
+    return str(PurePosixPath(text))
+
+
+def _clean_folder_entry(value):
+    if not isinstance(value, dict):
+        return None
+    if value.get("skip") is True:
+        return {"skip": True}
+    console_id = value.get("consoleId")
+    if type(console_id) is int and systems.by_console_id(console_id) is not None:
+        return {"consoleId": console_id}
+    return None
+
+
+def _clean_folder_systems(raw) -> dict:
+    folders = {}
+    for path, value in (raw if isinstance(raw, dict) else {}).items():
+        if len(folders) >= MAX_FOLDER_SYSTEMS:
+            break
+        key = _folder_key(path)
+        entry = _clean_folder_entry(value)
+        if key and entry is not None:
+            folders[key] = entry
+    return folders
+
+
+def _prune_folder_systems(folders: dict, root: str) -> None:
+    if not root:
+        return
+    inside = root.rstrip("/") + "/"
+    for key in list(folders):
+        if key != root and not key.startswith(inside):
+            continue
+        parent = os.path.dirname(key)
+        if not os.path.isdir(parent) or not os.access(parent, os.R_OK | os.X_OK):
+            continue
+        try:
+            with os.scandir(parent) as entries:
+                if next(entries, None) is None:
+                    continue
+        except OSError:
+            continue
+        if not os.path.lexists(key):
+            del folders[key]
 
 
 def _picked_text(value, limit: int) -> str:

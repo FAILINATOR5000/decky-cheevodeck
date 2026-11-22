@@ -212,6 +212,7 @@ class CheevoCheckService:
         self._last_error = None
         self._progress = None
         self._cancel = threading.Event()
+        self._folder_systems = {}
         self._dolphin_ready = None
         self._dolphin_checked = 0.0
         self._room_cache_lock = threading.Lock()
@@ -387,6 +388,7 @@ class CheevoCheckService:
     def _scan(self, root: Path, offline: bool, web_api_key: str):
         verifying = self._verify_hashes_enabled()
         self._indexes = {}
+        self._folder_systems = self._store.load_folder_systems()
         walk_started = time.monotonic()
         candidates, verify_only = self._collect(root, verifying)
         self._debug("phase walk: %.1fs for %d candidate(s)", time.monotonic() - walk_started, len(candidates))
@@ -739,15 +741,19 @@ class CheevoCheckService:
         there is what produces bad-dump verdicts on perfectly good CD-i and
         Commodore discs.
         """
-        current = path.parent
+        _folder, source, system = self._deciding_folder(root, path.parent, self._folder_systems)
+        if source in ("unsupported", "skip"):
+            raise Unscannable
+        return system
+
+    def _deciding_folder(self, root: Path, directory: Path, overrides: dict):
+        current = directory
         while True:
-            if systems.folder_is_unsupported(current.name):
-                raise Unscannable
-            match = systems.by_folder_name(current.name)
-            if match is not None:
-                return match
+            source, system = _folder_decides(current, overrides)
+            if source is not None:
+                return current, source, system
             if current == root or current.parent == current:
-                return None
+                return None, None, None
             current = current.parent
 
     def _archive_rom_suffix(self, path: Path, kind: str):
@@ -3088,6 +3094,20 @@ class CheevoCheckService:
             if owners:
                 self._debug("badge: %s is ambiguous across %d paths", path, len(owners))
         return {}
+
+
+def _folder_decides(folder: Path, overrides: dict):
+    chosen = overrides.get(str(folder))
+    if chosen is not None:
+        if chosen.get("skip"):
+            return "skip", None
+        return "override", systems.by_console_id(chosen["consoleId"])
+    if systems.folder_is_unsupported(folder.name):
+        return "unsupported", None
+    match = systems.by_folder_name(folder.name)
+    if match is not None:
+        return "folder", match
+    return None, None
 
 
 def _arcade_set_directory(path: Path):

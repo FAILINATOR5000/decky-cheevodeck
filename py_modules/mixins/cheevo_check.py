@@ -171,6 +171,22 @@ class CheevoCheckMixin(PluginContext):
         else:
             decky.logger.warning("cheevocheck: scheduled scan refused (%s)", started.get("error"))
 
+    async def get_cheevo_check_systems(self):
+        import cheevo_check_systems as systems
+
+        rows = [
+            {"consoleId": system.console_id, "name": system.name, "folders": list(system.folders)}
+            for system in systems.SYSTEMS
+        ]
+        rows.sort(key=lambda row: row["name"].lower())
+        return {"ok": True, "systems": rows}
+
+    async def save_cheevo_check_folder_systems(self, root, changes):
+        saved = await asyncio.to_thread(
+            self.cheevo_check_store.save_folder_systems, str(root or ""), changes
+        )
+        return {"ok": saved}
+
     async def save_cheevo_check_report(self, dest_dir, content):
         """Write the results report where the user pointed.
 
