@@ -1382,6 +1382,7 @@ const ES: LocaleTable = {
     "No games in this goal yet. Add one to get started.": "Aún no hay juegos en este objetivo. Añade uno para empezar.",
     "No games match this filter.": "Ningún juego coincide con este filtro.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "No encontrado. Puede que el juego aún no tenga logros, o que aparezca en otra consola.",
+    "Nothing found for this system. It seems this system has no games with RetroAchievements yet.": "No se encontró nada para este sistema. Parece que este sistema aún no tiene juegos con RetroAchievements.",
     "Auto-Check Mastery Goals": "Comprobar objetivos automáticamente",
     "help_tracked_sets_auto_check": "Cuando está activado, abrir Objetivos de maestría actualiza la completitud de cada objetivo automáticamente. Activado por defecto. El botón Comprobar de cada objetivo está siempre disponible de todos modos.",
     "Mastery Goals Service": "Servicio de objetivos de maestría",

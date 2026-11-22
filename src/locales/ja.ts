@@ -1361,6 +1361,7 @@ const JA: LocaleTable = {
     "No games in this goal yet. Add one to get started.": "この目標にはまだゲームがありません。追加してみてください。",
     "No games match this filter.": "この絞り込みに合うゲームはありません。",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "見つかりませんでした。まだ実績がないか、別の機種に登録されているのかもしれません。",
+    "Nothing found for this system. It seems this system has no games with RetroAchievements yet.": "このシステムでは何も見つかりませんでした。このシステムにはまだRetroAchievements対応のゲームがないようです。",
     "Auto-Check Mastery Goals": "マスター目標を自動確認",
     "help_tracked_sets_auto_check": "オンにすると、マスター目標を開くたびにすべての目標の達成度を自動で更新します。標準はオン。目標ごとの「確認」ボタンはどちらでも使えますし、マスター目標サービスもティックごとに更新します。",
     "Mastery Goals Service": "マスター目標サービス",

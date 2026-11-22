@@ -1365,6 +1365,7 @@ export const EN: LocaleTable = {
     "No games in this goal yet. Add one to get started.": "No games in this goal yet. Add one to get started.",
     "No games match this filter.": "No games match this filter.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Not found. The game may not have achievements yet, or may be listed under a different console.",
+    "Nothing found for this system. It seems this system has no games with RetroAchievements yet.": "Nothing found for this system. It seems this system has no games with RetroAchievements yet.",
     "Auto-Check Mastery Goals": "Auto-Check Mastery Goals",
     "help_tracked_sets_auto_check": "When on, opening Mastery Goals refreshes the completion of every goal automatically. On by default. The per-goal Check button is always available either way and the mastery goals service will update it each tick too.",
     "Mastery Goals Service": "Mastery Goals Service",

@@ -656,7 +656,9 @@ function GameStep(props: GameStepProps) {
             {!loading && !error && games.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={modalBodyStyle()}>
-                        {t(language, "Not found. The game may not have achievements yet, or may be listed under a different console.")}
+                        {totalGames === 0
+                            ? t(language, "Nothing found for this system. It seems this system has no games with RetroAchievements yet.")
+                            : t(language, "Not found. The game may not have achievements yet, or may be listed under a different console.")}
                     </div>
                     {refreshRow}
                 </div>

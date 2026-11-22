@@ -1414,6 +1414,7 @@ const PL: LocaleTable = {
     "No games in this goal yet. Add one to get started.": "Nie ma jeszcze gier w tym celu. Dodaj pierwszą, aby zacząć.",
     "No games match this filter.": "Żadna gra nie pasuje do tego filtra.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Nie znaleziono. Gra może jeszcze nie mieć osiągnięć albo być przypisana do innej konsoli.",
+    "Nothing found for this system. It seems this system has no games with RetroAchievements yet.": "Nic nie znaleziono dla tego systemu. Wygląda na to, że ten system nie ma jeszcze gier z RetroAchievements.",
     "Auto-Check Mastery Goals": "Automatycznie sprawdzaj cele",
     "help_tracked_sets_auto_check": "Po włączeniu otwarcie celów mistrzostwa automatycznie odświeża ukończenie każdego z nich. Domyślnie włączone. Przycisk „Sprawdź” przy każdym celu jest dostępny tak czy inaczej, a usługa celów mistrzostwa też aktualizuje je przy każdym cyklu.",
     "Mastery Goals Service": "Usługa celów mistrzostwa",

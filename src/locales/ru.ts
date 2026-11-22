@@ -1374,6 +1374,7 @@ const RU: LocaleTable = {
     "No games in this goal yet. Add one to get started.": "В этой цели пока нет игр. Добавь первую, чтобы начать.",
     "No games match this filter.": "Под этот фильтр игры не подходят.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Не найдено. Возможно, у игры пока нет достижений или она числится за другой консолью.",
+    "Nothing found for this system. It seems this system has no games with RetroAchievements yet.": "Для этой системы ничего не найдено. Похоже, для этой системы пока нет игр с RetroAchievements.",
     "Auto-Check Mastery Goals": "Автопроверка целей мастерства",
     "help_tracked_sets_auto_check": "Когда включено, открытие целей мастерства автоматически обновляет прогресс каждой цели. По умолчанию включено. Кнопка «Проверить» у отдельной цели доступна в любом случае, и служба целей мастерства тоже обновляет их на каждом такте.",
     "Mastery Goals Service": "Служба целей мастерства",
