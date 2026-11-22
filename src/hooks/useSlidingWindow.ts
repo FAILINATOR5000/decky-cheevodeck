@@ -361,9 +361,12 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         const shift = survivorShift(oldItems, anchorOld, newIndex, skip);
         const length = Math.max(1, from.end - from.start);
         let start = from.start === 0 ? 0 : Math.max(0, Math.min(from.start + shift, n - 1));
-        const end = Math.min(n, start + length);
+        let end = Math.min(n, start + length);
         if (end - start < length) {
             start = Math.max(0, end - length);
+        }
+        if (from.start === 0 && focusMounted && focusNow !== undefined && skip === -1 && shift > 0) {
+            end = Math.min(n, end + shift);
         }
         const shown = from.shown === null ? null : Math.min(end, start + (from.shown - from.start));
         return { ...from, items: nextItems, start, end, shown: shown !== null && shown < end ? shown : null, shownFrom: null };
