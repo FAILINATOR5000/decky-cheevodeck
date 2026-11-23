@@ -22,7 +22,7 @@ function StreamScreenWarningModal(props: { language: LanguageCode; onNext: () =>
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
-                {t(language, "Your Screen Is Shared")}
+                {t(language, "Your Screen Is Shared For Stream Play")}
             </div>
             <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4 }}>
                 {t(language, "Guests see your whole screen while the game runs, including the Quick Access Menu, notifications and anything you type. Don't enter passwords or anything private while you're hosting.")}
