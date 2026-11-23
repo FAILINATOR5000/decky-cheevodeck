@@ -3963,6 +3963,7 @@ const DE: LocaleTable = {
     "Lock Room": "Raum sperren",
     "Unlock Room": "Raum entsperren",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Sperrt oder entsperrt den aktuellen Raum. Solange er gesperrt ist, kann niemand mehr beitreten, außer mit einer persönlichen Einladung.",
+    "Room Closed": "Raum geschlossen",
     "Room Locked": "Raum gesperrt",
     "Host has locked the room": "Der Host hat den Raum gesperrt",
     "Room Unlocked": "Raum entsperrt",

@@ -4047,6 +4047,7 @@ const RU: LocaleTable = {
     "Lock Room": "Заблокировать комнату",
     "Unlock Room": "Разблокировать комнату",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Блокирует или разблокирует текущую комнату. Пока она заблокирована, больше никто не может войти, кроме лично приглашённых.",
+    "Room Closed": "Комната закрыта",
     "Room Locked": "Комната заблокирована",
     "Host has locked the room": "Хост заблокировал комнату",
     "Room Unlocked": "Комната разблокирована",

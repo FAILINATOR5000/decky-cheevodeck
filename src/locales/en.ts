@@ -3975,6 +3975,7 @@ export const EN: LocaleTable = {
     "Lock Room": "Lock Room",
     "Unlock Room": "Unlock Room",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.",
+    "Room Closed": "Room Closed",
     "Room Locked": "Room Locked",
     "Host has locked the room": "Host has locked the room",
     "Room Unlocked": "Room Unlocked",

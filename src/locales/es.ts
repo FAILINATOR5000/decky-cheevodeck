@@ -4007,6 +4007,7 @@ const ES: LocaleTable = {
     "Lock Room": "Bloquear la sala",
     "Unlock Room": "Desbloquear la sala",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Bloquea o desbloquea la sala actual. Mientras esté bloqueada, nadie más puede entrar, salvo con una invitación personal.",
+    "Room Closed": "Sala cerrada",
     "Room Locked": "Sala bloqueada",
     "Host has locked the room": "El anfitrión ha bloqueado la sala",
     "Room Unlocked": "Sala desbloqueada",

@@ -3821,6 +3821,7 @@ const JA: LocaleTable = {
     "Lock Room": "ルームをロック",
     "Unlock Room": "ルームのロックを解除",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "現在のルームをロック/ロック解除します。ロック中は、個別に招待された人以外は誰も入れません。",
+    "Room Closed": "ルームが閉じられました",
     "Room Locked": "ルームがロックされました",
     "Host has locked the room": "ホストがルームをロックしました",
     "Room Unlocked": "ルームのロックが解除されました",

@@ -3996,6 +3996,7 @@ const PT: LocaleTable = {
     "Lock Room": "Trancar a sala",
     "Unlock Room": "Destrancar a sala",
     "Locks/Unlocks the current room. Once locked, no one else may enter, unless personally invited.": "Tranca ou destranca a sala atual. Depois de trancada, mais ninguém pode entrar, a não ser com um convite pessoal.",
+    "Room Closed": "Sala fechada",
     "Room Locked": "Sala trancada",
     "Host has locked the room": "O anfitrião trancou a sala",
     "Room Unlocked": "Sala destrancada",

@@ -6184,6 +6184,16 @@ class MultiplayerService:
                 self._spawn(self._ask(joined, "leave"))
         decky.logger.info("multiplayer: left the room")
         self._announce()
+        if reason == ERROR_CLOSED:
+            emit_notification(
+                ntype="system",
+                settings_store=self._settings_store,
+                event_loop=self._loop,
+                title_key="Room Closed",
+                line_key="The host closed the room",
+                force_toast=True,
+                dnd_exempt=True,
+            )
 
     def _guest_view(self, joined: dict) -> dict:
         status = joined["status"]
