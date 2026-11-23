@@ -2196,7 +2196,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     focusKey="quickmenu:search"
                                     bottomSeparator="none"
                                     onClick={() => {
-                                        setQuickMenuExpanded(false);
                                         onOpenGameSearch();
                                     }}
                                     outerStyle={{ width: "100%", minWidth: 0 }}
