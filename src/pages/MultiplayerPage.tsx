@@ -511,7 +511,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const problemLines = [
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
-        ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
         ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
         ...(joined?.hostVersion ? [{ text: t(language, joined.hostVersion === "older"
             ? "The host runs an older CheevoDeck ({{version}}). Some things may not show until they update."

@@ -3428,7 +3428,6 @@ const JA: LocaleTable = {
     "Sunshine is already running on this device. Close it before joining a Stream Play room.": "このデバイスではすでに Sunshine が動いています。ストリームプレイのルームに参加する前に閉じてください。",
     "Streaming needs a CheevoDeck update.": "ストリーミングには CheevoDeck の更新が必要です。",
     "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.": "このデバイスでストリーミングを開始できませんでした。もう一度お試しください。何度も起きる場合は、デバイスを再起動してください。",
-    "Checking your connection…": "接続を確認しています…",
     "The host's internet connection is too slow to handle another connection.": "ホストのインターネット接続が遅すぎて、これ以上の接続を受け付けられません。",
     "The streaming server is busy right now. Try again in a few minutes.": "ストリーミングサーバーが混み合っています。数分後にもう一度お試しください。",
     "Couldn't connect to the host's stream. Try Join & Play again.": "ホストのストリームに接続できませんでした。もう一度「参加してプレイ」を押してください。",

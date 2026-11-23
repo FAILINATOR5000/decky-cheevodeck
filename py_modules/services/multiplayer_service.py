@@ -4170,7 +4170,6 @@ class MultiplayerService:
             "status": room["status"],
             "where": room["where"],
             "lobby": self._lobby_state(),
-            "streamChecking": room.get("streams") is not None and room["streams"].checking,
             "mode": room["mode"],
             "title": room["title"],
             "gameId": room["gameId"],
