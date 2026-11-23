@@ -382,7 +382,7 @@ def _report_crash(task) -> None:
 
 
 async def _speed_check(server, size: int) -> float:
-    reader, writer = await asyncio.open_connection(server[0], server[1])
+    reader, writer = await lobby_client.connect(server)
     try:
         writer.write(lobby_client.envelope({"op": "speed", "v": proto.VERSION, "bytes": size}))
         await writer.drain()

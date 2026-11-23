@@ -1,12 +1,16 @@
 import asyncio
+import functools
+import ipaddress
 import re
 import secrets
 import socket
+import ssl
 
 import decky
 import multiplayer_protocol as proto
 import nearby_protocol
 from nearby_protocol import FrameError
+from utils import ssl_context
 
 DEFAULT_PORT = 49733
 CONNECT_SECONDS = 5
@@ -35,6 +39,9 @@ KEEPALIVE = (
 
 ENVELOPE_BYTES = proto.MAX_FRAME_BYTES + 256
 
+PLAIN_NETWORKS = tuple(ipaddress.ip_network(net) for net in (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10"))
+
 _HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*")
 _HEX16 = re.compile(r"[0-9a-f]{16}")
 _TOKEN = re.compile(r"[0-9a-f]{64}")
@@ -50,16 +57,40 @@ def parse_server(value):
         if not port_text.isdigit() or not 0 < int(port_text) < 65536:
             return None
         port = int(port_text)
-    if not proto.is_ipv4(host) and (len(host) > 253 or _HOST_NAME.fullmatch(host) is None):
+    if proto.is_ipv4(host):
+        return (host, port) if plain_allowed(host) else None
+    if len(host) > 253 or _HOST_NAME.fullmatch(host) is None:
         return None
     return host, port
 
 
+def plain_allowed(host: str) -> bool:
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(address in net for net in PLAIN_NETWORKS)
+
+
+@functools.cache
+def _tls_context() -> ssl.SSLContext:
+    context = ssl_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_3
+    return context
+
+
 async def connect(server):
     host, port = server
-    reader, writer = await asyncio.wait_for(
-        asyncio.open_connection(host, port, family=socket.AF_INET), CONNECT_SECONDS
-    )
+    tls = None if plain_allowed(host) else _tls_context()
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port, family=socket.AF_INET, ssl=tls, server_hostname=host if tls else None),
+            CONNECT_SECONDS
+        )
+    except ssl.SSLCertVerificationError as e:
+        decky.logger.warning("multiplayer: the lobby server at %s failed the certificate check (%s)",
+                             host, e.verify_message)
+        raise
     sock = writer.get_extra_info("socket")
     if sock is not None:
         for level, name, value in KEEPALIVE:
