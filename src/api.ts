@@ -153,6 +153,7 @@ import type {
     CheevoCheckSystem,
     DirectoryListing,
     DirectorySort,
+    MountEntry,
     FileWatcherBucket,
     FileWatcherExcludedRow,
     FileWatcherFinding,
@@ -1334,6 +1335,7 @@ export const listDirectory = callable<
     ],
     DirectoryListing
 >("list_directory");
+export const listMounts = callable<[], { mounts: MountEntry[] }>("list_mounts");
 
 // File Watcher
 export const getFileWatcherState = callable<[], FileWatcherState>("get_file_watcher_state");

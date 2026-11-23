@@ -9,16 +9,19 @@ import {
     FaFileArchive,
     FaFolder,
     FaGamepad,
+    FaHdd,
     FaImage,
     FaMusic,
+    FaNetworkWired,
+    FaSdCard,
     FaVideo
 } from "react-icons/fa";
 
-import { listDirectory } from "../../api";
+import { listDirectory, listMounts } from "../../api";
 import { NETWORK_WAIT_MS, useSlowWait } from "../../hooks/useSlowWait";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
-import type { DirectoryEntry, DirectoryListing, DirectorySort } from "../../types";
+import type { DirectoryEntry, DirectoryListing, DirectorySort, MountEntry } from "../../types";
 import { logError } from "../../utils/errors";
 import { playOkSound } from "../../utils/navSound";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButtons";
@@ -56,6 +59,12 @@ const LISTING_BOX_STYLE: CSSProperties = {
 };
 
 const SORTS: DirectorySort[] = ["name_asc", "name_desc", "modified_desc", "modified_asc"];
+
+const MEDIA_ROOT = "/run/media";
+
+const NO_MOUNTS: MountEntry[] = [];
+
+const MOUNT_ICONS = { sd: FaSdCard, drive: FaHdd, share: FaNetworkWired };
 
 const ARCHIVE_EXTENSIONS = new Set([".zip", ".7z", ".rar", ".gz", ".bz2", ".xz", ".tar"]);
 const DISC_EXTENSIONS = new Set([".chd", ".iso", ".cue", ".bin", ".gdi", ".cdi", ".img", ".mdf", ".nrg", ".ccd"]);
@@ -167,6 +176,19 @@ function sortLabel(mode: DirectorySort, language: LanguageCode): string {
     return t(language, "Name (A-Z)");
 }
 
+function mountLabel(mount: MountEntry, language: LanguageCode): string {
+    if (!mount.ready) {
+        return t(language, "Not Reachable");
+    }
+    if (mount.kind === "sd") {
+        return t(language, "SD Card");
+    }
+    if (mount.kind === "share") {
+        return t(language, "Network Share");
+    }
+    return t(language, "Drive");
+}
+
 function errorLine(reason: string | undefined, language: LanguageCode): string {
     if (reason === "not_found") {
         return t(language, "That folder isn't there anymore.");
@@ -207,6 +229,13 @@ function FilePickerModal(props: FilePickerModalProps) {
 
     const requestRef = useRef(0);
     const cancelAtRef = useRef(0);
+
+    const [showingMounts, setShowingMounts] = useState(false);
+    const [mounts, setMounts] = useState<MountEntry[]>(NO_MOUNTS);
+    const [mountsLoading, setMountsLoading] = useState(false);
+    const mountsRequestRef = useRef(0);
+    const folderAreaRef = useRef<HTMLDivElement | null>(null);
+    const [heldHeight, setHeldHeight] = useState(0);
 
     const landOnListRef = useRef(false);
 
@@ -262,11 +291,27 @@ function FilePickerModal(props: FilePickerModalProps) {
     });
     const { mountedItems, onItemFocus } = entryWindow;
 
+    const mountWindow = useSlidingWindow({
+        items: mounts,
+        itemKey: (mount) => mount.path,
+        focusKeyFor: (mount) => `picker:mount:${mount.path}`,
+        windowId: "picker:mounts",
+        heightScope: ["picker:mounts", language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        prefetchDistance: PREFETCH_DISTANCE,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: showingMounts ? "open" : "closed",
+        debugLabel: "picker:mounts"
+    });
+
     const slowListing = useSlowWait(loading && rows.entries.length === 0, NETWORK_WAIT_MS);
+    const slowMounts = useSlowWait(mountsLoading, NETWORK_WAIT_MS);
 
     const fetched = rows.entries.length;
     const total = listing?.total ?? 0;
-    const canSubmit = Boolean(listing?.ok);
+    const canSubmit = Boolean(listing?.ok) && !showingMounts;
 
     function fetchNextPage() {
         if (!listing?.ok || loading || fetched >= total) {
@@ -320,6 +365,60 @@ function FilePickerModal(props: FilePickerModalProps) {
             setPreferredName(null);
             setPath(parent);
         }
+    }
+
+    function leaveMounts() {
+        mountsRequestRef.current += 1;
+        setShowingMounts(false);
+        setMountsLoading(false);
+        setRows((prior) => (prior.land ? { ...prior, land: false } : prior));
+    }
+
+    function toggleMounts() {
+        if (showingMounts) {
+            leaveMounts();
+            return;
+        }
+        if (mountsLoading) {
+            return;
+        }
+
+        const token = mountsRequestRef.current + 1;
+        mountsRequestRef.current = token;
+        setMountsLoading(true);
+
+        void listMounts()
+            .then((result) => Array.isArray(result?.mounts) ? result.mounts : NO_MOUNTS)
+            .catch((e) => {
+                logError("listMounts", e);
+                return NO_MOUNTS;
+            })
+            .then((found) => {
+                if (mountsRequestRef.current !== token) {
+                    return;
+                }
+                setHeldHeight(folderAreaRef.current?.offsetHeight ?? 0);
+                setMounts(found);
+                setShowingMounts(true);
+                setMountsLoading(false);
+            });
+    }
+
+    function openMount(mount: MountEntry) {
+        if (!mount.ready) {
+            return;
+        }
+        playOkSound();
+        mountsRequestRef.current += 1;
+        setShowingMounts(false);
+        setMountsLoading(false);
+        setPreferredName(null);
+        if (mount.path === rows.path) {
+            setRows((prior) => ({ ...prior, land: true }));
+            return;
+        }
+        landOnListRef.current = true;
+        setPath(mount.path);
     }
 
     function submit() {
@@ -412,6 +511,56 @@ function FilePickerModal(props: FilePickerModalProps) {
         </Focusable>
     );
 
+    const firstReadyMount = mounts.find((mount) => mount.ready)?.path ?? null;
+
+    const mountsScope = (
+        <Focusable
+            key="picker:mounts"
+            navEntryPreferPosition={NAV_ENTER_PREFERRED_CHILD}
+            onButtonDown={handleModalButtons}
+            actionDescriptionMap={modalLegend}
+            style={{ display: "flex", flexDirection: "column", padding: `${RING_ROOM_PX}px` }}
+        >
+            <SlidingWindowRows list={mountWindow}>
+                {mountWindow.mountedItems.map((mount, index) => {
+                    const Glyph = MOUNT_ICONS[mount.kind] ?? FaHdd;
+                    const position = mountWindow.start + index;
+                    return (
+                        <Focusable
+                            key={mount.path}
+                            data-focus-key={`picker:mount:${mount.path}`}
+                            focusable={mount.ready}
+                            onActivate={() => openMount(mount)}
+                            onGamepadFocus={() => mountWindow.onItemFocus(position)}
+                            onGamepadDirection={mountWindow.guardTopRow(position)}
+                            preferredFocus={mount.path === firstReadyMount}
+                            style={ENTRY_ROW_STYLE}
+                        >
+                            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", opacity: mount.ready ? 1 : 0.6 }}>
+                                <Glyph size={iconSize} style={{ flexShrink: 0, opacity: 0.85 }} />
+                                <span
+                                    style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        textAlign: "left",
+                                        fontSize: "14px",
+                                        fontWeight: 700,
+                                        wordBreak: "break-word"
+                                    }}
+                                >
+                                    {mount.name}
+                                </span>
+                                <span style={{ ...smallTextStyle(), flexShrink: 0, ...(mount.ready ? {} : { color: warnAmber, opacity: 1 }) }}>
+                                    {mountLabel(mount, language)}
+                                </span>
+                            </div>
+                        </Focusable>
+                    );
+                })}
+            </SlidingWindowRows>
+        </Focusable>
+    );
+
     return (
         <ModalRoot
             onCancel={handleCancel}
@@ -441,7 +590,7 @@ function FilePickerModal(props: FilePickerModalProps) {
             )}
 
             <div style={{ ...smallTextStyle(), wordBreak: "break-all", marginBottom: "6px" }}>
-                {listing?.realpath || path}
+                {showingMounts ? MEDIA_ROOT : listing?.realpath || path}
             </div>
 
             <Focusable
@@ -451,8 +600,8 @@ function FilePickerModal(props: FilePickerModalProps) {
                 style={{ display: "flex", gap: "6px", alignItems: "stretch", marginBottom: "6px" }}
             >
                 <DialogButton
-                    onClick={goUp}
-                    disabled={!listing?.parent}
+                    onClick={showingMounts ? leaveMounts : goUp}
+                    disabled={!showingMounts && !listing?.parent}
                     style={{ flex: 1, minWidth: 0 }}
                 >
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -467,6 +616,12 @@ function FilePickerModal(props: FilePickerModalProps) {
                     {sortLabel(sort, language)}
                 </DialogButton>
                 <DialogButton
+                    onClick={toggleMounts}
+                    style={{ flex: 1, minWidth: 0 }}
+                >
+                    {slowMounts ? t(language, "Loading...") : t(language, "Mounts/SD")}
+                </DialogButton>
+                <DialogButton
                     onClick={() => setShowHidden((current) => !current)}
                     style={{ flex: 1, minWidth: 0 }}
                 >
@@ -474,43 +629,66 @@ function FilePickerModal(props: FilePickerModalProps) {
                 </DialogButton>
             </Focusable>
 
-            {listing && !listing.ok && (
-                <div style={{ ...smallTextStyle(), color: warnAmber, opacity: 1, margin: "10px 0" }}>
-                    {errorLine(listing.error, language)}
-                </div>
-            )}
-
-            {rows.entries.length > 0 && (
-                <div style={LISTING_BOX_STYLE}>
-                    {ScrollPanelGroup ? (
-                        <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>
-                            {listingScope}
-                        </ScrollPanelGroup>
-                    ) : (
-                        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-                            {listingScope}
+            {showingMounts ? (
+                <div style={{ display: "flow-root", minHeight: `${heldHeight}px` }}>
+                    {mounts.length > 0 && (
+                        <div style={LISTING_BOX_STYLE}>
+                            {ScrollPanelGroup ? (
+                                <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>
+                                    {mountsScope}
+                                </ScrollPanelGroup>
+                            ) : (
+                                <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                                    {mountsScope}
+                                </div>
+                            )}
                         </div>
                     )}
+                    {mounts.length === 0 && (
+                        <div style={smallTextStyle()}>{t(language, "No drives or SD cards found.")}</div>
+                    )}
                 </div>
-            )}
+            ) : (
+                <div ref={folderAreaRef} style={{ display: "flow-root" }}>
+                    {listing && !listing.ok && (
+                        <div style={{ ...smallTextStyle(), color: warnAmber, opacity: 1, margin: "10px 0" }}>
+                            {errorLine(listing.error, language)}
+                        </div>
+                    )}
 
-            {slowListing && (
-                <div style={smallTextStyle()}>{t(language, "Loading...")}</div>
-            )}
-            {!loading && listing?.ok && rows.entries.length === 0 && (
-                <div style={smallTextStyle()}>{t(language, includeFiles ? "This folder is empty" : "No folders in here.")}</div>
-            )}
+                    {rows.entries.length > 0 && (
+                        <div style={LISTING_BOX_STYLE}>
+                            {ScrollPanelGroup ? (
+                                <ScrollPanelGroup focusable={false} style={{ flex: 1, minHeight: 0 }}>
+                                    {listingScope}
+                                </ScrollPanelGroup>
+                            ) : (
+                                <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                                    {listingScope}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-            {fetched < total && (
-                <Focusable
-                    onButtonDown={handleModalButtons}
-                    actionDescriptionMap={modalLegend}
-                    style={{ display: "flex", marginTop: "6px" }}
-                >
-                    <DialogButton onClick={fetchNextPage} disabled={loading} style={{ width: "100%" }}>
-                        {t(language, "Show More")}
-                    </DialogButton>
-                </Focusable>
+                    {slowListing && (
+                        <div style={smallTextStyle()}>{t(language, "Loading...")}</div>
+                    )}
+                    {!loading && listing?.ok && rows.entries.length === 0 && (
+                        <div style={smallTextStyle()}>{t(language, includeFiles ? "This folder is empty" : "No folders in here.")}</div>
+                    )}
+
+                    {fetched < total && (
+                        <Focusable
+                            onButtonDown={handleModalButtons}
+                            actionDescriptionMap={modalLegend}
+                            style={{ display: "flex", marginTop: "6px" }}
+                        >
+                            <DialogButton onClick={fetchNextPage} disabled={loading} style={{ width: "100%" }}>
+                                {t(language, "Show More")}
+                            </DialogButton>
+                        </Focusable>
+                    )}
+                </div>
             )}
 
             <Focusable

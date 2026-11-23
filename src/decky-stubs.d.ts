@@ -188,6 +188,8 @@ declare module "react-icons/fa" {
     export const FaBolt: any;
     export const FaUserFriends: any;
     export const FaNetworkWired: any;
+    export const FaHdd: any;
+    export const FaSdCard: any;
     export const FaFolder: any;
     export const FaFile: any;
     export const FaFileArchive: any;

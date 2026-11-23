@@ -1,7 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import asyncio
 import os
+import re
 
 import decky
+import subprocess_util
 
 from mixins._context import PluginContext
 from utils import to_int
@@ -10,6 +14,14 @@ from utils import to_int
 DIRECTORY_PAGE_SIZE = 1000
 
 _SORT_MODES = ("name_asc", "name_desc", "modified_desc", "modified_asc")
+
+MEDIA_ROOT = "/run/media"
+
+_SHARE_FS_TYPES = {"autofs", "cifs", "smb3", "nfs", "nfs4"}
+
+_KIND_ORDER = {"sd": 0, "drive": 1, "share": 2}
+
+AUTOMOUNT_QUERY_TIMEOUT_SECONDS = 5
 
 
 class FileBrowserMixin(PluginContext):
@@ -210,3 +222,89 @@ class FileBrowserMixin(PluginContext):
             "entries": [],
             "total": 0,
         }
+
+    async def list_mounts(self):
+        return await asyncio.to_thread(self._list_mounts_sync)
+
+    def _list_mounts_sync(self) -> dict:
+        try:
+            with open("/proc/mounts", encoding="utf-8", errors="replace") as table:
+                lines = table.read().splitlines()
+        except OSError as exc:
+            decky.logger.warning("picker: couldn't read /proc/mounts (%s)", exc)
+            return {"mounts": []}
+
+        found = {}
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 3:
+                continue
+            point = _unescape_mount_field(fields[1])
+            if not point.startswith(MEDIA_ROOT + "/"):
+                continue
+            seen = found.setdefault(point, {"device": fields[0], "types": set()})
+            seen["types"].add(fields[2])
+            if fields[2] != "autofs":
+                seen["device"] = fields[0]
+
+        shares = {}
+        for share in self.smb_shares_store.list_shares():
+            shares[str(self.smb_mount_service.mount_point(share["slug"]))] = share
+
+        mounts = []
+        servers = {}
+        for point, seen in found.items():
+            share = shares.get(point)
+            device = seen["device"]
+            if share is not None or seen["types"] & _SHARE_FS_TYPES:
+                kind = "share"
+            elif device.startswith("/dev/mmcblk"):
+                kind = "sd"
+            else:
+                kind = "drive"
+
+            server = None
+            if share is not None:
+                server = share["server"]
+            elif kind == "share":
+                server = _smb_host(device) or self._automount_host(point)
+            if server:
+                servers[point] = server
+
+            mounted = seen["types"] != {"autofs"}
+            mounts.append({
+                "name": share["name"] if share is not None else os.path.basename(point),
+                "path": point,
+                "kind": kind,
+                "ready": kind != "share" or mounted or bool(server),
+            })
+
+        if servers:
+            with ThreadPoolExecutor(max_workers=len(servers)) as pool:
+                probes = {
+                    point: pool.submit(self.smb_mount_service.probe, server)
+                    for point, server in servers.items()
+                }
+            for row in mounts:
+                if row["path"] in probes:
+                    row["ready"] = probes[row["path"]].result()
+
+        mounts.sort(key=lambda row: (_KIND_ORDER[row["kind"]], row["name"].lower()))
+        return {"mounts": mounts}
+
+    def _automount_host(self, point):
+        code, out, _ = subprocess_util.run_command(
+            ["systemctl", "show", "--property=What", "--value", "--", point],
+            timeout=AUTOMOUNT_QUERY_TIMEOUT_SECONDS,
+        )
+        return _smb_host(out.strip()) if code == 0 else None
+
+
+def _smb_host(what):
+    if what.startswith("//"):
+        return what[2:].split("/", 1)[0] or None
+    return None
+
+
+def _unescape_mount_field(value):
+    return re.sub(r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)), value)

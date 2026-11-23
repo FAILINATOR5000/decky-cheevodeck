@@ -295,6 +295,13 @@ export type DirectoryListing = {
     total: number;
 };
 
+export type MountEntry = {
+    name: string;
+    path: string;
+    kind: "sd" | "drive" | "share";
+    ready: boolean;
+};
+
 // File Watcher
 export type FileWatcherSpeed = "full" | "balanced" | "gentle";
 
