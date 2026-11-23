@@ -209,7 +209,7 @@ class MultiplayerFriendsService:
 
     def _on(self, cfg=None) -> bool:
         cfg = cfg if cfg is not None else self._cfg()
-        return bool(cfg.get("mpFriendsEnabled", True))
+        return bool(cfg.get("mpFriendsEnabled", False))
 
     def _standby(self, cfg=None) -> bool:
         cfg = cfg if cfg is not None else self._cfg()

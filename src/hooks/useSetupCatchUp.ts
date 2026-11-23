@@ -5,6 +5,7 @@ import { useCovered } from "../covers";
 import { rootGeneration, rootMountReason } from "../focusRecords";
 import { logError } from "../utils/errors";
 import { cheevoModalOpen } from "../utils/modalRegistry";
+import { cardCollageSettled } from "../utils/playTogetherCollage";
 import type { MainUiPreset } from "../utils/options";
 import { quickAccessWindow } from "../utils/quickAccess";
 import { useLatestRef } from "./useLatestRef";
@@ -12,6 +13,8 @@ import { useLatestRef } from "./useLatestRef";
 const SETUP_CATCH_UP_DELAY_MS = 1000;
 
 const SETUP_CATCH_UP_RETRY_MS = 250;
+
+const COLLAGE_WAIT_MS = 6000;
 
 let busySeenGeneration = 0;
 
@@ -24,7 +27,7 @@ type SetupCatchUpArgs = {
     loading: boolean;
     checkingGame: boolean;
     layout: MainUiPreset;
-    open: (layout: MainUiPreset) => void;
+    open: (layout: MainUiPreset, playTogether: boolean, setup: boolean) => void;
 };
 
 export function useSetupCatchUp(args: SetupCatchUpArgs) {
@@ -81,10 +84,13 @@ export function useSetupCatchUp(args: SetupCatchUpArgs) {
             }
             asking = true;
             setupStepsDue()
-                .then((result) => {
-                    if (!result?.due) {
+                .then(async (result) => {
+                    if (!result?.due && !result?.playTogether) {
                         settled = true;
                         return;
+                    }
+                    if (result.playTogether) {
+                        await cardCollageSettled(COLLAGE_WAIT_MS);
                     }
                     if (canceled || settled || !clearRef.current || cheevoModalOpen()) {
                         return;
@@ -94,7 +100,7 @@ export function useSetupCatchUp(args: SetupCatchUpArgs) {
                         return;
                     }
                     settled = true;
-                    openRef.current(layoutRef.current);
+                    openRef.current(layoutRef.current, Boolean(result.playTogether), Boolean(result.due));
                 })
                 .catch((e) => logError("ask whether the setup catch-up is due", e))
                 .finally(() => {

@@ -32,6 +32,7 @@ import { WelcomeGlobalButtonsModal } from "../components/account/WelcomeGlobalBu
 import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
 import { WelcomeMilestonesModal } from "../components/account/WelcomeMilestonesModal";
 import { WelcomeModal } from "../components/account/WelcomeModal";
+import { WelcomePlayTogetherModal } from "../components/account/WelcomePlayTogetherModal";
 import { t, type LanguageCode } from "../locales";
 import type { NavIntent } from "../nav";
 import { rebuildTrailFresh } from "../focusRecords";
@@ -229,7 +230,18 @@ export function useAccountActions({
             <WelcomeGlobalButtonsModal
                 language={language}
                 onApplyGlobalButtons={onApplyGlobalButtons}
-                onDone={catchUp ? undefined : openCheevoCheckModal}
+                onDone={catchUp ? undefined : () => openPlayTogetherModal(false, openCheevoCheckModal)}
+                onCancel={catchUp ? close : () => endSetup(close)}
+                close={close}
+            />
+        ));
+    }
+
+    function openPlayTogetherModal(catchUp: boolean, onDone?: () => void) {
+        showManagedModal((close) => (
+            <WelcomePlayTogetherModal
+                language={language}
+                onDone={onDone}
                 onCancel={catchUp ? close : () => endSetup(close)}
                 close={close}
             />
@@ -242,9 +254,16 @@ export function useAccountActions({
         ));
     }
 
-    function openSetupCatchUp(layout: MainUiPreset) {
-        openMilestonesModal(layout, true);
-        void markSetupStepsSeen().catch((e) => logError("stamp setup catch-up as seen", e));
+    function openSetupCatchUp(layout: MainUiPreset, playTogether: boolean, setup: boolean) {
+        const openSetupSteps = () => {
+            openMilestonesModal(layout, true);
+            void markSetupStepsSeen().catch((e) => logError("stamp setup catch-up as seen", e));
+        };
+        if (playTogether) {
+            openPlayTogetherModal(true, setup ? openSetupSteps : undefined);
+            return;
+        }
+        openSetupSteps();
     }
 
     function openSetupProfilesModal(userName?: string) {

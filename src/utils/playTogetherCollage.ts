@@ -74,6 +74,8 @@ let account = "";
 let ready: CardCollage | null = null;
 let building = false;
 let warmed = false;
+let firstBuild = false;
+let settleWaiters: Array<() => void> = [];
 let startTimer: number | null = null;
 let failedAt = 0;
 let stopped = false;
@@ -90,6 +92,28 @@ export function setCardCollageAccount(ulid: string) {
 
 export function cardCollage(): CardCollage | null {
     return ready;
+}
+
+export function cardCollageSettled(timeoutMs: number): Promise<void> {
+    if (collageSettled()) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        settleWaiters.push(resolve);
+        window.setTimeout(resolve, timeoutMs);
+    });
+}
+
+function collageSettled(): boolean {
+    return warmed && (ready !== null || !firstBuild);
+}
+
+function releaseSettleWaiters() {
+    if (collageSettled()) {
+        for (const resolve of settleWaiters.splice(0)) {
+            resolve();
+        }
+    }
 }
 
 function savedCollage(raw: { key?: unknown; image?: unknown; tile?: unknown } | null | undefined): CardCollage | null {
@@ -113,11 +137,13 @@ export async function warmCardCollage(): Promise<void> {
     catch (e) {
         logError("notifications: couldn't read the saved Play Together collage", e);
     }
+    firstBuild = ready === null && !stopped;
     warmed = true;
+    releaseSettleWaiters();
     if (stopped || ready?.key === collageKey()) {
         return;
     }
-    buildAfter(BUILD_DELAY_MS);
+    buildAfter(firstBuild ? 0 : BUILD_DELAY_MS);
 }
 
 function buildAfter(delay: number) {
@@ -177,6 +203,8 @@ async function buildCardCollage(): Promise<void> {
     }
     finally {
         building = false;
+        firstBuild = false;
+        releaseSettleWaiters();
     }
 }
 

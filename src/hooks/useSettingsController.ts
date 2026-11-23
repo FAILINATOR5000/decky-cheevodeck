@@ -75,7 +75,7 @@ export function useSettingsController({
     const [deferModalCleanup, setDeferModalCleanup] = useState(true);
     const [backButtonsGlobal, setBackButtonsGlobal] = useState(false);
     const [browserSnapshot, setBrowserSnapshot] = useState(false);
-    const [mpFriendsEnabled, setMpFriendsEnabled] = useState(true);
+    const [mpFriendsEnabled, setMpFriendsEnabled] = useState(false);
     const [mpShowOnline, setMpShowOnline] = useState(true);
     const [mpSuggestFriends, setMpSuggestFriends] = useState(true);
     const [mpShortcutFallback, setMpShortcutFallback] = useState(true);

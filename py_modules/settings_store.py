@@ -469,7 +469,7 @@ _KNOBS = (
     Knob("backButtonsGlobal", default=False, normalize=True, read=READ_BOOL),
     Knob("browserSnapshot", default=False, normalize=True, read=READ_BOOL),
     Knob("lobbyServer", default=DEFAULT_LOBBY_SERVER, normalize=True),
-    Knob("mpFriendsEnabled", default=True, normalize=True, read=READ_BOOL),
+    Knob("mpFriendsEnabled", default=False, reset=False, normalize=True, read=READ_BOOL),
     Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShortcutFallback", default=True, normalize=True, read=READ_BOOL),
@@ -747,6 +747,7 @@ _KNOBS = (
     Knob("resumeState", default=None, ship=False, normalize=IF_ABSENT),
     Knob("viewedIntro", default=False, reset=False, normalize=True),
     Knob("setupStepsVersion", default=SETUP_STEPS_VERSION, reset=False, ship=False),
+    Knob("playTogetherIntroSeen", default=False, reset=False, ship=False),
     Knob("lastChangelogVersion", default="", reset=False, ship=False),
 )
 
@@ -2392,7 +2393,7 @@ class SettingsStore:
     def update_mp_friends_enabled(self, value: bool) -> bool:
         cfg = self._update_config("mpFriendsEnabled", bool(value))
 
-        return bool(cfg.get("mpFriendsEnabled", True))
+        return bool(cfg.get("mpFriendsEnabled", False))
 
     def update_mp_show_online(self, value: bool) -> bool:
         cfg = self._update_config("mpShowOnline", bool(value))
@@ -3039,6 +3040,21 @@ class SettingsStore:
 
     def mark_setup_steps_seen(self) -> None:
         self._update_config("setupStepsVersion", SETUP_STEPS_VERSION)
+
+    def get_play_together_intro_seen(self, cfg: dict) -> bool:
+        return bool(cfg.get("playTogetherIntroSeen", False))
+
+    def play_together_intro_due(self) -> bool:
+        cfg = self.load_config()
+        return self.get_viewed_intro(cfg) and not self.get_play_together_intro_seen(cfg)
+
+    def mark_play_together_intro_seen(self, friends_enabled: bool) -> None:
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            cfg["mpFriendsEnabled"] = bool(friends_enabled)
+            cfg["playTogetherIntroSeen"] = True
+            cfg = self.ensure_display_settings(cfg)
+            self.save_config(cfg)
 
     def set_friend_favorite(self, ulid: str, favorite: bool) -> list[str]:
         target_ulid = str(ulid or "").strip()

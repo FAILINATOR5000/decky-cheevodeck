@@ -1070,7 +1070,7 @@ class MilestonesService(TickServiceBase):
         return any(isinstance(row, dict) and not row.get("isSelf") for row in rows or [])
 
     def _has_play_together_friend(self, cfg):
-        if self._multiplayer_friends_store is None or not cfg.get("mpFriendsEnabled", True):
+        if self._multiplayer_friends_store is None or not cfg.get("mpFriendsEnabled", False):
             return False
         try:
             data = self._multiplayer_friends_store.load()

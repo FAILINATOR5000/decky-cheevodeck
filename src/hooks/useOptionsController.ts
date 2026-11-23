@@ -1371,7 +1371,7 @@ export function buildOptionsController({
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
         setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
         setBrowserSnapshot(Boolean(result.browserSnapshot ?? false));
-        setMpFriendsEnabled(Boolean(result.mpFriendsEnabled ?? true));
+        setMpFriendsEnabled(Boolean(result.mpFriendsEnabled ?? false));
         setMpShowOnline(Boolean(result.mpShowOnline ?? true));
         setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
         setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? true));

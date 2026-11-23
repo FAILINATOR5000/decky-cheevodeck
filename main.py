@@ -1838,10 +1838,18 @@ class Plugin(
         }
 
     async def setup_steps_due(self):
-        return {"due": self.settings_store.setup_steps_due()}
+        return {
+            "due": self.settings_store.setup_steps_due(),
+            "playTogether": self.settings_store.play_together_intro_due(),
+        }
 
     async def mark_setup_steps_seen(self):
         self.settings_store.mark_setup_steps_seen()
+        return {"ok": True}
+
+    async def mark_play_together_intro_seen(self, friends_enabled: bool = False):
+        self.settings_store.mark_play_together_intro_seen(bool(friends_enabled))
+        self.multiplayer_friends_service.settings_changed()
         return {"ok": True}
 
     async def announce_welcome(self):

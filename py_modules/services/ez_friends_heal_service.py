@@ -108,7 +108,7 @@ class EzFriendsHealService(TickServiceBase):
         tick_ulid = str(cfg.get("activeUlid") or "").strip()
         name = str(cfg.get("username") or "").strip()
         key = str(cfg.get("webApiKey") or "").strip()
-        if not self._game_mode() or not cfg.get("mpFriendsEnabled", True) or not name or not key \
+        if not self._game_mode() or not cfg.get("mpFriendsEnabled", False) or not name or not key \
                 or not tick_ulid or self._settings_store.get_battery_saver(cfg):
             return
         if self._is_in_backoff():
