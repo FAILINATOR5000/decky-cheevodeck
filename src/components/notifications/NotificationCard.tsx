@@ -121,6 +121,7 @@ export type NotificationCardListProps = {
     archiveMode: "star" | "trash" | "none";
     onArchiveToggle: (notification: CheevoNotification) => void;
     onArchiveRemove: (id: string) => void;
+    onJoinInvite: (notification: CheevoNotification) => void;
     onRowFocus: (index: number) => void;
     onTabButtons?: (evt: { detail?: { button?: number } }) => void;
     tabLegend?: Record<number, React.ReactNode>;
@@ -133,6 +134,7 @@ type NotificationCardProps = {
     list: NotificationCardListProps;
     archived: boolean;
     archiveError: string | null;
+    joining: boolean;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
@@ -485,7 +487,7 @@ function commentBulkBody(notification: CheevoNotification, language: LanguageCod
 }
 
 export const NotificationCard = React.memo(function NotificationCard(props: NotificationCardProps) {
-    const { notification, archived: archivedProp, archiveError, list } = props;
+    const { notification, archived: archivedProp, archiveError, joining, list } = props;
     const { seenAtSnapshot, showIcons, language, nav, coldGameIds, archiveMode, close } = list;
     const [archiveFocused, setArchiveFocused] = useState(false);
     const [trashArmed, setTrashArmed] = useState(false);
@@ -841,6 +843,10 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
     const iconFontSize = Math.max(16, iconBoxSize * 0.42);
 
     function handleClick() {
+        if (isRoomInvite) {
+            list.onJoinInvite(notification);
+            return;
+        }
         if (notification.kind === "actionable") {
             const entry = NOTIFICATION_REGISTRY[notification.type];
             entry?.onClick?.(notification, nav);
@@ -1169,13 +1175,15 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 fontWeight: 800
                             }}
                         >
-                            <ButtonPrompt
-                                language={language}
-                                textKey="Press {{button}} to join."
-                                button="a"
-                                fontSize={metrics.pointsFontSize}
-                                inline
-                            />
+                            {joining ? t(language, "Joining...") : (
+                                <ButtonPrompt
+                                    language={language}
+                                    textKey="Press {{button}} to join."
+                                    button="a"
+                                    fontSize={metrics.pointsFontSize}
+                                    inline
+                                />
+                            )}
                         </div>
                     )}
                     {statsLine && (

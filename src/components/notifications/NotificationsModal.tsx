@@ -11,12 +11,17 @@ import {
     getArchivedNotifications,
     getNotifications,
     logNotificationsDebug,
+    multiplayerAcceptInvite,
+    multiplayerSetVisible,
     unarchiveNotification
 } from "../../api";
 import { CornerProbe } from "../ui/CornerProbe";
 import { LabeledRow } from "../ui/LabeledRow";
 import { NotificationScrollList } from "./NotificationScrollList";
+import { friendError } from "../multiplayer/AddFriendModal";
 import { MultiplayerNotificationRow } from "../multiplayer/MultiplayerNotificationRow";
+import { showMultiplayerProblem } from "../multiplayer/ProblemModal";
+import { useJoinAttempt } from "../multiplayer/joinAttempt";
 import { SubTabButton } from "../ui/SubTabButton";
 import type { NotificationNav } from "../../notifications/registry";
 import { t, type LanguageCode } from "../../locales";
@@ -34,6 +39,7 @@ import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES } from "../../utils/style";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { cardCollage, refreshCardCollage } from "../../utils/playTogetherCollage";
+import { multiplayerChoices, rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 
 type NotifTab = "normal" | "archived";
 
@@ -72,6 +78,39 @@ export function NotificationsModal(props: NotificationsModalProps) {
         () => filterAndSortArchived(archivedItems, archiveFilter, archiveSort),
         [archivedItems, archiveFilter, archiveSort]
     );
+
+    const [joiningId, setJoiningId] = useState<string | null>(null);
+    const joinAttempt = useJoinAttempt();
+
+    async function joinInvite(notification: CheevoNotification) {
+        const invite = typeof notification.meta?.invite === "string" ? notification.meta.invite : "";
+        const attempt = invite ? joinAttempt.start() : null;
+        if (!attempt) {
+            return;
+        }
+        setJoiningId(notification.id);
+        let joined: { ok: boolean; error?: string };
+        try {
+            await multiplayerSetVisible(true, true);
+            joined = await multiplayerAcceptInvite(invite, multiplayerChoices().hardcore);
+        }
+        catch (e) {
+            logError("multiplayerAcceptInvite", e);
+            joined = { ok: false, error: "unavailable" };
+        }
+        if (joinAttempt.settle(attempt, joined)) {
+            return;
+        }
+        setJoiningId(null);
+        if (!joined.ok) {
+            const name = typeof notification.meta?.name === "string" && notification.meta.name ? notification.meta.name : notification.title;
+            showMultiplayerProblem(language, "Couldn't Join the Room", friendError(language, joined.error, name));
+            return;
+        }
+        rememberMultiplayerPage("play");
+        nav.openMultiplayer?.("multiplayer:play");
+        close();
+    }
 
     const seenAtRef = useRef(seenAtSnapshot);
     const seenAt = seenAtRef.current;
@@ -303,6 +342,8 @@ export function NotificationsModal(props: NotificationsModalProps) {
                     archiveErrorMessage={archiveError?.message ?? null}
                     onArchiveToggle={handleArchiveToggle}
                     onArchiveRemove={handleArchiveRemove}
+                    joiningId={joiningId}
+                    onJoinInvite={(notification) => void joinInvite(notification)}
                     close={close}
                 />
             ) : (
@@ -323,6 +364,8 @@ export function NotificationsModal(props: NotificationsModalProps) {
                     archiveErrorMessage={archiveError?.message ?? null}
                     onArchiveToggle={handleArchiveToggle}
                     onArchiveRemove={handleArchiveRemove}
+                    joiningId={joiningId}
+                    onJoinInvite={(notification) => void joinInvite(notification)}
                     close={close}
                 />
             )}

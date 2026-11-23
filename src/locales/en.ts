@@ -3180,6 +3180,7 @@ export const EN: LocaleTable = {
     "The host uses {{core}}. Switch to it to join.": "The host uses {{core}}. Switch to it to join.",
     "Waiting for players": "Waiting for players",
     "That room is gone": "That room is gone",
+    "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.": "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.",
     "Wrong password": "Wrong password",
     "Too many wrong passwords. Try again in a minute.": "Too many wrong passwords. Try again in a minute.",
     "That room is full": "That room is full",

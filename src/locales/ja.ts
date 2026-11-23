@@ -3038,6 +3038,7 @@ const JA: LocaleTable = {
     "The host uses {{core}}. Switch to it to join.": "ホストは{{core}}を使っています。参加するには切り替えてください。",
     "Waiting for players": "プレイヤーを待っています",
     "That room is gone": "そのルームはなくなりました",
+    "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.": "ホストはルームをローカルに設定していますが、あなたは同じネットワークにいません。同じネットワークに接続するか、ホストにルームをオンラインにしてもらってください。",
     "Wrong password": "パスワードが違います",
     "Too many wrong passwords. Try again in a minute.": "間違ったパスワードが多すぎます。1分後にもう一度試してください。",
     "That room is full": "そのルームは満員です",

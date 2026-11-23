@@ -3171,6 +3171,7 @@ const DE: LocaleTable = {
     "The host uses {{core}}. Switch to it to join.": "Der Host nutzt {{core}}. Wechsle dazu, um beizutreten.",
     "Waiting for players": "Warte auf Mitspielende",
     "That room is gone": "Dieser Raum ist weg",
+    "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.": "Der Host hat den Raum auf Lokal gestellt, aber du bist nicht im selben Netzwerk. Wechsle ins selbe Netzwerk, oder der Host muss den Raum zu einem Online-Raum machen.",
     "Wrong password": "Falsches Passwort",
     "Too many wrong passwords. Try again in a minute.": "Zu viele falsche Passwörter. Versuch es in einer Minute erneut.",
     "That room is full": "Dieser Raum ist voll",

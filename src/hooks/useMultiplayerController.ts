@@ -4,7 +4,6 @@ import {
     getCachedGameImageDataUri,
     getGameImageCached,
     getGamePayload,
-    multiplayerAcceptInvite,
     multiplayerChangeGame,
     multiplayerCheck,
     multiplayerModes,
@@ -42,10 +41,8 @@ import {
     rememberMultiplayerShare,
     rememberMultiplayerVoice,
     rememberMultiplayerWatch,
-    rememberMultiplayerTab,
-    takeMultiplayerInvite
+    rememberMultiplayerTab
 } from "../utils/multiplayerChoices";
-import { landOnTop } from "../focusRecords";
 import {
     launchMultiplayer,
     multiplayerSessionSnapshot,
@@ -354,10 +351,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                     return;
                 }
                 setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
-                const invite = opened.ok ? takeMultiplayerInvite() : null;
-                if (invite && await run("Couldn't Join the Room", () => multiplayerAcceptInvite(invite, hardcore))) {
-                    landOnTop("multiplayer", "multiplayer:play");
-                }
             }
             catch (e) {
                 logError("multiplayerSetVisible", e);

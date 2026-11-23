@@ -33,6 +33,7 @@ const FRIEND_ERRORS: Record<string, string> = {
     not_online: "{{name}} isn't online",
     no_room: "You're not in a room",
     room_gone: "That room is gone",
+    room_local: "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.",
     invite_expired: "That invite expired",
     bad_code: "Wrong password",
     needs_code: "This room has a password",

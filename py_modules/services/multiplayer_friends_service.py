@@ -1330,7 +1330,7 @@ class MultiplayerFriendsService:
         if invite is None or (invite["key"] is not None and invite["exp"] <= time.time()):
             return {"ok": False, "error": "invite_expired"}
         if not await self._find_room(invite["room"], invite["address"]):
-            return {"ok": False, "error": "room_gone"}
+            return {"ok": False, "error": "room_local" if invite["where"] == "local" else "room_gone"}
         offer = None
         if invite["key"] is not None:
             offer = {"ulid": self._me(), "exp": invite["exp"], "key": invite["key"]}
@@ -1356,8 +1356,10 @@ class MultiplayerFriendsService:
 
     async def join_friend(self, ulid: str, password: str, hardcore: bool) -> dict:
         room = self._seen(ulid).get("room")
-        if room is None or not await self._find_room(room["id"], ""):
+        if room is None:
             return {"ok": False, "error": "room_gone"}
+        if not await self._find_room(room["id"], ""):
+            return {"ok": False, "error": "room_local" if room.get("where") == "local" else "room_gone"}
         return await self._mp.join(room["id"], password, hardcore)
 
     async def _open_listener(self) -> None:

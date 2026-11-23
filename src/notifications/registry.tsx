@@ -1,5 +1,5 @@
 import type { AotwComment, CheevoNotification, GameComment, MilestonesTab, MultiplayerTab, NotificationIconSource, NotificationKind, NotificationType } from "../types";
-import { rememberMultiplayerInvite, rememberMultiplayerMessage, rememberMultiplayerPage } from "../utils/multiplayerChoices";
+import { rememberMultiplayerMessage, rememberMultiplayerPage } from "../utils/multiplayerChoices";
 import {
     achievementCommentSource,
     gameCommentSource,
@@ -64,15 +64,11 @@ function readText(meta: Record<string, unknown> | null, key: string): string {
     return typeof raw === "string" ? raw : "";
 }
 
-type MultiplayerTarget = { tab: MultiplayerTab; land?: string; invite?: string; message?: { friend: string; id: string } };
+type MultiplayerTarget = { tab: MultiplayerTab; land?: string; message?: { friend: string; id: string } };
 
 function multiplayerTarget(n: CheevoNotification): MultiplayerTarget | undefined {
     if (readText(n.meta, "multiplayer") !== "friend") {
         return undefined;
-    }
-    const invite = readText(n.meta, "invite");
-    if (invite) {
-        return { tab: "play", invite };
     }
     const friend = readText(n.meta, "friend");
     if (n.meta?.conversation === true && friend) {
@@ -205,7 +201,6 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
                 const target = multiplayerTarget(n);
                 if (target) {
                     rememberMultiplayerPage(target.tab);
-                    rememberMultiplayerInvite(target.invite ?? null);
                     rememberMultiplayerMessage(target.message ?? null);
                 }
                 nav.openMultiplayer(target?.land);

@@ -3252,6 +3252,7 @@ const RU: LocaleTable = {
     "The host uses {{core}}. Switch to it to join.": "Хост использует {{core}}. Переключись на него, чтобы войти.",
     "Waiting for players": "Ждём игроков",
     "That room is gone": "Этой комнаты больше нет",
+    "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.": "Хост сделал комнату локальной, но ты не в той же сети. Подключись к той же сети, или хост должен сделать комнату онлайн-комнатой.",
     "Wrong password": "Неверный пароль",
     "Too many wrong passwords. Try again in a minute.": "Слишком много неверных паролей. Попробуй через минуту.",
     "That room is full": "Эта комната заполнена",

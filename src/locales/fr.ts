@@ -3204,6 +3204,7 @@ const FR: LocaleTable = {
     "The host uses {{core}}. Switch to it to join.": "L'hôte utilise {{core}}. Passe dessus pour rejoindre.",
     "Waiting for players": "En attente de joueurs",
     "That room is gone": "Cette salle n'existe plus",
+    "The host set the room to Local, but you aren't on the same network. Get on the same network, or the host can make their room an Online room.": "L'hôte a mis la salle en Local, mais tu n'es pas sur le même réseau. Connecte-toi au même réseau, ou l'hôte doit passer la salle En ligne.",
     "Wrong password": "Mot de passe incorrect",
     "Too many wrong passwords. Try again in a minute.": "Trop de mots de passe incorrects. Réessaie dans une minute.",
     "That room is full": "Cette salle est pleine",

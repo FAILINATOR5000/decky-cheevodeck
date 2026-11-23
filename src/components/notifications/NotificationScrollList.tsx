@@ -45,6 +45,8 @@ export type NotificationScrollListProps = {
     archiveErrorMessage: string | null;
     onArchiveToggle: (notification: CheevoNotification) => void;
     onArchiveRemove: (id: string) => void;
+    joiningId: string | null;
+    onJoinInvite: (notification: CheevoNotification) => void;
     onTabButtons?: (evt: { detail?: { button?: number } }) => void;
     tabLegend?: Record<number, React.ReactNode>;
     close: () => void;
@@ -54,7 +56,7 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
     const {
         items, seenAt, showIcons, language, nav, emptyMessage, keyPrefix,
         archiveMode, archivedIds, archiveErrorId, archiveErrorMessage,
-        onArchiveToggle, onArchiveRemove, close, onMenuButton, onTabButtons, tabLegend
+        onArchiveToggle, onArchiveRemove, joiningId, onJoinInvite, close, onMenuButton, onTabButtons, tabLegend
     } = props;
 
     const rowKeys = useMemo(() => {
@@ -233,6 +235,8 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
     focusRef.current = onItemFocus;
     const closeRef = useRef(close);
     closeRef.current = close;
+    const joinRef = useRef(onJoinInvite);
+    joinRef.current = onJoinInvite;
     const tabButtonsRef = useRef(onTabButtons);
     tabButtonsRef.current = onTabButtons;
 
@@ -251,6 +255,9 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
         },
         onArchiveRemove: (id: string) => {
             removeRef.current(id);
+        },
+        onJoinInvite: (notification: CheevoNotification) => {
+            joinRef.current(notification);
         },
         onRowFocus: (index: number) => {
             focusRef.current(index);
@@ -280,6 +287,7 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
                             list={cardList}
                             archived={archiveMode === "star" && archivedIds.has(notification.id)}
                             archiveError={archiveErrorId === notification.id ? archiveErrorMessage : null}
+                            joining={joiningId === notification.id}
                             onGamepadDirection={cardWindow.guardTopRow(cardWindow.start + index)}
                         />
                     </div>
