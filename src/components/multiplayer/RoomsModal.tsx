@@ -21,6 +21,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, useDialogLine, type DialogLineState } from "./DialogLine";
+import { useJoinAttempt } from "./joinAttempt";
 import { ModeStateLabel, type ModeState } from "./ModeChart";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
 import { RoomVoiceIcon } from "./VoiceIcons";
@@ -126,6 +127,7 @@ function RoomsModal(props: RoomsModalProps) {
     const [backFromIp, setBackFromIp] = useState(false);
     const stopReading = useRef<() => void>(() => { });
     useEffect(() => () => stopReading.current(), []);
+    const joinAttempt = useJoinAttempt();
     const { line, setLine, fail } = useDialogLine(language, { tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const joinedRef = useRef(false);
@@ -501,6 +503,8 @@ function RoomsModal(props: RoomsModalProps) {
     }
 
     function backToList() {
+        joinAttempt.cancel();
+        stopReading.current();
         setBackFromIp(step === "ip");
         setStep("list");
         setPicked(null);
@@ -513,11 +517,13 @@ function RoomsModal(props: RoomsModalProps) {
             backToList();
             return;
         }
+        joinAttempt.cancel();
         close();
     }
 
     async function join(row: MultiplayerRoomRow, typed: string) {
-        if (busy) {
+        const attempt = busy ? null : joinAttempt.start();
+        if (!attempt) {
             return;
         }
         setBusy(true);
@@ -528,6 +534,10 @@ function RoomsModal(props: RoomsModalProps) {
         try {
             const joined = await multiplayerJoin(row.room, typed, hardcore);
             stopReading.current();
+            if (joinAttempt.settle(attempt, joined)) {
+                setBusy(false);
+                return;
+            }
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
@@ -545,6 +555,10 @@ function RoomsModal(props: RoomsModalProps) {
         catch (e) {
             stopReading.current();
             logError("multiplayerJoin", e);
+            if (joinAttempt.settle(attempt, { ok: false })) {
+                setBusy(false);
+                return;
+            }
             fail("Couldn't Join the Room", describe("unavailable"));
         }
         setBusy(false);

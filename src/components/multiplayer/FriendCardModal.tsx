@@ -21,6 +21,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
 import { DialogLine, useDialogLine } from "./DialogLine";
+import { useJoinAttempt } from "./joinAttempt";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const PASSWORD_MAX = 32;
@@ -46,6 +47,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     const [password, setPassword] = useState("");
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
+    const joinAttempt = useJoinAttempt();
 
     useEffect(() => {
         fieldRef.current?.querySelector("input")?.focus();
@@ -66,31 +68,37 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     }
 
     async function join() {
+        const attempt = joinAttempt.start();
+        if (!attempt) {
+            return;
+        }
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Joining...") });
+        let joined: { ok: boolean; error?: string };
         try {
             await multiplayerSetVisible(true, true);
-            const joined = await multiplayerFriendJoin(friend.ulid, password, props.hardcore);
-            if (!joined.ok) {
-                setBusy(false);
-                if (joined.error === "needs_code" || joined.error === "bad_code") {
-                    setStep("password");
-                    if (joined.error === "bad_code") {
-                        failed("bad_code");
-                    }
-                    else {
-                        setLine({ tone: "hint", text: "" });
-                    }
-                    return;
-                }
-                failed(joined.error);
-                return;
-            }
+            joined = await multiplayerFriendJoin(friend.ulid, password, props.hardcore);
         }
         catch (e) {
             logError("multiplayerFriendJoin", e);
+            joined = { ok: false, error: "unavailable" };
+        }
+        if (joinAttempt.settle(attempt, joined)) {
+            return;
+        }
+        if (!joined.ok) {
             setBusy(false);
-            failed("unavailable");
+            if (joined.error === "needs_code" || joined.error === "bad_code") {
+                setStep("password");
+                if (joined.error === "bad_code") {
+                    failed("bad_code");
+                }
+                else {
+                    setLine({ tone: "hint", text: "" });
+                }
+                return;
+            }
+            failed(joined.error);
             return;
         }
         rememberMultiplayerPage("play");
@@ -131,6 +139,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     }
 
     function back() {
+        joinAttempt.cancel();
         if (step === "menu") {
             close();
             return;
