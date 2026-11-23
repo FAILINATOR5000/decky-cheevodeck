@@ -1329,8 +1329,9 @@ class MultiplayerFriendsService:
         invite = self.invite_info(iid)
         if invite is None or (invite["key"] is not None and invite["exp"] <= time.time()):
             return {"ok": False, "error": "invite_expired"}
-        if not await self._find_room(invite["room"], invite["address"]):
-            return {"ok": False, "error": "room_local" if invite["where"] == "local" else "room_gone"}
+        local = invite["where"] == "local"
+        if not await self._find_room(invite["room"], invite["address"] if local else ""):
+            return {"ok": False, "error": "room_local" if local else "room_gone"}
         offer = None
         if invite["key"] is not None:
             offer = {"ulid": self._me(), "exp": invite["exp"], "key": invite["key"]}
