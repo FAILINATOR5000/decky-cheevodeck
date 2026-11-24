@@ -53,7 +53,7 @@ const PL: LocaleTable = {
     "View the Apache 2.0 license": "Zobacz licencję Apache 2.0",
     "Also uses react-icons (MIT), plus @decky/ui and @decky/api (both LGPL-2.1) via Decky Loader.": "Korzysta też z react-icons (MIT) oraz @decky/ui i @decky/api (oba LGPL-2.1) przez Decky Loader.",
     "View the LGPL-2.1 license": "Zobacz licencję LGPL-2.1",
-    "Bundles RAHasher (GPL-3.0) and chdman from MAME (GPL-2.0), both run as separate programs. Their license texts ship with the plugin.": "Zawiera RAHasher (GPL-3.0) i chdman z MAME (GPL-2.0), oba uruchamiane jako osobne programy. Teksty ich licencji są dołączone do wtyczki.",
+    "Bundles RAHasher (GPL-3.0), chdman from MAME (GPL-2.0), and rmg-netplay-server (GPL-3.0), all run as separate programs. Their license texts ship with the plugin.": "Zawiera RAHasher (GPL-3.0), chdman z MAME (GPL-2.0) i rmg-netplay-server (GPL-3.0), wszystkie uruchamiane jako osobne programy. Teksty ich licencji są dołączone do wtyczki.",
     "View the GPL-3.0 license": "Zobacz licencję GPL-3.0",
     "View the GPL-2.0 license": "Zobacz licencję GPL-2.0",
     "Reference hashes from libretro-database, compacted and re-saved as gzipped JSON, under the CC BY-SA 4.0 license. Originally compiled by No-Intro, Redump and TOSEC.": "Skróty wzorcowe pochodzą z libretro-database, skompaktowane i zapisane ponownie jako JSON w gzipie, na licencji CC BY-SA 4.0. Pierwotnie zebrane przez No-Intro, Redump i TOSEC.",

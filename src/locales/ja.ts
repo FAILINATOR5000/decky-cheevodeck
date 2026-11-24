@@ -53,7 +53,7 @@ const JA: LocaleTable = {
     "View the Apache 2.0 license": "Apache 2.0 ライセンスを見る",
     "Also uses react-icons (MIT), plus @decky/ui and @decky/api (both LGPL-2.1) via Decky Loader.": "ほかに react-icons（MIT）、および Decky Loader 経由で @decky/ui と @decky/api（どちらも LGPL-2.1）を使用しています。",
     "View the LGPL-2.1 license": "LGPL-2.1 ライセンスを見る",
-    "Bundles RAHasher (GPL-3.0) and chdman from MAME (GPL-2.0), both run as separate programs. Their license texts ship with the plugin.": "RAHasher（GPL-3.0）と MAME の chdman（GPL-2.0）を同梱しており、どちらも別プログラムとして実行します。ライセンス全文もプラグインに同梱しています。",
+    "Bundles RAHasher (GPL-3.0), chdman from MAME (GPL-2.0), and rmg-netplay-server (GPL-3.0), all run as separate programs. Their license texts ship with the plugin.": "RAHasher（GPL-3.0）、MAME の chdman（GPL-2.0）、rmg-netplay-server（GPL-3.0）を同梱しており、いずれも別プログラムとして実行します。ライセンス全文もプラグインに同梱しています。",
     "View the GPL-3.0 license": "GPL-3.0 ライセンスを見る",
     "View the GPL-2.0 license": "GPL-2.0 ライセンスを見る",
     "Reference hashes from libretro-database, compacted and re-saved as gzipped JSON, under the CC BY-SA 4.0 license. Originally compiled by No-Intro, Redump and TOSEC.": "照合用ハッシュは libretro-database のもので、圧縮して gzip 版 JSON として保存し直しています。ライセンスは CC BY-SA 4.0 です。元は No-Intro、Redump、TOSEC が収集したものです。",

@@ -441,7 +441,7 @@ function AboutPage(props: AboutPageProps) {
 
                     <div>
                         <div style={{ ...bodyTextStyle() }}>
-                            {t(state.language, "Bundles RAHasher (GPL-3.0) and chdman from MAME (GPL-2.0), both run as separate programs. Their license texts ship with the plugin.")}
+                            {t(state.language, "Bundles RAHasher (GPL-3.0), chdman from MAME (GPL-2.0), and rmg-netplay-server (GPL-3.0), all run as separate programs. Their license texts ship with the plugin.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
                             <AttributionLink url={GPL_3_LICENSE_URL} focusKey="about:license:gpl-3">
