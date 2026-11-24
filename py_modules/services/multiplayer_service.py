@@ -5688,6 +5688,7 @@ class MultiplayerService:
                 "launchedRound": 0,
                 "retryRound": 0,
                 "cutRound": 0,
+                "hostLeftRound": 0,
                 "notice": "",
                 "clock": (time.time(), time.monotonic()),
                 "chat": [],
@@ -5908,6 +5909,21 @@ class MultiplayerService:
                     joined["cutRound"] = joined["launchedRound"]
                     decky.logger.info("stream: the host's round is over, closing Moonlight")
                 self._end_moonlight(stream)
+        if (joined["launched"]
+                and (status["state"] == "lobby" or status["round"] != joined["launchedRound"])
+                and joined["hostLeftRound"] != joined["launchedRound"]):
+            joined["hostLeftRound"] = joined["launchedRound"]
+            couch = joined["row"]["mode"] == "couch"
+            decky.logger.info("multiplayer: the host's round is over while this guest is still in it")
+            emit_notification(
+                ntype="system",
+                settings_store=self._settings_store,
+                event_loop=self._loop,
+                title_key="Host Left Game" if couch else "Host Quit Game",
+                line_key="Host has left the game" if couch else "Host has quit the game",
+                force_toast=True,
+                dnd_exempt=True,
+            )
         for item in status["inbox"]:
             if item["seq"] > joined["fsince"]:
                 joined["fsince"] = item["seq"]
