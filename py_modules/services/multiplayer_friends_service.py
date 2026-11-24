@@ -324,11 +324,12 @@ class MultiplayerFriendsService:
                 server = self._mp.lobby_server()
                 if server is not None:
                     try:
-                        if await self._session(server):
-                            attempt = 0
+                        await self._session(server)
                     except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
                         self._debug("link failed (%s)", type(e).__name__)
                     finally:
+                        if self._up:
+                            attempt = 0
                         self._writer = None
                         self._set_up(False)
                     if self._refused:
