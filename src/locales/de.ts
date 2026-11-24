@@ -3328,6 +3328,7 @@ const DE: LocaleTable = {
     "Couldn't Start": "Start fehlgeschlagen",
     "Couldn't Change That": "Änderung fehlgeschlagen",
     "Couldn't Send That": "Senden fehlgeschlagen",
+    "Couldn't Send the Invite": "Einladung fehlgeschlagen",
     "Couldn't Leave the Room": "Raum konnte nicht verlassen werden",
     "The Room Closed": "Der Raum wurde geschlossen",
     "Couldn't Update Your Friends": "Freunde konnten nicht aktualisiert werden",

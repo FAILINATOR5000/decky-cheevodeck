@@ -83,13 +83,13 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                 setLine({ tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) });
             }
             else {
-                fail("Couldn't Send That", friendError(language, sent.error, friendName(friend)));
+                fail("Couldn't Send the Invite", friendError(language, sent.error, friendName(friend)));
             }
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
             setMarks((current) => ({ ...current, [friend.ulid]: "failed" }));
-            fail("Couldn't Send That", friendError(language, "unavailable"));
+            fail("Couldn't Send the Invite", friendError(language, "unavailable"));
         }
         setBusy(false);
     }

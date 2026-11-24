@@ -3195,6 +3195,7 @@ const JA: LocaleTable = {
     "Couldn't Start": "開始できませんでした",
     "Couldn't Change That": "変更できませんでした",
     "Couldn't Send That": "送信できませんでした",
+    "Couldn't Send the Invite": "招待を送信できませんでした",
     "Couldn't Leave the Room": "ルームから出られませんでした",
     "The Room Closed": "ルームが閉じられました",
     "Couldn't Update Your Friends": "フレンドを更新できませんでした",

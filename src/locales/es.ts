@@ -3372,6 +3372,7 @@ const ES: LocaleTable = {
     "Couldn't Start": "No se pudo empezar",
     "Couldn't Change That": "No se pudo cambiar",
     "Couldn't Send That": "No se pudo enviar",
+    "Couldn't Send the Invite": "No se pudo enviar la invitación",
     "Couldn't Leave the Room": "No se pudo salir de la sala",
     "The Room Closed": "La sala se cerró",
     "Couldn't Update Your Friends": "No se pudieron actualizar tus amigos",

@@ -3337,6 +3337,7 @@ export const EN: LocaleTable = {
     "Couldn't Start": "Couldn't Start",
     "Couldn't Change That": "Couldn't Change That",
     "Couldn't Send That": "Couldn't Send That",
+    "Couldn't Send the Invite": "Couldn't Send the Invite",
     "Couldn't Leave the Room": "Couldn't Leave the Room",
     "The Room Closed": "The Room Closed",
     "Couldn't Update Your Friends": "Couldn't Update Your Friends",

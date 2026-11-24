@@ -3409,6 +3409,7 @@ const RU: LocaleTable = {
     "Couldn't Start": "Не удалось начать",
     "Couldn't Change That": "Не удалось это изменить",
     "Couldn't Send That": "Не удалось отправить",
+    "Couldn't Send the Invite": "Не удалось отправить приглашение",
     "Couldn't Leave the Room": "Не удалось выйти из комнаты",
     "The Room Closed": "Комната закрыта",
     "Couldn't Update Your Friends": "Не удалось обновить друзей",

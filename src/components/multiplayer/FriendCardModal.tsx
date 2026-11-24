@@ -114,12 +114,12 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 setLine({ tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) });
             }
             else {
-                failed(sent.error);
+                fail("Couldn't Send the Invite", friendError(language, sent.error, friendName(friend)));
             }
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
-            failed("unavailable");
+            fail("Couldn't Send the Invite", friendError(language, "unavailable"));
         }
         setBusy(false);
     }
