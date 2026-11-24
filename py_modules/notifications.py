@@ -100,6 +100,7 @@ def emit_notification(
     force_toast=False,
     after_press=False,
     dnd_exempt=False,
+    page=None,
 ) -> None:
     spec = NOTIFICATION_TYPES.get(ntype)
     if spec is None or event_loop is None:
@@ -128,6 +129,8 @@ def emit_notification(
     payload = {"type": ntype, "toast": show_toast}
     if after_press:
         payload["afterPress"] = True
+    if page is not None:
+        payload["page"] = page
     if title_key is not None:
         payload["titleKey"] = title_key
     if line_key is not None:

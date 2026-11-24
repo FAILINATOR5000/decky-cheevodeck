@@ -124,6 +124,10 @@ export function setMultiplayerPageShown(shown: boolean) {
     pageShown = shown;
 }
 
+export function multiplayerPageOnScreen(): boolean {
+    return pageShown && !quickAccessIsHidden();
+}
+
 function bringWindowBack() {
     if (windowsOpen === 0 && reopenWindow !== null) {
         reopenWindow();
@@ -274,7 +278,7 @@ async function runClientStep(language: LanguageCode, plan: string, step: FixStep
 }
 
 function announce(language: LanguageCode, run: FixRun, ok: boolean) {
-    if (windowsOpen > 0 || (pageShown && !quickAccessIsHidden())) {
+    if (windowsOpen > 0 || multiplayerPageOnScreen()) {
         return;
     }
     showToastAfter({

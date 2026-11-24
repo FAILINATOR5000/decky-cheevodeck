@@ -6192,6 +6192,7 @@ class MultiplayerService:
                 line_key="The host closed the room",
                 force_toast=True,
                 dnd_exempt=True,
+                page="multiplayer",
             )
 
     def _guest_view(self, joined: dict) -> dict:

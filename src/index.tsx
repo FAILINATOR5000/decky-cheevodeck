@@ -25,7 +25,7 @@ import { registerSeatPads, unregisterSeatPads } from "./utils/seatPads";
 import { registerHotspotState, unregisterHotspotState } from "./utils/hotspotState";
 import { registerHotspotIntro } from "./components/hotspot/HotspotIntroModal";
 import { registerEmulatorJobs, unregisterEmulatorJobs } from "./utils/emulatorJobs";
-import { finishPendingFixes } from "./utils/fixPlan";
+import { finishPendingFixes, multiplayerPageOnScreen } from "./utils/fixPlan";
 import { registerVoiceChat, unregisterVoiceChat } from "./utils/voiceChat";
 import { registerGameVolume, unregisterGameVolume } from "./utils/gameVolume";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
@@ -54,8 +54,12 @@ export default definePlugin(() => {
         body?: string;
         toast?: boolean;
         afterPress?: boolean;
+        page?: string;
     }) => {
         if (!payload?.toast) {
+            return;
+        }
+        if (payload.page === "multiplayer" && multiplayerPageOnScreen()) {
             return;
         }
         void startupSettingsSettled().then(async () => {
