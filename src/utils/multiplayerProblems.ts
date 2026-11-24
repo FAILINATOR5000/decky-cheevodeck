@@ -93,6 +93,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     seated: "Close the room to change it",
     unavailable: "Couldn't open a room on this network",
     lobby_unreachable: "Couldn't reach the online lobby",
+    update_required: "Update CheevoDeck to use Play Together.",
     no_lobby: "Set a lobby server in Options first",
     lan_only: "This game links over LAN, so it plays Local only.",
     invite_expired: "That invite expired",

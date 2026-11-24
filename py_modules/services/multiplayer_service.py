@@ -233,6 +233,7 @@ ERROR_VOTE_GAMES = "vote_games"
 ERROR_VOTE_LOBBY = "vote_wait_lobby"
 ERROR_SWITCHING = "room_switching"
 ERROR_ROOM_LOCKED = "room_locked"
+ERROR_UPDATE_REQUIRED = "update_required"
 
 CHAT_GAP_SECONDS = 1
 
@@ -245,6 +246,7 @@ _JOIN_REFUSALS = {
     "expired": ERROR_INVITE_EXPIRED,
     "friends_only": ERROR_FRIENDS_ONLY,
     "room_locked": ERROR_ROOM_LOCKED,
+    "update_required": ERROR_UPDATE_REQUIRED,
 }
 
 _SESSION_ID = re.compile(r"session-([0-9a-f]{16})\.")
@@ -3546,7 +3548,7 @@ class MultiplayerService:
                 )
                 if not await link.open():
                     self._shut()
-                    return {"ok": False, "error": ERROR_LOBBY_UNREACHABLE}
+                    return {"ok": False, "error": ERROR_UPDATE_REQUIRED if link.outdated else ERROR_LOBBY_UNREACHABLE}
                 self._link = link
             meet = await asyncio.to_thread(stream_room.resolve_meet, server) if online else None
             digest = hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b""
@@ -4479,6 +4481,8 @@ class MultiplayerService:
         hello = proto.read_hello(opening)
         room = self._room
         if hello is None:
+            if proto.too_old(opening) and opening.get("op") in ("info", "join"):
+                await conversation.say({"ok": False, "error": "update_required"})
             return
         op, opened = hello
         if room is None:
@@ -5489,13 +5493,15 @@ class MultiplayerService:
                 if generation != self._page_gen:
                     return
                 listing = await self._page_listing(server, page, find)
-        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
+        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError,
+                lobby_client.UpdateRequired) as e:
             if generation != self._page_gen or (mode != "page" and self._online):
                 return
+            update = isinstance(e, lobby_client.UpdateRequired)
             if not self._online_error:
                 decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
             self._online = {}
-            self._online_error = "unreachable"
+            self._online_error = "update_required" if update else "unreachable"
             self._page_info = NO_PAGE_INFO
             return
         if generation != self._page_gen:
@@ -5590,11 +5596,14 @@ class MultiplayerService:
                 asking["u"] = me
             writer.write(frame(asking))
             await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
-            row = proto.read_room(await asyncio.wait_for(read_frame(reader), HANDSHAKE_SECONDS))
+            reply = await asyncio.wait_for(read_frame(reader), HANDSHAKE_SECONDS)
+            row = proto.read_room(reply)
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError):
-            row = None
+            reply = row = None
         finally:
             writer.close()
+        if row is None and isinstance(reply, dict) and reply.get("error") == "update_required":
+            return {"ok": False, "error": ERROR_UPDATE_REQUIRED}
         if row is None:
             return {"ok": False, "error": ERROR_NOT_FOUND}
         row.update(address=address, door="lan", away=False)
@@ -5750,6 +5759,8 @@ class MultiplayerService:
         own = (writer.get_extra_info("sockname") or ("",))[0]
         try:
             hello = await read_frame(reader)
+            if hello.get("op") == "update_required":
+                return {"ok": False, "error": ERROR_UPDATE_REQUIRED}
             if hello.get("ok") is False:
                 return {"ok": False, "error": _JOIN_REFUSALS.get(hello.get("error"), ERROR_HOST_GONE)}
             ns = hello.get("ns")

@@ -774,7 +774,8 @@ function RoomsModal(props: RoomsModalProps) {
                 )}
                 {onlineError && (
                     <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px", paddingLeft: LINE_INSET }}>
-                        {t(language, "Couldn't reach the online lobby. Local rooms still show.")}
+                        {t(language, onlineError === "update_required" ? "Update CheevoDeck to use Play Together."
+                            : "Couldn't reach the online lobby. Local rooms still show.")}
                     </div>
                 )}
                 <div

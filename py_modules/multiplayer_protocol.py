@@ -12,6 +12,7 @@ PORT = 49732
 
 KIND = "cheevodeck.play"
 VERSION = 5
+MIN_VERSION = 5
 
 MAX_FRAME_BYTES = 16384
 
@@ -275,12 +276,19 @@ def read_seek(message):
     return nonce
 
 
+def version_ok(version) -> bool:
+    return type(version) is int and version >= MIN_VERSION
+
+
+def too_old(message) -> bool:
+    return isinstance(message, dict) and type(message.get("v")) is int and message["v"] < MIN_VERSION
+
+
 def _ours(message) -> bool:
     return (
         isinstance(message, dict)
         and message.get("k") == KIND
-        and type(message.get("v")) is int
-        and message.get("v") == VERSION
+        and version_ok(message.get("v"))
     )
 
 
@@ -505,8 +513,7 @@ def joined_tag(key: bytes, nc: str, ns: str, seat: int, ip: str, ga: str, gb: st
 def read_hello(message):
     if not isinstance(message, dict):
         return None
-    version = message.get("v")
-    if type(version) is not int or version != VERSION:
+    if not version_ok(message.get("v")):
         return None
     op = message.get("op")
     if op == "info":

@@ -3541,6 +3541,7 @@ const RU: LocaleTable = {
     "Invite sent to {{name}}": "Приглашение отправлено: {{name}}",
     "No friends to invite yet.": "Пока некого позвать.",
     "They left the room. Add them by name instead.": "Этот человек вышел из комнаты. Добавь его по имени в RetroAchievements.",
+    "Update CheevoDeck to use Play Together.": "Обнови CheevoDeck, чтобы пользоваться Play Together.",
     "Someone else is in that seat now": "Это место уже занял другой игрок",
     "Pick a friend to invite to your room.": "Выбери друга, чтобы позвать в свою комнату.",
     "Looking up {{name}}...": "Поиск: {{name}}...",

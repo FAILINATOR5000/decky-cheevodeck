@@ -26,6 +26,7 @@ const FRIEND_ERRORS: Record<string, string> = {
     ra_unreachable: "Couldn't reach RetroAchievements",
     host_gone: "Lost the host",
     not_friends: "They aren't friends with you on this device",
+    update_required: "Update CheevoDeck to use Play Together.",
     mailbox_full: "Their mailbox is full",
     full: "That room is full",
     dropped: "The host dropped you from the room",

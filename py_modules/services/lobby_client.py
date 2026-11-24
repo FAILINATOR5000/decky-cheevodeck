@@ -118,6 +118,10 @@ async def read_envelope_or_skip(reader):
         return None
 
 
+class UpdateRequired(Exception):
+    pass
+
+
 async def list_rooms(server, ulid: str = "", page=None, census=None) -> dict:
     return await asyncio.wait_for(_list_rooms(server, ulid, page, census), LIST_SECONDS)
 
@@ -141,6 +145,8 @@ async def _list_rooms(server, ulid: str, page, census) -> dict:
             if message is None:
                 continue
             op = message.get("op")
+            if op == "update_required":
+                raise UpdateRequired()
             if op == "room":
                 rooms.append((message.get("room"), message.get("away") is True))
                 continue
@@ -231,6 +237,7 @@ class HostLink:
         self.server = server
         self.secret = secrets.token_hex(16)
         self.up = False
+        self.outdated = False
         self._body = body
         self._on_request = on_request
         self._on_tunnel = on_tunnel
@@ -319,6 +326,11 @@ class HostLink:
         except BaseException:
             writer.close()
             raise
+        if hello.get("op") == "update_required":
+            self._log("the online lobby needs a newer CheevoDeck")
+            self.outdated = True
+            writer.close()
+            return None
         if hello.get("op") != "hosted" or hello.get("ok") is not True:
             error = hello.get("error")
             self._log("the online lobby refused the room (%s)", error if error in REFUSALS else "no reason")

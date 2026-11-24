@@ -3469,6 +3469,7 @@ export const EN: LocaleTable = {
     "Invite sent to {{name}}": "Invite sent to {{name}}",
     "No friends to invite yet.": "No friends to invite yet.",
     "They left the room. Add them by name instead.": "They left the room. Add them by name instead.",
+    "Update CheevoDeck to use Play Together.": "Update CheevoDeck to use Play Together.",
     "Someone else is in that seat now": "Someone else is in that seat now",
     "Pick a friend to invite to your room.": "Pick a friend to invite to your room.",
     "Looking up {{name}}...": "Looking up {{name}}...",

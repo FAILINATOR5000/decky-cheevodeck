@@ -3504,6 +3504,7 @@ const ES: LocaleTable = {
     "Invite sent to {{name}}": "Invitación enviada a {{name}}",
     "No friends to invite yet.": "Aún no tienes amigos a los que invitar.",
     "They left the room. Add them by name instead.": "Esa persona salió de la sala. Añádela por su nombre.",
+    "Update CheevoDeck to use Play Together.": "Actualiza CheevoDeck para usar Play Together.",
     "Someone else is in that seat now": "Ahora hay otra persona en ese asiento",
     "Pick a friend to invite to your room.": "Elige a un amigo para invitarlo a tu sala.",
     "Looking up {{name}}...": "Buscando {{name}}...",

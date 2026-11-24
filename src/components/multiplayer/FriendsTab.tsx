@@ -166,8 +166,9 @@ export function FriendsTab(props: FriendsTabProps) {
         : !data.on ? "Friends are off. Turn them on in Options, Social."
             : data.standby ? "Friends are paused while Standby is on."
                 : !data.server ? "Set a lobby server in Options first"
-                    : data.refused ? "The lobby server refused this device"
-                        : !data.up ? "Connecting to the lobby server..." : "";
+                    : data.refused === "update" ? "Update CheevoDeck to use Play Together."
+                        : data.refused ? "The lobby server refused this device"
+                            : !data.up ? "Connecting to the lobby server..." : "";
 
     const statusLabel = t(language, shown ? "Status: Online" : "Status: Hidden");
     const stateAt = statusLabel.search(/[:：]/) + 1;

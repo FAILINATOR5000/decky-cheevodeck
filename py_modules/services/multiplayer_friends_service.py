@@ -422,6 +422,11 @@ class MultiplayerFriendsService:
             writer.write(lobby_client.envelope({"op": "device", "v": proto.VERSION, "device": data["deviceId"]}))
             await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
             challenge = await asyncio.wait_for(lobby_client.read_envelope(reader), REPLY_SECONDS)
+            if challenge.get("op") == "update_required":
+                self._refused = "update"
+                decky.logger.warning("friends: the lobby server needs a newer CheevoDeck")
+                self._changed()
+                return False
             nonce = challenge.get("n")
             if challenge.get("op") != "challenge" or not proto.is_nonce(nonce):
                 return False
@@ -1497,7 +1502,7 @@ class MultiplayerFriendsService:
         if (
             not isinstance(message, dict)
             or message.get("k") != FRIEND_KIND
-            or message.get("v") != proto.VERSION
+            or not proto.version_ok(message.get("v"))
             or message.get("from") == self._me()
         ):
             return

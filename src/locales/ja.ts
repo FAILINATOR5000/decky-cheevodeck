@@ -3327,6 +3327,7 @@ const JA: LocaleTable = {
     "Invite sent to {{name}}": "{{name}}に招待を送りました",
     "No friends to invite yet.": "招待できるフレンドがまだいません。",
     "They left the room. Add them by name instead.": "相手はルームを退出しました。名前で追加してください。",
+    "Update CheevoDeck to use Play Together.": "Play Togetherを使うにはCheevoDeckを更新してください。",
     "Someone else is in that seat now": "その席には別の人が座っています",
     "Pick a friend to invite to your room.": "ルームに招待するフレンドを選んでください。",
     "Looking up {{name}}...": "{{name}}を検索中...",
