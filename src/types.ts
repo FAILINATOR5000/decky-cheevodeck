@@ -3294,7 +3294,7 @@ export type MultiplayerFriend = {
     added: number;
 };
 
-export type MultiplayerFriendRequest = { ulid: string; name: string; pic: string; way: "in" | "out"; at: number };
+export type MultiplayerFriendRequest = { ulid: string; name: string; pic: string; way: "in" | "out"; at: number; accepted: boolean };
 
 export type MultiplayerSuggestion = { ulid: string; name: string; pic: string };
 

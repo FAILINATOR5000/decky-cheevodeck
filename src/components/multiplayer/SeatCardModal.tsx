@@ -20,7 +20,7 @@ export type SeatCardOptions = {
     game: string;
     ulid: string;
     avatar: string | undefined;
-    relation: "friend" | "pending" | "none";
+    relation: "friend" | "incoming" | "accepted" | "outgoing" | "none";
     canDrop: boolean;
     friendsOn: boolean;
     openMessages: (() => void) | null;
@@ -79,7 +79,7 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         close();
     }
 
-    const canAsk = props.friendsOn && Boolean(props.ulid) && props.relation === "none";
+    const canAsk = props.friendsOn && Boolean(props.ulid) && (props.relation === "none" || props.relation === "incoming");
     const voice = useVoiceChat();
     const heard = props.voice && voice.on ? voice.seats[props.index] : undefined;
     const inVoice = Boolean(heard?.inVoice);
@@ -100,8 +100,14 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                     <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, overflowWrap: "anywhere" }}>{props.name}</div>
                     {props.game && <div style={modalBodyStyle()}>{props.game}</div>}
-                    {props.relation === "pending" && (
+                    {props.relation === "incoming" && (
                         <div style={modalBodyStyle()}>{t(language, "Friend request waiting")}</div>
+                    )}
+                    {props.relation === "outgoing" && (
+                        <div style={modalBodyStyle()}>{t(language, "Request sent")}</div>
+                    )}
+                    {props.relation === "accepted" && (
+                        <div style={modalBodyStyle()}>{t(language, "Accepted. Waiting for {{name}}.", { name: props.name })}</div>
                     )}
                 </div>
             </div>
@@ -114,7 +120,7 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 {canAsk && (
                     <div data-focus-key="multiplayer:seatcard:add">
-                        <DialogButton onClick={() => void addFriend()} disabled={busy}>{t(language, "Add Friend")}</DialogButton>
+                        <DialogButton onClick={() => void addFriend()} disabled={busy}>{t(language, props.relation === "incoming" ? "Accept" : "Add Friend")}</DialogButton>
                     </div>
                 )}
                 {props.ulid && (

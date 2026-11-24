@@ -55,7 +55,7 @@ function useWaiting(): Waiting | null {
         const count = (state: MultiplayerFriendsState): Waiting => ({
             on: state.on,
             unread: (state.friends ?? []).reduce((sum, friend) => sum + friend.unread, 0),
-            requests: (state.requests ?? []).filter((request) => request.way === "in").length,
+            requests: (state.requests ?? []).filter((request) => request.way === "in" && !request.accepted).length,
             online: (state.friends ?? []).filter((friend) => friend.online).length
         });
         async function load() {

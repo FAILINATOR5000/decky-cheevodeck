@@ -694,7 +694,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             ulid: ulid === data?.me ? "" : ulid,
             avatar: pic ? friends.state.avatars[pic] : undefined,
             relation: friend ? "friend"
-                : data?.requests.some((request) => request.ulid === ulid) ? "pending" : "none",
+                : data?.requests.some((request) => request.ulid === ulid && request.way === "in" && request.accepted) ? "accepted"
+                    : data?.requests.some((request) => request.ulid === ulid && request.way === "in") ? "incoming"
+                        : data?.requests.some((request) => request.ulid === ulid) ? "outgoing" : "none",
             canDrop: hosted !== null && index > 0,
             friendsOn: Boolean(data?.on),
             voice: voice.on,

@@ -109,6 +109,8 @@ def _request(raw):
         "way": raw["way"],
         "pairKey": key,
         "via": raw.get("via") if raw.get("via") in VIAS else "server",
+        "fromSeat": raw.get("fromSeat") is True,
+        "accepted": raw.get("accepted") is True,
     }
 
 
@@ -117,21 +119,36 @@ def _rows(raw: dict, name: str) -> list:
     return value if isinstance(value, list) else []
 
 
-def _unique(rows, limit):
+def _unique(rows, limit, key=lambda row: row["ulid"]):
     seen = set()
     out = []
     for row in rows:
-        if row is None or row["ulid"] in seen:
+        if row is None or key(row) in seen:
             continue
-        seen.add(row["ulid"])
+        seen.add(key(row))
         out.append(row)
     return out[-limit:]
+
+
+def _outbox_entry(row):
+    if not isinstance(row, dict) or not is_ulid(row.get("ulid")):
+        return None
+    op = row.get("op")
+    if op == "remove" and _hex64(row.get("t")):
+        return {"op": "remove", "ulid": row["ulid"], "t": row["t"]}
+    if op == "withdraw" and _hex64(row.get("key")):
+        return {"op": "withdraw", "ulid": row["ulid"], "key": row["key"]}
+    if op == "answer" and _hex64(row.get("key")) and type(row.get("accept")) is bool:
+        return {"op": "answer", "ulid": row["ulid"], "key": row["key"], "accept": row["accept"], "at": _ts(row.get("at")),
+                "name": clean_name(row.get("name")) or "?", "pic": clean_pic(row.get("pic"))}
+    return None
 
 
 def normalize(raw: dict) -> dict:
     friends = _unique([_friend(row) for row in _rows(raw, "friends")], MAX_FRIENDS)
     friend_ids = {friend["ulid"] for friend in friends}
-    requests = _unique([_request(row) for row in _rows(raw, "requests")], MAX_REQUESTS)
+    requests = _unique([_request(row) for row in _rows(raw, "requests")], MAX_REQUESTS,
+                       key=lambda row: (row["ulid"], row["way"]))
     requests = [request for request in requests if request["way"] == "in" or request["ulid"] not in friend_ids]
     now = time.time()
     requests = [request for request in requests if now - request["at"] < REQUEST_MAX_AGE_SECONDS]
@@ -144,8 +161,9 @@ def normalize(raw: dict) -> dict:
             alerts.append({"device": row["device"], "at": _ts(row.get("at"))})
     outbox = []
     for row in _rows(raw, "outbox"):
-        if isinstance(row, dict) and row.get("op") == "remove" and is_ulid(row.get("ulid")) and _hex64(row.get("t")):
-            outbox.append({"op": "remove", "ulid": row["ulid"], "t": row["t"]})
+        entry = _outbox_entry(row)
+        if entry is not None and (entry["op"] != "answer" or now - entry["at"] < REQUEST_MAX_AGE_SECONDS):
+            outbox.append(entry)
     known = friend_ids | {request["ulid"] for request in requests}
     dismissed = []
     for ulid in _rows(raw, "dismissed"):

@@ -733,7 +733,7 @@ def read_status_reply(key: bytes, message, nonce: str):
     }
 
 
-FRIEND_ACTS = ("ask", "accept", "decline")
+FRIEND_ACTS = ("ask", "accept", "decline", "got")
 INBOX_MAX = 8
 
 
@@ -749,10 +749,12 @@ def read_inbox_item(raw):
         return None
     if raw["act"] == "ask" and (not is_nonce(raw.get("n")) or not isinstance(raw.get("k"), str)):
         return None
+    if raw["act"] == "got" and type(raw.get("ok")) is not bool:
+        return None
     if not is_ulid(raw.get("ulid")):
         return None
     return {"seq": raw["seq"], "from": raw["from"], "ulid": raw["ulid"], "act": raw["act"], "n": raw.get("n", ""),
-            "k": raw.get("k", "")}
+            "k": raw.get("k", ""), "ok": raw.get("ok") is True}
 
 
 def read_friend_ask(raw):
@@ -763,7 +765,9 @@ def read_friend_ask(raw):
         return None
     if raw["act"] == "ask" and (not is_nonce(raw.get("n")) or not isinstance(raw.get("k"), str)):
         return None
-    return {"act": raw["act"], "to": to, "n": raw.get("n", ""), "k": raw.get("k", "")}
+    if raw["act"] == "got" and type(raw.get("ok")) is not bool:
+        return None
+    return {"act": raw["act"], "to": to, "n": raw.get("n", ""), "k": raw.get("k", ""), "ok": raw.get("ok") is True}
 
 
 def inbox_since(raw) -> int:

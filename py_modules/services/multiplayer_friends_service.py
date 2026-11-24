@@ -31,6 +31,9 @@ DATAGRAM_BYTES = 2048
 DATAGRAMS_PER_SECOND = 20
 DATAGRAMS_PER_SECOND_ALL = 100
 INCOMING_REQUESTS_MAX = 100
+GOT_SECONDS = 20
+GOT_AFTER_TAKEN_SECONDS = 6
+RESEND_SECONDS = 60
 NOTICE_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 NOTICE_CHARS = 4000
 PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
@@ -148,6 +151,11 @@ class MultiplayerFriendsService:
         self._milestone_event = None
         self._held_notice = None
         self._holding_notices = False
+        self._held_answers = None
+        self._delivering = False
+        self._pushed = {}
+        self._pushed_at = {}
+        self._assumed = {}
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -192,6 +200,7 @@ class MultiplayerFriendsService:
         self._suggestions = []
         self._invites = {}
         self._refused = ""
+        self._held_answers = None
         self._set_up(False)
         self._follow()
 
@@ -232,10 +241,12 @@ class MultiplayerFriendsService:
 
     def _mutate(self, change, ulid=None):
         try:
-            _data, result = self._store.mutate(change, ulid=ulid)
+            data, result = self._store.mutate(change, ulid=ulid)
         except Exception as e:
             decky.logger.warning("friends: couldn't save (%s)", type(e).__name__)
             return None
+        if data is not None:
+            self._held_answers = {entry["ulid"] for entry in data["outbox"] if entry["op"] == "answer"}
         if result:
             self._report_stale = True
             self._changed()
@@ -457,10 +468,12 @@ class MultiplayerFriendsService:
             self._session_account = self._me()
             self._acks = []
             self._writer = writer
+            known = self._server_rows()
             self._set_up(True)
             decky.logger.info("friends: online")
             keeper = asyncio.ensure_future(self._keep())
             flusher = asyncio.ensure_future(self._flush_outbox())
+            settler = asyncio.ensure_future(self._settle(welcome, known))
             try:
                 while True:
                     message = await asyncio.wait_for(lobby_client.read_envelope_or_skip(reader), SILENT_SECONDS)
@@ -469,6 +482,7 @@ class MultiplayerFriendsService:
             finally:
                 keeper.cancel()
                 flusher.cancel()
+                settler.cancel()
         finally:
             writer.close()
             if self._up:
@@ -511,6 +525,8 @@ class MultiplayerFriendsService:
                 if writer is not self._writer:
                     return False
                 writer.write(lobby_client.envelope(message))
+                if message.get("op") == "ping":
+                    self._pings += 1
                 writer.write(lobby_client.envelope({"op": "ping"}))
                 self._pings += 1
                 entry = (self._pings, future)
@@ -544,6 +560,14 @@ class MultiplayerFriendsService:
         await self._send({"op": "update", **report})
 
     def room_changed(self) -> None:
+        if self._held_answers is None:
+            data = self._data()
+            self._held_answers = {entry["ulid"] for entry in data["outbox"] if entry["op"] == "answer"} \
+                if data is not None else set()
+        if self._held_answers and not self._delivering \
+                and any(self._mp.seat_of(ulid) is not None for ulid in self._held_answers):
+            self._delivering = True
+            self._spawn(self._deliver_held())
         if not self._up:
             return
         room = self._mp.current_room()
@@ -571,20 +595,30 @@ class MultiplayerFriendsService:
         finally:
             self._waiting.pop(key, None)
 
+    def _flush_soon(self) -> None:
+        if self._up:
+            self._spawn(self._flush_outbox())
+
     async def _flush_outbox(self) -> None:
         data = self._data()
         if data is None or not data["outbox"]:
             return
         sent = []
         for entry in data["outbox"]:
-            if not await self._confirmed({"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}):
+            if entry["op"] == "remove":
+                message = {"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}
+            elif entry["op"] == "withdraw":
+                message = {"op": "withdraw", "to": entry["ulid"], "key": entry["key"]}
+            else:
+                continue
+            if not await self._confirmed(message):
                 break
-            sent.append((entry["ulid"], entry["t"]))
+            sent.append(entry)
             await asyncio.sleep(OUTBOX_GAP_SECONDS)
 
         def drop(stored):
             before = len(stored["outbox"])
-            stored["outbox"] = [entry for entry in stored["outbox"] if (entry["ulid"], entry["t"]) not in sent]
+            stored["outbox"] = [entry for entry in stored["outbox"] if entry not in sent]
             return len(stored["outbox"]) != before
         self._mutate(drop)
 
@@ -596,7 +630,7 @@ class MultiplayerFriendsService:
                 if target <= self._pongs and not future.done():
                     future.set_result(True)
             return
-        if op in ("request_ok", "request_no", "msg_ok", "msg_no", "invite_ok", "invite_no"):
+        if op in ("request_ok", "request_no", "answer_ok", "answer_no", "msg_ok", "msg_no", "invite_ok", "invite_no"):
             key = message.get("rid") or message.get("mid") or message.get("iid")
             future = self._waiting.get(f"{op.split('_')[0]}:{key}") if isinstance(key, str) else None
             if future is not None and not future.done():
@@ -729,19 +763,27 @@ class MultiplayerFriendsService:
         key = message.get("key")
         me = self._me()
         if kind == "request":
+            at = message.get("at")
+            if type(at) is not int or not 0 < at <= time.time() + CLOCK_SKEW_SECONDS:
+                at = int(time.time())
             if is_ulid(ulid) and ulid != me and name and proto.is_key(key):
-                self._incoming(ulid, name, pic, key, "server")
+                self._incoming(ulid, name, pic, key, "server", at)
         elif kind == "accepted":
             if is_ulid(ulid) and name:
-                self._accepted(ulid, name, pic, "server")
+                self._accepted(ulid, name, pic, "server", key if proto.is_key(key) else None)
         elif kind == "friend_added":
             data = self._data()
-            waiting = self._request_row(data, ulid) if data is not None and is_ulid(ulid) else None
-            if waiting is not None and waiting["way"] == "in" and waiting["pairKey"] == key:
+            waiting = self._request_row(data, ulid, "in") if data is not None and is_ulid(ulid) else None
+            if waiting is not None and waiting["pairKey"] == key:
                 self._befriend(ulid, waiting["name"], waiting["userPic"], waiting["pairKey"], "server")
         elif kind == "request_gone":
             if is_ulid(ulid):
-                self._drop_request(ulid, "server")
+                self._drop_request(ulid, "in", key if proto.is_key(key) else None)
+                if proto.is_key(key):
+                    self._unhold(ulid, key)
+        elif kind == "request_closed":
+            if is_ulid(ulid) and proto.is_key(key):
+                self._drop_request(ulid, "out", key)
         elif kind == "removed":
             data = self._data()
             friend = self._find(data, ulid) if data is not None and is_ulid(ulid) else None
@@ -764,39 +806,81 @@ class MultiplayerFriendsService:
     def _find(self, data, ulid: str):
         return next((friend for friend in data["friends"] if friend["ulid"] == ulid), None)
 
-    def _request_row(self, data, ulid: str):
-        return next((request for request in data["requests"] if request["ulid"] == ulid), None)
+    def _request_row(self, data, ulid: str, way: str):
+        return next((request for request in data["requests"] if request["ulid"] == ulid and request["way"] == way),
+                    None)
 
-    def _incoming(self, ulid: str, name: str, pic: str, key: str, via: str) -> bool:
+    def _held(self, data, ulid: str):
+        return next((entry for entry in data["outbox"] if entry["op"] == "answer" and entry["ulid"] == ulid), None)
+
+    def _incoming(self, ulid: str, name: str, pic: str, key: str, via: str, at=None) -> bool:
+        seen = {}
+
         def keep(stored):
+            held = self._held(stored, ulid)
+            if held is not None and held["key"] == key:
+                if via == "server":
+                    seen["answer"] = held["accept"]
+                return False
             friend = self._find(stored, ulid)
             if friend is not None and friend["pairKey"] == key:
+                if via == "server":
+                    seen["answer"] = True
                 return False
-            mine = self._request_row(stored, ulid)
-            if mine is not None and mine["way"] == "in":
+            own = self._request_row(stored, ulid, "out")
+            if via == "local" and own is not None and (own["via"] == "server" or self._me() < ulid):
+                seen["yielded"] = True
+                return False
+            mine = self._request_row(stored, ulid, "in")
+            if mine is not None and mine["pairKey"] == key:
+                if via == "server" and mine["via"] == "local":
+                    mine["via"] = "server"
+                    mine["at"] = at or int(time.time())
+                    return True
                 return False
             if mine is None and sum(1 for row in stored["requests"] if row["way"] == "in") >= INCOMING_REQUESTS_MAX:
                 return False
+            if held is not None:
+                stored["outbox"].remove(held)
             if mine is not None:
                 stored["requests"].remove(mine)
-            stored["requests"].append({"ulid": ulid, "name": name, "userPic": pic, "at": int(time.time()),
-                                       "way": "in", "pairKey": key, "via": via})
+            stored["requests"].append({"ulid": ulid, "name": name, "userPic": pic, "at": at or int(time.time()),
+                                       "way": "in", "pairKey": key, "via": via, "fromSeat": False})
+            seen["new"] = True
             return True
-        if self._mutate(keep):
-            self._notify("request", name, f"multiplayer:request:{ulid}", {"friend": ulid}, pic=pic)
-            self._follow()
+        self._mutate(keep)
+        if "answer" in seen:
+            self._spawn(self._send_held(ulid, key, seen["answer"]))
+        if "yielded" in seen:
             return True
-        return False
+        if "new" not in seen:
+            return False
+        self._notify("request", name, f"multiplayer:request:{ulid}", {"friend": ulid}, pic=pic)
+        self._follow()
+        return True
 
-    def _accepted(self, ulid: str, name: str, pic: str, via: str) -> bool:
+    def _accepted(self, ulid: str, name: str, pic: str, via: str, key=None) -> bool:
         made = {}
 
         def keep(stored):
-            mine = self._request_row(stored, ulid)
-            if mine is None or mine["way"] != "out" or mine["via"] != via:
+            mine = self._request_row(stored, ulid, "out")
+            if mine is not None and key is not None and mine["pairKey"] != key:
                 return False
-            stored["requests"].remove(mine)
-            if via == "server":
+            if mine is None:
+                waiting = {"op": "withdraw", "ulid": ulid, "key": key}
+                friend = self._find(stored, ulid)
+                if via != "server" or key is None or waiting not in stored["outbox"]:
+                    return False
+                stored["outbox"].remove(waiting)
+                made["rekeyed"] = True
+                if friend is None:
+                    stored["outbox"].append({"op": "remove", "ulid": ulid, "t": _sign(key, "remove", {"to": ulid})})
+                    return True
+                friend["pairKey"] = key
+                friend["via"] = via
+                return True
+            self._drop_rows(stored, ulid, mine["pairKey"] if via == "server" else None)
+            if via == "server" and not mine["fromSeat"]:
                 stored["friends"].append({"ulid": ulid, "name": mine["name"], "pairKey": mine["pairKey"],
                                           "userPic": mine["userPic"] or pic, "added": int(time.time()),
                                           "via": via, "healedAt": int(time.time()), "healTriedAt": 0})
@@ -807,6 +891,10 @@ class MultiplayerFriendsService:
             made.update(stored["friends"][-1])
             return True
         if self._mutate(keep):
+            if made.get("rekeyed"):
+                self._flush_soon()
+                return True
+            self._flush_soon()
             self._heal.friend_added()
             self._notify("accepted", made["name"], f"multiplayer:friend:{ulid}", {"friend": ulid}, pic=made["userPic"])
             self._follow()
@@ -816,11 +904,16 @@ class MultiplayerFriendsService:
             return True
         return False
 
+    def _drop_rows(self, stored: dict, ulid: str, settled=None) -> None:
+        stored["outbox"] = [entry for entry in stored["outbox"] if entry["op"] != "answer" or entry["ulid"] != ulid]
+        for row in [row for row in stored["requests"] if row["ulid"] == ulid]:
+            stored["requests"].remove(row)
+            if row["way"] == "out" and row["via"] == "server" and row["pairKey"] != settled:
+                stored["outbox"].append({"op": "withdraw", "ulid": ulid, "key": row["pairKey"]})
+
     def _befriend(self, ulid: str, name: str, pic: str, key: str, via: str) -> None:
         def keep(stored):
-            mine = self._request_row(stored, ulid)
-            if mine is not None:
-                stored["requests"].remove(mine)
+            self._drop_rows(stored, ulid)
             friend = self._find(stored, ulid)
             if friend is not None:
                 friend["pairKey"] = key
@@ -831,14 +924,15 @@ class MultiplayerFriendsService:
                                       "healedAt": 0, "healTriedAt": 0})
             return True
         if self._mutate(keep):
+            self._flush_soon()
             self._heal.friend_added()
             self._follow()
             self.report_changed()
 
-    def _drop_request(self, ulid: str, via=None) -> None:
+    def _drop_request(self, ulid: str, way: str, key=None) -> None:
         def drop(stored):
-            mine = self._request_row(stored, ulid)
-            if mine is None or (via is not None and mine["via"] != via):
+            mine = self._request_row(stored, ulid, way)
+            if mine is None or (key is not None and mine["pairKey"] != key):
                 return False
             stored["requests"].remove(mine)
             return True
@@ -890,8 +984,21 @@ class MultiplayerFriendsService:
         if not self._on() or not is_ulid(ulid) or not name or not self._claim_ok(ulid, name):
             return False
         if accepted:
-            return self._accepted(ulid, name, clean_pic(pic), "local")
-        self._drop_request(ulid, "local")
+            if self._accepted(ulid, name, clean_pic(pic), "local"):
+                return True
+            data = self._data()
+            return data is not None and self._find(data, ulid) is not None
+
+        def drop(stored):
+            mine = self._request_row(stored, ulid, "out")
+            if mine is None:
+                return False
+            stored["requests"].remove(mine)
+            if mine["via"] == "server":
+                stored["outbox"].append({"op": "withdraw", "ulid": ulid, "key": mine["pairKey"]})
+            return True
+        self._mutate(drop)
+        self._flush_soon()
         return True
 
     def _notify(self, kind: str, name: str, land: str, meta: dict, text: str = "", pic: str = "") -> None:
@@ -946,8 +1053,11 @@ class MultiplayerFriendsService:
                     "added": friend["added"],
                 })
             friends.sort(key=lambda row: (not row["online"], row["name"].lower()))
+            asking = {request["ulid"] for request in data["requests"] if request["way"] == "in"}
             requests = [{"ulid": request["ulid"], "name": request["name"], "pic": request["userPic"],
-                         "way": request["way"], "at": request["at"]} for request in data["requests"]]
+                         "way": request["way"], "at": request["at"], "accepted": request["accepted"]}
+                        for request in data["requests"]
+                        if request["way"] == "in" or request["ulid"] not in asking]
             alerts = list(data["alerts"])
         known = {row["ulid"] for row in friends} | {row["ulid"] for row in requests}
         if data is not None:
@@ -1020,27 +1130,21 @@ class MultiplayerFriendsService:
             return {"ok": False, "error": "unavailable"}
         if self._find(data, ulid) is not None:
             return {"ok": False, "error": "already"}
-        waiting = self._request_row(data, ulid)
-        if waiting is not None and waiting["way"] == "in":
+        if self._request_row(data, ulid, "in") is not None:
             answered = await self.answer(ulid, True)
-            return {**answered, "ulid": ulid, "friend": True} if answered["ok"] else answered
-        if waiting is not None:
+            return {**answered, "ulid": ulid, "friend": not answered.get("waiting")} if answered["ok"] else answered
+        if self._request_row(data, ulid, "out") is not None:
             return {"ok": False, "error": "pending"}
         if not await self._until_up():
-            return {"ok": False, "error": "offline"}
+            return self._unreachable()
         key = secrets.token_hex(32)
-        rid = secrets.token_hex(8)
-        reply = await self._ask({"op": "request", "rid": rid, "to": ulid, "name": self._my_name(),
-                                 "pic": data["selfPic"], "key": key}, "request:" + rid)
-        if reply is None:
-            return {"ok": False, "error": "offline"}
-        if reply.get("op") != "request_ok":
-            error = reply.get("error")
-            return {"ok": False, "error": error if error in ("pending", "limit", "self") else "unavailable"}
+        asked = await self._ask_server(data, ulid, key)
+        if not asked["ok"]:
+            return asked
 
         def keep(stored):
             stored["requests"].append({"ulid": ulid, "name": cased, "userPic": pic, "at": int(time.time()),
-                                       "way": "out", "pairKey": key, "via": "server"})
+                                       "way": "out", "pairKey": key, "via": "server", "fromSeat": False})
             return True
         self._mutate(keep, ulid=account)
         self._follow()
@@ -1060,18 +1164,26 @@ class MultiplayerFriendsService:
             return {"ok": False, "error": "unavailable"}
         if self._find(data, ulid) is not None:
             return {"ok": False, "error": "already"}
-        waiting = self._request_row(data, ulid)
-        if waiting is not None and waiting["way"] == "in":
+        if self._request_row(data, ulid, "in") is not None:
             return await self.answer(ulid, True)
-        if waiting is not None:
+        if self._request_row(data, ulid, "out") is not None:
             return {"ok": False, "error": "pending"}
         key = secrets.token_bytes(32)
-        if not await self._mp.send_friend(seat, "ask", key):
-            return {"ok": False, "error": "unavailable"}
+        if self._mp.lobby_server() is not None and await self._until_up():
+            via = "server"
+            asked = await self._ask_server(data, ulid, key.hex())
+            if not asked["ok"]:
+                return asked
+            self._yield_crossed(ulid)
+        else:
+            via = "local"
+            if not await self._mp.send_friend(seat, "ask", key):
+                return {"ok": False, "error": "unavailable"}
 
         def keep(stored):
             stored["requests"].append({"ulid": ulid, "name": person["name"], "userPic": person["pic"],
-                                       "at": int(time.time()), "way": "out", "pairKey": key.hex(), "via": "local"})
+                                       "at": int(time.time()), "way": "out", "pairKey": key.hex(), "via": via,
+                                       "fromSeat": True})
             return True
         self._mutate(keep, ulid=account)
         self._follow()
@@ -1079,30 +1191,288 @@ class MultiplayerFriendsService:
 
     async def answer(self, ulid: str, accept: bool) -> dict:
         data = self._data()
-        request = self._request_row(data, ulid) if data is not None and is_ulid(ulid) else None
+        if data is None or not is_ulid(ulid):
+            return {"ok": False, "error": "no_request"}
+        request = self._request_row(data, ulid, "in") or self._request_row(data, ulid, "out")
         if request is None:
             return {"ok": False, "error": "no_request"}
         if request["way"] == "out":
             if accept:
                 return {"ok": False, "error": "no_request"}
-            if request["via"] == "server" and not (await self._until_up()
-                                                   and await self._confirmed({"op": "withdraw", "to": ulid})):
-                return {"ok": False, "error": "offline"}
-            self._drop_request(ulid)
+            if request["via"] == "server" and not (await self._until_up() and await self._confirmed(
+                    {"op": "withdraw", "to": ulid, "key": request["pairKey"]})):
+                return self._unreachable()
+            self._drop_request(ulid, "out")
             return {"ok": True}
-        if request["via"] == "local":
-            seat = self._mp.seat_of(ulid)
-            delivered = seat is not None and await self._mp.send_friend(seat, "accept" if accept else "decline")
-            if not delivered and accept:
-                return {"ok": False, "error": "left_room"}
-        elif not (await self._until_up()
-                  and await self._confirmed({"op": "answer", "to": ulid, "accept": bool(accept)})):
-            return {"ok": False, "error": "offline"}
+        if request["via"] == "server":
+            if not await self._until_up():
+                return self._unreachable()
+            settled = await self._answer_server(ulid, accept, request["pairKey"])
+            if settled is None:
+                return self._unreachable()
+            if not settled:
+                self._drop_request(ulid, "in")
+                return {"ok": False, "error": "no_request"}
+        else:
+            sent = await self._answer_local(ulid, accept, request["pairKey"])
+            if sent == "refused":
+                self._unhold(ulid, request["pairKey"])
+                self._drop_request(ulid, "in", request["pairKey"])
+                return {"ok": False, "error": "no_request"}
+            if sent != "done":
+                self._hold(request, accept)
+                if sent == "pushed":
+                    self._await_got(ulid, request["pairKey"])
+                if accept:
+                    return {"ok": True, "waiting": True}
+                self._drop_request(ulid, "in")
+                return {"ok": True}
+        self._unhold(ulid, request["pairKey"])
         if accept:
             self._befriend(ulid, request["name"], request["userPic"], request["pairKey"], request["via"])
         else:
-            self._drop_request(ulid)
+            self._drop_request(ulid, "in")
         return {"ok": True}
+
+    async def _answer_local(self, ulid: str, accept: bool, key: str) -> str:
+        seat = self._mp.seat_of(ulid)
+        if seat is not None:
+            sent = await self._mp.send_friend(seat, "accept" if accept else "decline")
+            if self._mp.friend_confirms(seat):
+                if sent is True:
+                    return "done"
+                if sent is False:
+                    return "refused"
+            elif sent:
+                return "pushed"
+        if self._up and await self._answer_server(ulid, accept, key) is True:
+            return "done"
+        return ""
+
+    def _await_got(self, ulid: str, key: str) -> None:
+        data = self._data()
+        crossing = data is not None and self._request_row(data, ulid, "out") is not None
+        now = time.monotonic()
+        self._pushed_at = {pushed: at for pushed, at in self._pushed_at.items() if now - at < RESEND_SECONDS}
+        self._pushed[ulid] = (key, crossing)
+        self._pushed_at[(ulid, key)] = now
+        self._spawn(self._got_timeout(ulid, key))
+
+    async def _got_timeout(self, ulid: str, key: str) -> None:
+        deadline = time.monotonic() + GOT_SECONDS
+        taken_at = None
+        while time.monotonic() < deadline:
+            await asyncio.sleep(min(1.0, GOT_SECONDS))
+            if self._pushed.get(ulid, (None,))[0] != key:
+                return
+            if taken_at is None and self._mp.friend_taken(ulid):
+                taken_at = time.monotonic()
+            if taken_at is not None and time.monotonic() - taken_at >= GOT_AFTER_TAKEN_SECONDS:
+                break
+        pushed = self._pushed.get(ulid)
+        if pushed is None or pushed[0] != key or pushed[1]:
+            return
+        data = self._data()
+        entry = self._held(data, ulid) if data is not None else None
+        if entry is None or entry["key"] != key:
+            return
+        taken = self._mp.friend_taken(ulid)
+        if taken is False or (taken is None and self._mp.seat_of(ulid) is None):
+            return
+        if entry["accept"]:
+            self._assumed[ulid] = key
+        self._delivered(entry, "local")
+
+    def local_got(self, ulid: str, ok: bool) -> bool:
+        pushed = self._pushed.pop(ulid, None)
+        if pushed is None:
+            return False
+        key = pushed[0]
+        data = self._data()
+        entry = self._held(data, ulid) if data is not None else None
+        if entry is not None and entry["key"] == key:
+            if ok:
+                self._delivered(entry, "local")
+            else:
+                self._unhold(ulid, key)
+                if entry["accept"]:
+                    self._drop_request(ulid, "in", key)
+            return True
+        if self._assumed.pop(ulid, None) == key and not ok:
+            friend = self._find(data, ulid) if data is not None else None
+            if friend is not None and friend["pairKey"] == key:
+                self._unfriend(ulid)
+        return True
+
+    def _yield_crossed(self, ulid: str) -> None:
+        def drop(stored):
+            mine = self._request_row(stored, ulid, "in")
+            if mine is None or mine["via"] != "local":
+                return False
+            stored["requests"].remove(mine)
+            return True
+        self._mutate(drop)
+
+    def _unreachable(self) -> dict:
+        return {"ok": False, "error": "update_required" if self._refused == "update" else "offline"}
+
+    async def _answer_server(self, ulid: str, accept: bool, key: str):
+        rid = secrets.token_hex(8)
+        reply = await self._ask({"op": "answer", "rid": rid, "to": ulid, "accept": bool(accept), "key": key},
+                                "answer:" + rid)
+        if reply is None:
+            return None
+        return reply.get("op") == "answer_ok"
+
+    async def _ask_server(self, data: dict, ulid: str, key: str) -> dict:
+        for entry in [entry for entry in data["outbox"] if entry["op"] == "withdraw" and entry["ulid"] == ulid]:
+            if not await self._confirmed({"op": "withdraw", "to": ulid, "key": entry["key"]}):
+                return {"ok": False, "error": "offline"}
+
+            def sent(stored, entry=entry):
+                if entry not in stored["outbox"]:
+                    return False
+                stored["outbox"].remove(entry)
+                return True
+            self._mutate(sent)
+        rid = secrets.token_hex(8)
+        reply = await self._ask({"op": "request", "rid": rid, "to": ulid, "name": self._my_name(),
+                                 "pic": data["selfPic"], "key": key}, "request:" + rid)
+        if reply is None:
+            return {"ok": False, "error": "offline"}
+        if reply.get("op") != "request_ok":
+            error = reply.get("error")
+            return {"ok": False, "error": error if error in ("pending", "limit", "self") else "unavailable"}
+        return {"ok": True}
+
+    def _hold(self, request: dict, accept: bool) -> None:
+        ulid = request["ulid"]
+
+        def keep(stored):
+            stored["outbox"] = [entry for entry in stored["outbox"]
+                                if entry["op"] != "answer" or entry["ulid"] != ulid]
+            stored["outbox"].append({"op": "answer", "ulid": ulid, "key": request["pairKey"], "accept": accept,
+                                     "at": request["at"], "name": request["name"], "pic": request["userPic"]})
+            mine = self._request_row(stored, ulid, "in")
+            if mine is not None and mine["pairKey"] == request["pairKey"]:
+                mine["accepted"] = accept
+            return True
+        self._mutate(keep)
+
+    def _unhold(self, ulid: str, key: str) -> None:
+        def drop(stored):
+            held = self._held(stored, ulid)
+            if held is None or held["key"] != key:
+                return False
+            stored["outbox"].remove(held)
+            return True
+        self._mutate(drop)
+
+    def _delivered(self, entry: dict, via: str) -> None:
+        self._unhold(entry["ulid"], entry["key"])
+        if entry["accept"]:
+            self._befriend(entry["ulid"], entry["name"], entry["pic"], entry["key"], via)
+
+    async def _send_held(self, ulid: str, key: str, accept: bool) -> None:
+        data = self._data()
+        entry = self._held(data, ulid) if data is not None else None
+        if not await self._answer_server(ulid, accept, key):
+            return
+        if entry is not None and entry["key"] == key:
+            self._delivered(entry, "server")
+
+    async def _deliver_held(self) -> None:
+        try:
+            data = self._data()
+            for entry in list(data["outbox"]) if data is not None else []:
+                if entry["op"] != "answer":
+                    continue
+                seat = self._mp.seat_of(entry["ulid"])
+                pushed_at = self._pushed_at.get((entry["ulid"], entry["key"]))
+                if seat is None or (pushed_at is not None and time.monotonic() - pushed_at < RESEND_SECONDS):
+                    continue
+                sent = await self._mp.send_friend(seat, "accept" if entry["accept"] else "decline")
+                if self._mp.friend_confirms(seat):
+                    if sent is True:
+                        self._delivered(entry, "local")
+                    elif sent is False:
+                        self._unhold(entry["ulid"], entry["key"])
+                        if entry["accept"]:
+                            self._drop_request(entry["ulid"], "in", entry["key"])
+                elif sent:
+                    self._await_got(entry["ulid"], entry["key"])
+        finally:
+            self._delivering = False
+
+    def _server_rows(self) -> set:
+        data = self._data()
+        if data is None:
+            return set()
+        return {(row["ulid"], row["way"], row["pairKey"]) for row in data["requests"] if row["via"] == "server"}
+
+    def _reconcile(self, lists: dict, known: set) -> None:
+        def drop(stored):
+            before = len(stored["requests"])
+            stored["requests"] = [row for row in stored["requests"]
+                                  if (row["ulid"], row["way"], row["pairKey"]) not in known
+                                  or row["way"] not in lists or row["ulid"] in lists[row["way"]]]
+            return len(stored["requests"]) != before
+        self._mutate(drop)
+
+    def _check_friends(self, welcome: dict) -> None:
+        data = self._data()
+        if data is None:
+            return
+        unrequited = welcome.get("unrequited")
+        for row in unrequited if isinstance(unrequited, list) else []:
+            if not isinstance(row, dict) or not is_ulid(row.get("u")) or type(row.get("at")) is not int:
+                continue
+            friend = self._find(data, row["u"])
+            if friend is not None and row["at"] > friend["added"] + CLOCK_SKEW_SECONDS:
+                decky.logger.info("friends: a friendship the other side doesn't have was dropped")
+                self._unfriend(row["u"])
+        listed_by = welcome.get("listedBy")
+        for ulid in listed_by if isinstance(listed_by, list) else []:
+            entry = self._held(data, ulid) if is_ulid(ulid) else None
+            if entry is not None and entry["accept"]:
+                self._delivered(entry, "local")
+
+    async def _settle(self, welcome: dict, known: set) -> None:
+        lists = {}
+        for way in ("out", "in"):
+            listed = welcome.get(way)
+            if isinstance(listed, list):
+                lists[way] = {ulid for ulid in listed if is_ulid(ulid)}
+        if not await self._confirmed({"op": "ping"}):
+            return
+        if lists:
+            self._reconcile(lists, known)
+        self._check_friends(welcome)
+        data = self._data()
+        if data is None:
+            return
+        for row in [row for row in data["requests"] if row["way"] == "out" and row["via"] == "local"]:
+            asked = await self._ask_server(data, row["ulid"], row["pairKey"])
+            if asked.get("error") in ("offline", "limit"):
+                return
+            if asked["ok"] or (asked.get("error") == "pending" and row["ulid"] in lists.get("out", ())):
+                def moved(stored, ulid=row["ulid"], key=row["pairKey"]):
+                    mine = self._request_row(stored, ulid, "out")
+                    if mine is None or mine["pairKey"] != key:
+                        return False
+                    mine["via"] = "server"
+                    mine["fromSeat"] = True
+                    mine["at"] = int(time.time())
+                    return True
+                self._mutate(moved)
+            await asyncio.sleep(OUTBOX_GAP_SECONDS)
+        for entry in [entry for entry in data["outbox"] if entry["op"] == "answer"]:
+            settled = await self._answer_server(entry["ulid"], entry["accept"], entry["key"])
+            if settled is None:
+                return
+            if settled:
+                self._delivered(entry, "server")
+            await asyncio.sleep(OUTBOX_GAP_SECONDS)
 
     async def remove(self, ulid: str) -> dict:
         data = self._data()

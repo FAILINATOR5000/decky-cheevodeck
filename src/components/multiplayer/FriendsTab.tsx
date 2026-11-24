@@ -268,7 +268,8 @@ export function FriendsTab(props: FriendsTabProps) {
                                         style={{
                                             fontWeight: 800,
                                             overflowWrap: "anywhere",
-                                            color: item.kind === "request" && item.row.way === "in" ? achievementGreen : undefined
+                                            color: item.kind === "request" && item.row.way === "in" && !item.row.accepted
+                                                ? achievementGreen : undefined
                                         }}
                                     >
                                         {item.kind === "friend" ? friendName(item.row) : row.name}
@@ -296,7 +297,8 @@ export function FriendsTab(props: FriendsTabProps) {
                                     )}
                                     {item.kind === "request" && (
                                         <span style={bodyTextStyle()}>
-                                            {t(language, item.row.way === "in" ? "Wants to be friends" : "Request sent")}
+                                            {item.row.accepted ? t(language, "Accepted. Waiting for {{name}}.", { name: row.name })
+                                                : t(language, item.row.way === "in" ? "Wants to be friends" : "Request sent")}
                                         </span>
                                     )}
                                     {item.kind === "suggestion" && (
@@ -378,7 +380,22 @@ export function FriendsTab(props: FriendsTabProps) {
                             );
                         }
                         const request = item.row;
+                        const asking = request.way === "in" && !request.accepted;
                         const after = [`multiplayer:friend:${request.ulid}`, ...heirs(at, "request")];
+                        if (request.accepted) {
+                            return (
+                                <PanelSectionRow key={key}>
+                                    <FocusableItem
+                                        focusKey={key}
+                                        focusFallback={after}
+                                        onGamepadFocus={() => list.onItemFocus(at)}
+                                        onGamepadDirection={list.guardTopRow(at)}
+                                    >
+                                        {nameLine}
+                                    </FocusableItem>
+                                </PanelSectionRow>
+                            );
+                        }
                         return (
                             <PanelSectionRow key={key}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", padding: "4px 0" }}>
@@ -390,12 +407,12 @@ export function FriendsTab(props: FriendsTabProps) {
                                                 disabled={busy}
                                                 onGamepadFocus={() => list.onItemFocus(at)}
                                                 onGamepadDirection={list.guardTopRow(at)}
-                                                onClick={() => void act(() => multiplayerFriendAnswer(request.ulid, request.way === "in"))}
+                                                onClick={() => void act(() => multiplayerFriendAnswer(request.ulid, asking))}
                                             >
-                                                {t(language, request.way === "in" ? "Accept" : "Cancel Request")}
+                                                {t(language, asking ? "Accept" : "Cancel Request")}
                                             </DialogButton>
                                         </FocusTarget>
-                                        {request.way === "in" && (
+                                        {asking && (
                                             <FocusTarget
                                                 focusKey={`multiplayer:decline:${request.ulid}`}
                                                 focusFallback={[key, ...after]}

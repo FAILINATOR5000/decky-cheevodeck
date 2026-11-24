@@ -531,6 +531,7 @@ class MultiplayerService:
         self._host_tunnels = lobby_tunnel.HostTunnels(debug=self._debug)
         self._guest_tunnels = None
         self._friends = None
+        self._friend_sent = {}
         self._hotspot = None
         self._voice_relay = False
         self._overlays = threading.local()
@@ -3554,6 +3555,7 @@ class MultiplayerService:
             digest = hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b""
             room.update(meet=meet, digest=digest)
             self._room = room
+            self._friend_sent = {}
             if mode == "stream":
                 failed = await self._open_streams(room, server)
                 if failed:
@@ -4684,6 +4686,9 @@ class MultiplayerService:
 
         op = message["op"]
         if op == "leave":
+            sent = self._friend_sent.get(seat.get("ulid", ""))
+            if sent is not None and sent[0] <= proto.inbox_since(message.get("p")):
+                sent[1] = True
             room["seats"][index] = None
             self._host_tunnels.close_seat(index)
             self._pipes_seat_gone(room, index)
@@ -4700,6 +4705,9 @@ class MultiplayerService:
         seat["since"] = proto.chat_since(message.get("p"))
         delivered = proto.inbox_since(message.get("p"))
         seat["inbox"] = [item for item in seat["inbox"] if item["seq"] > delivered]
+        sent = self._friend_sent.get(seat["ulid"])
+        if sent is not None and sent[0] <= delivered:
+            sent[1] = True
         self._take_voice_flags(room, index, seat, message.get("p"))
         if op == "voice":
             await conversation.say(self._seat_voice(room, index, seat, message.get("p"), now))
@@ -4742,20 +4750,25 @@ class MultiplayerService:
         if asked["to"] == 0:
             if asked["act"] == "ask":
                 return friends.local_request(seat["ulid"], seat["name"], seat["pic"], key)
+            if asked["act"] == "got":
+                return friends.local_got(seat["ulid"], asked["ok"])
             return friends.local_answer(seat["ulid"], asked["act"] == "accept", seat["name"], seat["pic"])
         target = room["seats"][asked["to"]] if asked["to"] < room["max"] else None
         if target is None or not target["ulid"]:
             return False
-        self._push_inbox(room, target, index, asked["act"], key)
+        self._push_inbox(room, target, index, asked["act"], key, asked["ok"])
         return True
 
-    def _push_inbox(self, room: dict, target: dict, sender: int, act: str, key) -> None:
+    def _push_inbox(self, room: dict, target: dict, sender: int, act: str, key, ok: bool = False) -> int:
         room["inboxSeq"] += 1
         item = {"seq": room["inboxSeq"], "from": sender, "ulid": room["seats"][sender].get("ulid", ""), "act": act}
+        if act == "got":
+            item["ok"] = ok
         if key is not None:
             item["n"] = secrets.token_hex(16)
             item["k"] = proto.wrap(target["key"], "pair", item["n"], key)
         target["inbox"] = (target["inbox"] + [item])[-proto.INBOX_MAX:]
+        return item["seq"]
 
     def _take_voice_flags(self, room: dict, index: int, seat: dict, raw) -> None:
         delivered = proto.voice_since(raw)
@@ -5003,7 +5016,11 @@ class MultiplayerService:
             if key is not None:
                 friends.local_request(ulid, name, pic, key)
             return
-        friends.local_answer(ulid, item["act"] == "accept", name, pic)
+        if item["act"] == "got":
+            friends.local_got(ulid, item["ok"])
+            return
+        found = friends.local_answer(ulid, item["act"] == "accept", name, pic)
+        self._spawn(self.send_friend(sender, "got", ok=bool(found)))
 
     def seat_identity(self, index: int):
         room = self._room
@@ -5030,23 +5047,38 @@ class MultiplayerService:
         return next((index for index, entry in enumerate(status["ids"])
                      if index != joined["seat"] and entry["ulid"] == ulid), None)
 
-    async def send_friend(self, index: int, act: str, key=None) -> bool:
+    def friend_confirms(self, index: int) -> bool:
+        return self._room is None and self._joined is not None and index == 0
+
+    def friend_taken(self, ulid: str):
+        if self._room is None:
+            return None
+        sent = self._friend_sent.get(ulid)
+        return None if sent is None else sent[1]
+
+    async def send_friend(self, index: int, act: str, key=None, ok: bool = False):
         room = self._room
         if room is not None:
             target = room["seats"][index] if 0 < index < room["max"] else None
             if target is None or not target["ulid"]:
                 return False
-            self._push_inbox(room, target, 0, act, key)
+            seq = self._push_inbox(room, target, 0, act, key, ok)
+            if act != "got":
+                self._friend_sent[target["ulid"]] = [seq, False]
             return True
         joined = self._joined
         if joined is None or index == joined["seat"]:
             return False
         extra = {"act": act, "to": index}
+        if act == "got":
+            extra["ok"] = ok
         if key is not None:
             extra["n"] = secrets.token_hex(16)
             extra["k"] = proto.wrap(joined["key"], "pair", extra["n"], key)
         _nonce, reply = await self._ask(joined, "friend", extra)
-        return isinstance(reply, dict) and reply.get("ok") is True
+        if not isinstance(reply, dict):
+            return None
+        return reply.get("ok") is True
 
     async def invite_pass(self, ulid: str):
         room = self._room
