@@ -67,7 +67,7 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         setLine({ tone: "busy", text: t(language, "Working...") });
         try {
             const dropped = await multiplayerDropSeat(props.index, props.name);
-            if (!dropped.ok) {
+            if (!dropped.ok && dropped.error !== "dropped") {
                 fail("Couldn't Change That", friendError(language, dropped.error, props.name));
                 setBusy(false);
                 return;
