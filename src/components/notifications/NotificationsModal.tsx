@@ -18,7 +18,7 @@ import {
 import { CornerProbe } from "../ui/CornerProbe";
 import { LabeledRow } from "../ui/LabeledRow";
 import { NotificationScrollList } from "./NotificationScrollList";
-import { friendError } from "../multiplayer/AddFriendModal";
+import { joinError } from "../multiplayer/AddFriendModal";
 import { MultiplayerNotificationRow } from "../multiplayer/MultiplayerNotificationRow";
 import { showMultiplayerProblem } from "../multiplayer/ProblemModal";
 import { useJoinAttempt } from "../multiplayer/joinAttempt";
@@ -104,7 +104,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
         setJoiningId(null);
         if (!joined.ok) {
             const name = typeof notification.meta?.name === "string" && notification.meta.name ? notification.meta.name : notification.title;
-            showMultiplayerProblem(language, "Couldn't Join the Room", friendError(language, joined.error, name));
+            showMultiplayerProblem(language, "Couldn't Join the Room", joinError(language, joined.error, name));
             return;
         }
         rememberMultiplayerPage("play");

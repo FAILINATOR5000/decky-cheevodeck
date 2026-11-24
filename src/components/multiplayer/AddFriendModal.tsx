@@ -6,6 +6,7 @@ import { overrideRecord, topEntryId } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { problemText } from "../../utils/multiplayerProblems";
 import { modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
@@ -44,6 +45,10 @@ const FRIEND_ERRORS: Record<string, string> = {
 
 export function friendError(language: LanguageCode, code: string | undefined, name = ""): string {
     return t(language, FRIEND_ERRORS[code ?? ""] ?? FRIEND_ERRORS.unavailable, { name });
+}
+
+export function joinError(language: LanguageCode, code: string | undefined, name = ""): string {
+    return code && !FRIEND_ERRORS[code] ? problemText(language, code) : friendError(language, code, name);
 }
 
 function AddFriendModal(props: { language: LanguageCode; close: () => void }) {

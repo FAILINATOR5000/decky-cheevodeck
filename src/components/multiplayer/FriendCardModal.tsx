@@ -19,7 +19,7 @@ import { modalSize } from "../../utils/scale";
 import { achievementGreen, modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
-import { friendError } from "./AddFriendModal";
+import { friendError, joinError } from "./AddFriendModal";
 import { DialogLine, useDialogLine } from "./DialogLine";
 import { useJoinAttempt } from "./joinAttempt";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
@@ -98,7 +98,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 }
                 return;
             }
-            failed(joined.error);
+            fail("Couldn't Join the Room", joinError(language, joined.error, friendName(friend)));
             return;
         }
         rememberMultiplayerPage("play");
