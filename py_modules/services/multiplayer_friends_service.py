@@ -174,6 +174,9 @@ class MultiplayerFriendsService:
         self._holding_notices = False
         self._held_answers = None
         self._delivering = False
+        self._held_removes = None
+        self._removing = False
+        self._seat_removed = {}
         self._pushed = {}
         self._pushed_at = {}
         self._assumed = {}
@@ -231,6 +234,7 @@ class MultiplayerFriendsService:
         self._invites = {}
         self._refused = ""
         self._held_answers = None
+        self._held_removes = None
         self._set_up(False)
         self._follow()
 
@@ -277,6 +281,7 @@ class MultiplayerFriendsService:
             return None
         if data is not None:
             self._held_answers = {entry["ulid"] for entry in data["outbox"] if entry["op"] == "answer"}
+            self._held_removes = {entry["ulid"] for entry in data["outbox"] if entry["op"] == "remove"}
         if result:
             self._report_stale = True
             self._changed()
@@ -603,6 +608,14 @@ class MultiplayerFriendsService:
                 and any(self._mp.seat_of(ulid) is not None for ulid in self._held_answers):
             self._delivering = True
             self._spawn(self._deliver_held())
+        if self._held_removes is None:
+            data = self._data()
+            self._held_removes = {entry["ulid"] for entry in data["outbox"] if entry["op"] == "remove"} \
+                if data is not None else set()
+        if self._held_removes and not self._removing \
+                and any(self._mp.seat_of(ulid) is not None for ulid in self._held_removes):
+            self._removing = True
+            self._spawn(self._deliver_removes())
         if not self._up:
             return
         room = self._mp.current_room()
@@ -1337,6 +1350,15 @@ class MultiplayerFriendsService:
             self._assumed[ulid] = key
         self._delivered(entry, "local")
 
+    def local_removed(self, ulid: str, tag: str) -> bool:
+        data = self._data()
+        friend = self._find(data, ulid) if data is not None else None
+        if friend is None or not _signed(friend["pairKey"], "remove", {"to": self._me()}, tag):
+            return False
+        self._drop_friend(ulid)
+        self._list_event("removed", [{"u": ulid, "t": tag}])
+        return True
+
     def local_got(self, ulid: str, ok: bool) -> bool:
         pushed = self._pushed.pop(ulid, None)
         if pushed is None:
@@ -1460,6 +1482,24 @@ class MultiplayerFriendsService:
                     self._await_got(entry["ulid"], entry["key"])
         finally:
             self._delivering = False
+
+    async def _deliver_removes(self) -> None:
+        try:
+            now = time.monotonic()
+            self._seat_removed = {tag: at for tag, at in self._seat_removed.items() if now - at < RESEND_SECONDS}
+            data = self._data()
+            newest = {}
+            for entry in data["outbox"] if data is not None else []:
+                if entry["op"] == "remove" and proto.is_key(entry.get("t")) and entry["t"] not in self._seat_removed:
+                    newest[entry["ulid"]] = entry
+            for ulid, entry in newest.items():
+                seat = self._mp.seat_of(ulid)
+                if seat is None:
+                    continue
+                self._seat_removed[entry["t"]] = time.monotonic()
+                await self._mp.send_friend(seat, "removed", tag=entry["t"])
+        finally:
+            self._removing = False
 
     def _server_rows(self) -> set:
         data = self._data()
@@ -1739,6 +1779,10 @@ class MultiplayerFriendsService:
             stored["outbox"].append(entry)
             return True
         self._mutate(later)
+        seat = self._mp.seat_of(ulid)
+        if seat is not None:
+            self._seat_removed[tag] = time.monotonic()
+            self._spawn(self._mp.send_friend(seat, "removed", tag=tag))
         if self._up and await self._confirmed({"op": "remove", "ulid": ulid, "t": tag, "age": 0}):
             self._pressed.pop(tag, None)
             def sent(stored):

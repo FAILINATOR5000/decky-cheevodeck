@@ -4752,18 +4752,22 @@ class MultiplayerService:
                 return friends.local_request(seat["ulid"], seat["name"], seat["pic"], key)
             if asked["act"] == "got":
                 return friends.local_got(seat["ulid"], asked["ok"])
+            if asked["act"] == "removed":
+                return friends.local_removed(seat["ulid"], asked["t"])
             return friends.local_answer(seat["ulid"], asked["act"] == "accept", seat["name"], seat["pic"], key)
         target = room["seats"][asked["to"]] if asked["to"] < room["max"] else None
         if target is None or not target["ulid"]:
             return False
-        self._push_inbox(room, target, index, asked["act"], key, asked["ok"])
+        self._push_inbox(room, target, index, asked["act"], key, asked["ok"], asked["t"])
         return True
 
-    def _push_inbox(self, room: dict, target: dict, sender: int, act: str, key, ok: bool = False) -> int:
+    def _push_inbox(self, room: dict, target: dict, sender: int, act: str, key, ok: bool = False, tag: str = "") -> int:
         room["inboxSeq"] += 1
         item = {"seq": room["inboxSeq"], "from": sender, "ulid": room["seats"][sender].get("ulid", ""), "act": act}
         if act == "got":
             item["ok"] = ok
+        if act == "removed":
+            item["t"] = tag
         if key is not None:
             item["n"] = secrets.token_hex(16)
             item["k"] = proto.wrap(target["key"], "pair", item["n"], key)
@@ -5014,6 +5018,9 @@ class MultiplayerService:
         if item["act"] == "got":
             friends.local_got(ulid, item["ok"])
             return
+        if item["act"] == "removed":
+            friends.local_removed(ulid, item["t"])
+            return
         key = proto.unwrap(joined["key"], "pair", item["n"], item["k"]) if item["n"] else None
         if item["act"] == "ask":
             if key is not None:
@@ -5056,14 +5063,16 @@ class MultiplayerService:
         sent = self._friend_sent.get(ulid)
         return None if sent is None else sent[1]
 
-    async def send_friend(self, index: int, act: str, key=None, ok: bool = False):
+    async def send_friend(self, index: int, act: str, key=None, ok: bool = False, tag: str = ""):
         room = self._room
         if room is not None:
             target = room["seats"][index] if 0 < index < room["max"] else None
             if target is None or not target["ulid"]:
                 return False
-            seq = self._push_inbox(room, target, 0, act, key, ok)
-            if act != "got":
+            if act == "removed" and any(item.get("t") == tag for item in target["inbox"]):
+                return True
+            seq = self._push_inbox(room, target, 0, act, key, ok, tag)
+            if act not in ("got", "removed"):
                 self._friend_sent[target["ulid"]] = [seq, False]
             return True
         joined = self._joined
@@ -5072,6 +5081,8 @@ class MultiplayerService:
         extra = {"act": act, "to": index}
         if act == "got":
             extra["ok"] = ok
+        if act == "removed":
+            extra["t"] = tag
         if key is not None:
             extra["n"] = secrets.token_hex(16)
             extra["k"] = proto.wrap(joined["key"], "pair", extra["n"], key)
