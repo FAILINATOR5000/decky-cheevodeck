@@ -30,9 +30,11 @@ import { browserModalOpen, minimizeBrowserModal, openBrowserModal } from "../bro
 import { openCalculatorModal } from "../calculator/CalculatorModal";
 import { GuidesReaderModal } from "../guides/GuidesReaderModal";
 import { openLastMemory } from "../memories/openLastMemory";
+import { learnNoticesDue, openNoticesFirst } from "../multiplayer/ImportantNoticeModal";
 import { NotificationsModal } from "../notifications/NotificationsModal";
 import { buildStandaloneNotificationNav } from "../notifications/standaloneNotificationNav";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
+import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 
 const BACK_BUTTON_EVENT = "cheevodeck_back_button";
 
@@ -61,6 +63,7 @@ type SummonAction =
     | "doNotDisturb"
     | "batterySaver"
     | "notifications"
+    | "playTogether"
     | PageAction;
 
 let summoning = false;
@@ -240,6 +243,23 @@ async function pageEntry(action: PageAction): Promise<PanelEntry | null> {
     }
 }
 
+async function openPlayTogether(language: LanguageCode) {
+    rememberMultiplayerPage("play");
+    await learnNoticesDue();
+    if (!mayOpen("playTogether")) {
+        return;
+    }
+    const go = () => openPanelOn({ kind: "multiplayer" });
+    const later = () => window.setTimeout(() => {
+        if (quickAccessIsHidden()) {
+            go();
+        }
+    }, 0);
+    if (!openNoticesFirst(language, later)) {
+        go();
+    }
+}
+
 async function landOn(action: PageAction) {
     if (summoning) {
         return;
@@ -347,6 +367,9 @@ async function onBackButton(payload: BackButtonPayload) {
             break;
         case "notifications":
             void summonNotifications(language);
+            break;
+        case "playTogether":
+            void openPlayTogether(language);
             break;
         default:
             void landOn(summon);

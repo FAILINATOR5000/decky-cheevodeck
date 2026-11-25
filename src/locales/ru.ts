@@ -351,6 +351,7 @@ const RU: LocaleTable = {
     "help_quick_shortcut_file_watcher": "Инструмент, который следит за файлами и проверяет их целостность. Пригодится тем, кто держит архив и хочет, чтобы файлы оставались целыми и без повреждений.",
     "help_quick_shortcut_stormbreaker": "Открывает Stormbreaker, где можно проверить состояние и журнал.",
     "help_quick_shortcut_social_activity": "Смотри ленту активности друзей в соцхабе.",
+    "help_quick_shortcut_play_together": "Открывает Play Together на вкладке «Играть», так же, как баннер Play Together в уведомлениях.",
     "help_quick_shortcut_visit_ra": "Открывает retroachievements.org в браузере Steam.",
     "help_quick_shortcut_ui_default": "Переключает интерфейс на вид по умолчанию.",
     "help_quick_shortcut_ui_compact": "Переключает интерфейс на компактный вид.",

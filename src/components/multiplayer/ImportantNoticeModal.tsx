@@ -67,8 +67,8 @@ function ImportantNoticeModal(props: { language: LanguageCode; notices: Notice[]
 
 let due: { refresh: boolean; exit: boolean } | null = null;
 
-export function learnNoticesDue() {
-    multiplayerRefreshNoteDue()
+export function learnNoticesDue(): Promise<void> {
+    return multiplayerRefreshNoteDue()
         .then((note) => {
             if (note.ok) {
                 due = { refresh: note.show, exit: Boolean(note.exit) };

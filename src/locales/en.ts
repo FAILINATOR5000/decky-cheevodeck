@@ -350,6 +350,7 @@ export const EN: LocaleTable = {
     "help_quick_shortcut_file_watcher": "A tool that watches and verifies the integrity of your files. Good for archivalists who want to ensure their files stay sound and devoid of corruption.",
     "help_quick_shortcut_stormbreaker": "Opens Stormbreaker, where you can check its status and logs.",
     "help_quick_shortcut_social_activity": "View the activity feed for your friends in Social Hub.",
+    "help_quick_shortcut_play_together": "Opens Play Together on the Play tab, the same as the Play Together banner in Notifications.",
     "help_quick_shortcut_visit_ra": "Opens retroachievements.org in Steam's browser.",
     "help_quick_shortcut_ui_default": "Sets the user interface to default view.",
     "help_quick_shortcut_ui_compact": "Sets the user interface to compact view.",

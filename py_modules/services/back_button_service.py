@@ -111,6 +111,7 @@ SUMMON_ACTIONS = (
     "darkenScreen",
     "notifications",
     "socialActivity",
+    "playTogether",
     "profile",
     "socialhub",
     "news",

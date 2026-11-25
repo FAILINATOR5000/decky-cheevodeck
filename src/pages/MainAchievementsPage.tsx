@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy, FaUsers } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
@@ -61,6 +61,7 @@ import { achievementUiMetrics, headerCase } from "../utils/style";
 import { useQuickGuide } from "../utils/quickGuide";
 import { localizeRuntimeText, t } from "../locales";
 import { MAP_SHORTCUTS_FOCUS_KEY, QUICK_MENU_SHORTCUTS, type MainUiPreset } from "../utils/options";
+import { rememberMultiplayerPage } from "../utils/multiplayerChoices";
 import {
     achievementSortLabel,
     mainAchievementFilterLabel,
@@ -537,6 +538,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     calculator: FaCalculator,
     browser: FaGlobe,
     socialActivity: FaClock,
+    playTogether: FaUsers,
     mapShortcuts: FaExchangeAlt,
     visitRa: FaTrophy,
     uiDefault: FaExpandAlt,
@@ -1354,6 +1356,11 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "uiCompact") {
             void onApplyMainUiPreset("compact");
+            return;
+        }
+        if (id === "playTogether") {
+            rememberMultiplayerPage("play");
+            openMultiplayer();
             return;
         }
 

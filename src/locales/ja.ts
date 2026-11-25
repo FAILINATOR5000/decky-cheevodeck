@@ -347,6 +347,7 @@ const JA: LocaleTable = {
     "help_quick_shortcut_file_watcher": "ファイルを見張り、壊れていないか確かめるツールです。手元のファイルを健全なまま保ちたいアーカイブ派に向いています。",
     "help_quick_shortcut_stormbreaker": "Stormbreakerを開きます。状態とログを確認できます。",
     "help_quick_shortcut_social_activity": "ソーシャルハブでフレンドの活動履歴を見ます。",
+    "help_quick_shortcut_play_together": "Play Togetherをプレイタブで開きます。通知にあるPlay Togetherバナーと同じです。",
     "help_quick_shortcut_visit_ra": "retroachievements.org を Steam のブラウザで開きます。",
     "help_quick_shortcut_ui_default": "画面表示を標準表示にします。",
     "help_quick_shortcut_ui_compact": "画面表示をコンパクト表示にします。",

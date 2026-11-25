@@ -232,7 +232,7 @@ import type {
 
 import { achievementUiMetrics, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { logError } from "../utils/errors";
-import { multiplayerChoices, rememberMultiplayerOverview, rememberMultiplayerSource } from "../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerOverview, rememberMultiplayerPage, rememberMultiplayerSource } from "../utils/multiplayerChoices";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
@@ -4872,6 +4872,11 @@ function AchievementsRoot() {
         }
         if (action === "socialActivity") {
             goToSocialActivity("hub");
+            return;
+        }
+        if (action === "playTogether") {
+            rememberMultiplayerPage("play");
+            goToMultiplayer("hub");
             return;
         }
     }

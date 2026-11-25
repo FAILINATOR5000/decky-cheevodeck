@@ -350,6 +350,7 @@ const ES: LocaleTable = {
     "help_quick_shortcut_file_watcher": "Una herramienta que vigila y verifica la integridad de tus archivos. Va bien para quien archiva y quiere asegurarse de que sus archivos siguen intactos y sin corrupción.",
     "help_quick_shortcut_stormbreaker": "Abre Stormbreaker, donde puedes ver su estado y su registro.",
     "help_quick_shortcut_social_activity": "Consulta el muro de actividad de tus amistades en el Centro Social.",
+    "help_quick_shortcut_play_together": "Abre Play Together en la pestaña Jugar, igual que el banner Play Together en Notificaciones.",
     "help_quick_shortcut_visit_ra": "Abre retroachievements.org en el navegador de Steam.",
     "help_quick_shortcut_ui_default": "Pone la interfaz en la vista predeterminada.",
     "help_quick_shortcut_ui_compact": "Pone la interfaz en la vista compacta.",
