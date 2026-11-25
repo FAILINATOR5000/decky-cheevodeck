@@ -27,7 +27,6 @@ SNAPSHOT_FILENAME = "multiplayer_friends.pre-account-list.json"
 
 MAX_FRIENDS = 500
 MAX_REQUESTS = 200
-MAX_ALERTS = 20
 MAX_OUTBOX = 100
 MAX_DISMISSED = 200
 REQUEST_MAX_AGE_SECONDS = 30 * 86400
@@ -157,10 +156,6 @@ def normalize(raw: dict) -> dict:
     raw_read = raw.get("lastRead") if isinstance(raw.get("lastRead"), dict) else {}
     raw_unread = raw.get("unread") if isinstance(raw.get("unread"), dict) else {}
     raw_newest = raw.get("newestAt") if isinstance(raw.get("newestAt"), dict) else {}
-    alerts = []
-    for row in _rows(raw, "alerts"):
-        if isinstance(row, dict) and isinstance(row.get("device"), str) and _DEVICE_RE.match(row["device"]):
-            alerts.append({"device": row["device"], "at": _ts(row.get("at"))})
     outbox = []
     for row in _rows(raw, "outbox"):
         entry = _outbox_entry(row)
@@ -184,7 +179,6 @@ def normalize(raw: dict) -> dict:
         "lastRead": {ulid: _ts(at) for ulid, at in raw_read.items() if ulid in friend_ids and _ts(at)},
         "unread": {ulid: _ts(count) for ulid, count in raw_unread.items() if ulid in friend_ids and _ts(count)},
         "newestAt": {ulid: _ts(at) for ulid, at in raw_newest.items() if ulid in friend_ids and _ts(at)},
-        "alerts": alerts[-MAX_ALERTS:],
         "outbox": outbox[-MAX_OUTBOX:],
         "dismissed": dismissed[-MAX_DISMISSED:],
     }

@@ -52,7 +52,6 @@ _GAME_CODE = re.compile(r"[A-Z0-9]{4}")
 _ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 _PIC = re.compile(r"/UserPic/[A-Za-z0-9_]{1,32}\.png")
 _HEX64 = re.compile(r"[0-9a-f]{64}")
-_DEVICE_KEY = re.compile(r"[0-9a-f]{32}")
 _DH_HEX = re.compile(r"[0-9a-f]{512}")
 
 DH_PRIME = int(
@@ -169,10 +168,6 @@ def is_ulid(value) -> bool:
 
 def is_key(value) -> bool:
     return isinstance(value, str) and _HEX64.fullmatch(value) is not None
-
-
-def is_device_key(value) -> bool:
-    return isinstance(value, str) and _DEVICE_KEY.fullmatch(value) is not None
 
 
 def clean_pic(value) -> str:

@@ -3311,7 +3311,6 @@ export type MultiplayerFriendsState = {
     friends: MultiplayerFriend[];
     requests: MultiplayerFriendRequest[];
     suggestions: MultiplayerSuggestion[];
-    alerts: { device: string; at: number }[];
 };
 
 export type MultiplayerMessage = { id: string; mine: boolean; text: string; at: number };

@@ -1,14 +1,13 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 
-import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer, multiplayerFriendDismiss, saveMpShowOnline } from "../../api";
+import { multiplayerFriendAdd, multiplayerFriendAnswer, multiplayerFriendDismiss, saveMpShowOnline } from "../../api";
 import { overrideRecord, pendingLandingKey, topEntryId, type LandingWindows } from "../../focusRecords";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerFriend, MultiplayerFriendRequest, MultiplayerSuggestion } from "../../types";
 import { logError } from "../../utils/errors";
 import { takeMultiplayerMessage } from "../../utils/multiplayerChoices";
-import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
 import { announceShowOnlineChanged } from "../../utils/showOnlineChanged";
 import { achievementGreen, bodyTextStyle, compactButtonStyle, hiddenOrange, steamPlayGreen, warnAmber } from "../../utils/style";
@@ -32,7 +31,6 @@ const RANK_EMBLEM_PX = 24;
 const FRIEND_PADDING_RIGHT = 12;
 const ADD_KEY = "multiplayer:friends:add";
 const NAV_ENTER_MAINTAIN_Y = 3;
-const ALERTS_SHOWN = 2;
 
 type WindowKnobs = {
     dynamicLoading: boolean;
@@ -207,45 +205,6 @@ export function FriendsTab(props: FriendsTabProps) {
                     {t(language, "Add Friend")}
                 </FocusableItem>
             </PanelSectionRow>
-            {(data?.alerts ?? []).slice(-ALERTS_SHOWN).map((alert) => (
-                <PanelSectionRow key={alert.device}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", padding: "4px 0" }}>
-                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                            {t(language, "Your account went online on another device {{when}}.", {
-                                when: formatRelativeTime(new Date(alert.at * 1000).toISOString(), language)
-                            })}
-                        </div>
-                        <Focusable flow-children="row" style={{ display: "flex", gap: "8px" }}>
-                            <FocusTarget
-                                focusKey={`multiplayer:alert:${alert.device}`}
-                                focusFallback={[ADD_KEY, "multiplayer:back"]}
-                                style={{ display: "flex", flex: 1 }}
-                            >
-                                <DialogButton
-                                    style={{ ...compactButtonStyle, width: "100%" }}
-                                    disabled={busy}
-                                    onClick={() => void act(() => multiplayerFriendAlert(alert.device, true))}
-                                >
-                                    {t(language, "That Wasn't Me")}
-                                </DialogButton>
-                            </FocusTarget>
-                            <FocusTarget
-                                focusKey={`multiplayer:alertok:${alert.device}`}
-                                focusFallback={[ADD_KEY, "multiplayer:back"]}
-                                style={{ display: "flex", flex: 1 }}
-                            >
-                                <DialogButton
-                                    style={{ ...compactButtonStyle, width: "100%" }}
-                                    disabled={busy}
-                                    onClick={() => void act(() => multiplayerFriendAlert(alert.device, false))}
-                                >
-                                    {t(language, "That Was Me")}
-                                </DialogButton>
-                            </FocusTarget>
-                        </Focusable>
-                    </div>
-                </PanelSectionRow>
-            ))}
             {data && items.length === 0 && (
                 <PanelSectionRow>
                     <div style={bodyTextStyle()}>{t(language, "No friends yet. Add someone by their RetroAchievements name.")}</div>

@@ -202,7 +202,7 @@ function isFriendMessage(notification: CheevoNotification): boolean {
 const FRIEND_CARD_WORDS = new Map<string, [string, string]>([
     ["request", ["Received Friend Request", "{{name}} sent you a friend request."]],
     ["accepted", ["Friend Request Accepted", "{{name}} accepted your friend request."]],
-    ["device", ["New Device on Your Account", "Your account went online in Play Together on another device. If that wasn't you, choose That Wasn't Me on the Friends tab."]],
+    ["device", ["New Device on Your Account", ""]],
     ["message", ["Message From {{name}}", ""]],
     ["invite", ["Room Invite", "{{name}} invited you to a room."]]
 ]);

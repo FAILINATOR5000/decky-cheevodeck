@@ -60,7 +60,6 @@ SYNC_PAGES_MAX = MAX_FRIENDS // SYNC_ROWS + 1
 TOASTS = {
     "request": ("Friend Request", "Request from {{name}}."),
     "accepted": ("Friend Request Accepted", "{{name}} accepted."),
-    "device": ("New Device Online", "Account is on another device."),
     "message": ("New Message", "Message from {{name}}."),
     "invite": ("Room Invite", "{{name}} invited you."),
 }
@@ -840,10 +839,6 @@ class MultiplayerFriendsService:
                 self._list_event("removed", [{"u": ulid, "t": message.get("t")}])
         elif kind == "msg":
             self._take_message(message.get("from"), message.get("body"), message.get("t"))
-        elif kind == "new_device":
-            device = message.get("device")
-            if proto.is_device_key(device):
-                self._new_device(device)
 
     def pair_key(self, ulid: str):
         if not self._on():
@@ -1009,15 +1004,6 @@ class MultiplayerFriendsService:
             return True
         return False
 
-    def _new_device(self, device: str) -> None:
-        def keep(stored):
-            if any(alert["device"] == device for alert in stored["alerts"]):
-                return False
-            stored["alerts"].append({"device": device, "at": int(time.time())})
-            return True
-        if self._mutate(keep):
-            self._notify("device", self._my_name(), "multiplayer:alert:" + device, {"alert": device})
-
     def _claim_ok(self, ulid: str, name: str) -> bool:
         row = next((row for row in self._ra_rows() if row.get("ulid") == ulid), None)
         return row is None or str(row.get("username") or "").lower() == name.lower()
@@ -1088,7 +1074,6 @@ class MultiplayerFriendsService:
             data = self._heal_follows(data, follows)
         friends = []
         requests = []
-        alerts = []
         if data is not None:
             for friend in data["friends"]:
                 seen = self._seen(friend["ulid"])
@@ -1112,7 +1097,6 @@ class MultiplayerFriendsService:
                          "way": request["way"], "at": request["at"], "accepted": request["accepted"]}
                         for request in data["requests"]
                         if request["way"] == "in" or request["ulid"] not in asking]
-            alerts = list(data["alerts"])
         known = {row["ulid"] for row in friends} | {row["ulid"] for row in requests}
         if data is not None:
             known |= set(data["dismissed"])
@@ -1130,7 +1114,6 @@ class MultiplayerFriendsService:
             "requests": requests,
             "suggestions": [row for row in self._suggestions if row["ulid"] not in known]
             if cfg.get("mpSuggestFriends", True) else [],
-            "alerts": alerts,
         }
 
     def _heal_follows(self, data: dict, follows: dict) -> dict:
@@ -1804,19 +1787,6 @@ class MultiplayerFriendsService:
             self._link.cancel()
             self._link = None
         self._set_up(False)
-
-    async def alert(self, device: str, revoke: bool) -> dict:
-        if revoke:
-            if not await self._until_up():
-                return {"ok": False, "error": "offline"}
-            await self._send({"op": "revoke", "device": device})
-
-        def drop(stored):
-            before = len(stored["alerts"])
-            stored["alerts"] = [alert for alert in stored["alerts"] if alert["device"] != device]
-            return len(stored["alerts"]) != before
-        self._mutate(drop)
-        return {"ok": True}
 
     async def invite(self, ulid: str) -> dict:
         data = self._data()
