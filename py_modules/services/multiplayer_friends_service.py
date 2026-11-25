@@ -835,7 +835,6 @@ class MultiplayerFriendsService:
             if mine is not None and mine["pairKey"] == key:
                 if via == "server" and mine["via"] == "local":
                     mine["via"] = "server"
-                    mine["at"] = at or int(time.time())
                     return True
                 return False
             if mine is None and sum(1 for row in stored["requests"] if row["way"] == "in") >= INCOMING_REQUESTS_MAX:
@@ -1326,7 +1325,7 @@ class MultiplayerFriendsService:
             return None
         return reply.get("op") == "answer_ok"
 
-    async def _ask_server(self, data: dict, ulid: str, key: str) -> dict:
+    async def _ask_server(self, data: dict, ulid: str, key: str, at=None) -> dict:
         for entry in [entry for entry in data["outbox"] if entry["op"] == "withdraw" and entry["ulid"] == ulid]:
             if not await self._confirmed({"op": "withdraw", "to": ulid, "key": entry["key"]}):
                 return {"ok": False, "error": "offline"}
@@ -1338,8 +1337,10 @@ class MultiplayerFriendsService:
                 return True
             self._mutate(sent)
         rid = secrets.token_hex(8)
-        reply = await self._ask({"op": "request", "rid": rid, "to": ulid, "name": self._my_name(),
-                                 "pic": data["selfPic"], "key": key}, "request:" + rid)
+        asked = {"op": "request", "rid": rid, "to": ulid, "name": self._my_name(), "pic": data["selfPic"], "key": key}
+        if at is not None:
+            asked["at"] = at
+        reply = await self._ask(asked, "request:" + rid)
         if reply is None:
             return {"ok": False, "error": "offline"}
         if reply.get("op") != "request_ok":
@@ -1455,7 +1456,7 @@ class MultiplayerFriendsService:
         if data is None:
             return
         for row in [row for row in data["requests"] if row["way"] == "out" and row["via"] == "local"]:
-            asked = await self._ask_server(data, row["ulid"], row["pairKey"])
+            asked = await self._ask_server(data, row["ulid"], row["pairKey"], row["at"])
             if asked.get("error") in ("offline", "limit"):
                 return
             if asked["ok"] or (asked.get("error") == "pending" and row["ulid"] in lists.get("out", ())):
@@ -1465,7 +1466,6 @@ class MultiplayerFriendsService:
                         return False
                     mine["via"] = "server"
                     mine["fromSeat"] = True
-                    mine["at"] = int(time.time())
                     return True
                 self._mutate(moved)
             await asyncio.sleep(OUTBOX_GAP_SECONDS)
