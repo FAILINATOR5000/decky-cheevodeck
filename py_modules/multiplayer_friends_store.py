@@ -136,7 +136,10 @@ def _outbox_entry(row):
         return None
     op = row.get("op")
     if op == "remove" and _hex64(row.get("t")):
-        return {"op": "remove", "ulid": row["ulid"], "t": row["t"]}
+        entry = {"op": "remove", "ulid": row["ulid"], "t": row["t"]}
+        if _ts(row.get("at")):
+            entry["at"] = _ts(row.get("at"))
+        return entry
     if op == "withdraw" and _hex64(row.get("key")):
         return {"op": "withdraw", "ulid": row["ulid"], "key": row["key"]}
     if op == "answer" and _hex64(row.get("key")) and type(row.get("accept")) is bool:
