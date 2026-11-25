@@ -116,6 +116,15 @@ class RepairService:
             )
 
         try:
+            if self._multiplayer_friends_store.snapshot():
+                fixed.append("multiplayer_friends_snapshot")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: multiplayer friends snapshot failed: %s",
+                type(e).__name__,
+            )
+
+        try:
             for name in self._multiplayer_friends_store.repair():
                 fixed.append("multiplayer_friends_" + name)
         except Exception as e:
