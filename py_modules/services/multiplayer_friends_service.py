@@ -53,6 +53,7 @@ SEEN_INVITES = 256
 ACK_GATHER_SECONDS = 0.3
 LAN_HERE_SECONDS = 10
 LAN_SEEN_SECONDS = 35
+PRESENCE_WAIT_SECONDS = 60
 OUTBOX_GAP_SECONDS = 0.2
 ACK_MAX = 500
 FIND_ROUNDS = 3
@@ -1113,6 +1114,7 @@ class MultiplayerFriendsService:
                     "pic": friend["userPic"],
                     "raFriend": friend["ulid"] in follows,
                     "online": bool(seen.get("online")),
+                    "known": bool(seen) or time.time() - friend["added"] >= PRESENCE_WAIT_SECONDS,
                     "game": seen.get("game", ""),
                     "room": seen.get("room"),
                     "rank": seen.get("rank"),

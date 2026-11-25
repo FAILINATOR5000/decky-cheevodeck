@@ -245,7 +245,7 @@ export function FriendsTab(props: FriendsTabProps) {
                                     </span>
                                     {item.kind === "friend" && (
                                         <span style={{ ...bodyTextStyle(), opacity: 1, color: item.row.online ? achievementGreen : undefined }}>
-                                            {friendStatus(language, item.row)}
+                                            {friendStatus(language, item.row) || "\u00a0"}
                                         </span>
                                     )}
                                     {item.kind === "friend" && friendGame(language, item.row) && (

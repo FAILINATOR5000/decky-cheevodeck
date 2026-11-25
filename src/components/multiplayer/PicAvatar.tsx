@@ -42,6 +42,9 @@ export function friendGame(language: LanguageCode, friend: MultiplayerFriend): s
 }
 
 export function friendStatus(language: LanguageCode, friend: MultiplayerFriend): string {
+    if (!friend.known) {
+        return "";
+    }
     if (friend.online && friend.room) {
         return t(language, friend.room.playing ? "In a Room · In-Game" : "In a Room · Lobby");
     }

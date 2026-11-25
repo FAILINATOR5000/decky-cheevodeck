@@ -3288,6 +3288,7 @@ export type MultiplayerFriend = {
     pic: string;
     raFriend: boolean;
     online: boolean;
+    known: boolean;
     game: string;
     room: { id: string; name: string; where: MultiplayerWhere; playing: boolean } | null;
     rank: MilestoneRankBadge | null;
