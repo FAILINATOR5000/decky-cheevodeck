@@ -41,7 +41,7 @@ function UnreadyStartModal(props: { language: LanguageCode; claim: () => boolean
             </div>
             <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                 <div data-focus-key="multiplayer:unready:continue">
-                    <DialogButton onClick={next}>{t(language, "Continue")}</DialogButton>
+                    <DialogButton onClick={next} autoFocus>{t(language, "Continue")}</DialogButton>
                 </div>
                 <div data-focus-key="multiplayer:unready:cancel">
                     <DialogButton onClick={close}>{t(language, "Cancel")}</DialogButton>
