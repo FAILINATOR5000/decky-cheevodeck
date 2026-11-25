@@ -3087,7 +3087,6 @@ const FR: LocaleTable = {
     "Milestones Header Style": "Style des en-têtes des jalons",
     "help_milestones_header_style": "Tel quel affiche les en-têtes des catégories de jalons dans leur casse normale. Majuscules les affiche entièrement en capitales.",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "Joue avec d'autres personnes sur le même Wi-Fi ou en ligne : relie vos jeux, partage un jeu ou diffuse le tien à quelqu'un qui ne l'a pas.",
     "Link Play": "Jeu en liaison",
     "Couch Play": "Jeu sur canapé",
     "Host & Play": "Héberger et jouer",

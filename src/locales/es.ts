@@ -3098,7 +3098,6 @@ const ES: LocaleTable = {
     "Milestones Header Style": "Estilo de encabezado de hitos",
     "help_milestones_header_style": "Tal cual muestra los encabezados de las categorías de hitos con su escritura normal. Mayúsculas los muestra todo en mayúsculas.",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "Juega con otras personas en la misma Wi-Fi o en línea: enlaza los juegos, comparte uno o transmite el tuyo a quien no lo tenga.",
     "Link Play": "Juego enlazado",
     "Couch Play": "Juego en el sofá",
     "Host & Play": "Crear y jugar",

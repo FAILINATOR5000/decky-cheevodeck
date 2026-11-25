@@ -3166,7 +3166,6 @@ const PL: LocaleTable = {
     "Milestones Header Style": "Styl nagłówków kamieni milowych",
     "help_milestones_header_style": "Jak wpisano pokazuje nagłówki kategorii kamieni milowych w zwykłej pisowni. Wielkie litery zapisują je w całości wielkimi literami.",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "Graj z innymi w tej samej sieci Wi-Fi lub online: połączcie swoje gry, dzielcie jedną grę albo streamuj swoją komuś, kto jej nie ma.",
     "Link Play": "Gra połączona",
     "Couch Play": "Gra na kanapie",
     "Host & Play": "Hostuj i graj",

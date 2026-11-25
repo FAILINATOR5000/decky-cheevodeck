@@ -5222,7 +5222,6 @@ function AchievementsRoot() {
                                         onOpenFileWatcher: () => goToFileWatcher(),
                                         onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
                                         onOpenDataTransfer: () => goToDataTransfer(),
-                                        onOpenMultiplayer: () => goToMultiplayer(),
                                         onOpenOfflineHotspot: () => goToOfflineHotspot(),
                                         onOpenEmulators: () => goToEmulators(),
                                         onOpenQamGuard: () => goToQamGuard()

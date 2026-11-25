@@ -2,7 +2,7 @@
 
 # Play Together Page
 
-Play Together lets you play your games with other people: on the same Wi-Fi, over the internet, or even with no Wi-Fi around at all. Someone hosts a room, everyone else joins it, and CheevoDeck handles the netplay setup that normally takes a whole evening of forum posts. You can access the Play Together features in **Notifications** at the top or in **Utilities**.
+Play Together lets you play your games with other people: on the same Wi-Fi, over the internet, or even with no Wi-Fi around at all. Someone hosts a room, everyone else joins it, and CheevoDeck handles the netplay setup that normally takes a whole evening of forum posts. You can access the Play Together features in **Notifications** at the top.
 
 ## Pick a Play Mode
 
@@ -151,7 +151,7 @@ You can switch your status between Online and Hidden at the top of the tab, and 
 
 ## The Play Together Card
 
-**Notifications** keeps a **Play Together** card pinned at the top, so you can get to Play Together from anywhere without going through **Utilities**. Press the card and Play Together opens on **Play**. Down its right side, with no room open, are **Play Together Friends**, which opens the **Friends** tab, **Find a Room**, which opens the room list straight away so you don't have to open the page and scroll down for it, and the two [Offline Hotspot](offline-hotspot.md) buttons. Each button says what it does when you move onto it.
+**Notifications** keeps a **Play Together** card pinned at the top, so you can get to Play Together from anywhere. Press the card and Play Together opens on **Play**. Down its right side, with no room open, are **Play Together Friends**, which opens the **Friends** tab, **Find a Room**, which opens the room list straight away so you don't have to open the page and scroll down for it, and the two [Offline Hotspot](offline-hotspot.md) buttons. Each button says what it does when you move onto it.
 
 Once you're in a room, the card shows the game and how many seats are taken, and **Find a Room** makes way for **Close Room**, or **Leave Room** if it's someone else's room.
 

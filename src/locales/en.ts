@@ -3063,7 +3063,6 @@ export const EN: LocaleTable = {
     "Milestones Header Style": "Milestones Header Style",
     "help_milestones_header_style": "Typed shows the Milestones category headers in their normal case, while Capitalized puts them in all caps.",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "Play with people on the same Wi-Fi or online: link your games together, share one game, or stream yours to someone who doesn't have it.",
     "Link Play": "Link Play",
     "Couch Play": "Couch Play",
     "Host & Play": "Host & Play",

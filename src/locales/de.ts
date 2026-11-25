@@ -3054,7 +3054,6 @@ const DE: LocaleTable = {
     "Milestones Header Style": "Überschriftstil für Meilensteine",
     "help_milestones_header_style": "Wie getippt zeigt die Kategorieüberschriften der Meilensteine in normaler Schreibweise. Großbuchstaben schreibt sie durchgehend groß.",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "Spiele mit anderen im selben WLAN oder online: Verbinde eure Spiele, teile ein Spiel oder streame deins zu jemandem, der es nicht hat.",
     "Link Play": "Link-Spiel",
     "Couch Play": "Couch-Spiel",
     "Host & Play": "Hosten & Spielen",

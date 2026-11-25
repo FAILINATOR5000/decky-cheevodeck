@@ -2921,7 +2921,6 @@ const JA: LocaleTable = {
     "Milestones Header Style": "マイルストーンの見出しスタイル",
     "help_milestones_header_style": "「入力どおり」はマイルストーンのカテゴリ見出しを通常の表記で表示します。「大文字」はすべて大文字で表示します。",
     "Play Together": "Play Together",
-    "help_utils_multiplayer": "同じWi-Fiやオンラインでほかの人と遊べます。ゲーム同士をリンクしたり、1つのゲームを共有したり、持っていない人に自分のゲームをストリーミングしたりできます。",
     "Link Play": "リンクプレイ",
     "Couch Play": "カウチプレイ",
     "Host & Play": "ホストしてプレイ",
