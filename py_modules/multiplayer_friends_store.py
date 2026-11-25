@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import hashlib
 import json
 import re
 import secrets
@@ -22,6 +23,7 @@ from utils import (
 
 CURRENT_SCHEMA_VERSION = 1
 FILENAME = "multiplayer_friends.json"
+SNAPSHOT_FILENAME = "multiplayer_friends.pre-account-list.json"
 
 MAX_FRIENDS = 500
 MAX_REQUESTS = 200
@@ -188,6 +190,11 @@ def normalize(raw: dict) -> dict:
     }
 
 
+def friends_digest(friends) -> str:
+    lines = sorted(f"{friend['ulid']}|{friend['pairKey']}\n" for friend in friends)
+    return hashlib.sha256("".join(lines).encode("ascii")).hexdigest()
+
+
 def _new_identity(data: dict) -> list:
     fixed = []
     if data["deviceId"] is None:
@@ -303,3 +310,16 @@ class MultiplayerFriendsStore:
             if fixed:
                 self._write(data)
             return fixed
+
+    def snapshot(self) -> bool:
+        with self._lock:
+            path = self._path()
+            aside = path.with_name(SNAPSHOT_FILENAME)
+            if not self._ulid or not path.exists() or aside.exists():
+                return False
+            raw = load_json_file(path, None)
+            if not isinstance(raw, dict) or raw.get("ulid") != self._ulid or not _rows(raw, "friends"):
+                return False
+            with atomic_file(aside, keep_mode=0o600) as out:
+                out.write(path.read_bytes())
+            return True
