@@ -979,19 +979,21 @@ class MultiplayerFriendsService:
             return False
         return self._incoming(ulid, name, clean_pic(pic), key.hex(), "local")
 
-    def local_answer(self, ulid: str, accepted: bool, name: str, pic: str) -> bool:
+    def local_answer(self, ulid: str, accepted: bool, name: str, pic: str, key=None) -> bool:
         name = clean_name(name)
         if not self._on() or not is_ulid(ulid) or not name or not self._claim_ok(ulid, name):
             return False
+        key = key.hex() if key is not None else None
         if accepted:
-            if self._accepted(ulid, name, clean_pic(pic), "local"):
+            if self._accepted(ulid, name, clean_pic(pic), "local", key):
                 return True
             data = self._data()
-            return data is not None and self._find(data, ulid) is not None
+            friend = self._find(data, ulid) if data is not None else None
+            return friend is not None and (key is None or friend["pairKey"] == key)
 
         def drop(stored):
             mine = self._request_row(stored, ulid, "out")
-            if mine is None:
+            if mine is None or (key is not None and mine["pairKey"] != key):
                 return False
             stored["requests"].remove(mine)
             if mine["via"] == "server":
@@ -1237,7 +1239,7 @@ class MultiplayerFriendsService:
     async def _answer_local(self, ulid: str, accept: bool, key: str) -> str:
         seat = self._mp.seat_of(ulid)
         if seat is not None:
-            sent = await self._mp.send_friend(seat, "accept" if accept else "decline")
+            sent = await self._mp.send_friend(seat, "accept" if accept else "decline", bytes.fromhex(key))
             if self._mp.friend_confirms(seat):
                 if sent is True:
                     return "done"
@@ -1391,7 +1393,8 @@ class MultiplayerFriendsService:
                 pushed_at = self._pushed_at.get((entry["ulid"], entry["key"]))
                 if seat is None or (pushed_at is not None and time.monotonic() - pushed_at < RESEND_SECONDS):
                     continue
-                sent = await self._mp.send_friend(seat, "accept" if entry["accept"] else "decline")
+                sent = await self._mp.send_friend(seat, "accept" if entry["accept"] else "decline",
+                                                  bytes.fromhex(entry["key"]))
                 if self._mp.friend_confirms(seat):
                     if sent is True:
                         self._delivered(entry, "local")

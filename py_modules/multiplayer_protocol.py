@@ -753,7 +753,8 @@ def read_inbox_item(raw):
         return None
     if not is_ulid(raw.get("ulid")):
         return None
-    return {"seq": raw["seq"], "from": raw["from"], "ulid": raw["ulid"], "act": raw["act"], "n": raw.get("n", ""),
+    nonce = raw["n"] if is_nonce(raw.get("n")) else ""
+    return {"seq": raw["seq"], "from": raw["from"], "ulid": raw["ulid"], "act": raw["act"], "n": nonce,
             "k": raw.get("k", ""), "ok": raw.get("ok") is True}
 
 
@@ -767,7 +768,8 @@ def read_friend_ask(raw):
         return None
     if raw["act"] == "got" and type(raw.get("ok")) is not bool:
         return None
-    return {"act": raw["act"], "to": to, "n": raw.get("n", ""), "k": raw.get("k", ""), "ok": raw.get("ok") is True}
+    nonce = raw["n"] if is_nonce(raw.get("n")) else ""
+    return {"act": raw["act"], "to": to, "n": nonce, "k": raw.get("k", ""), "ok": raw.get("ok") is True}
 
 
 def inbox_since(raw) -> int:

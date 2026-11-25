@@ -4743,16 +4743,16 @@ class MultiplayerService:
         if asked is None or friends is None or not seat["ulid"] or asked["to"] == index:
             return False
         key = None
-        if asked["act"] == "ask":
+        if asked["act"] != "got" and asked["n"]:
             key = proto.unwrap(seat["key"], "pair", asked["n"], asked["k"])
-            if key is None:
-                return False
+        if asked["act"] == "ask" and key is None:
+            return False
         if asked["to"] == 0:
             if asked["act"] == "ask":
                 return friends.local_request(seat["ulid"], seat["name"], seat["pic"], key)
             if asked["act"] == "got":
                 return friends.local_got(seat["ulid"], asked["ok"])
-            return friends.local_answer(seat["ulid"], asked["act"] == "accept", seat["name"], seat["pic"])
+            return friends.local_answer(seat["ulid"], asked["act"] == "accept", seat["name"], seat["pic"], key)
         target = room["seats"][asked["to"]] if asked["to"] < room["max"] else None
         if target is None or not target["ulid"]:
             return False
@@ -5011,15 +5011,15 @@ class MultiplayerService:
         pic = status["ids"][sender]["pic"]
         if not ulid or not name or ulid != item["ulid"]:
             return
-        if item["act"] == "ask":
-            key = proto.unwrap(joined["key"], "pair", item["n"], item["k"])
-            if key is not None:
-                friends.local_request(ulid, name, pic, key)
-            return
         if item["act"] == "got":
             friends.local_got(ulid, item["ok"])
             return
-        found = friends.local_answer(ulid, item["act"] == "accept", name, pic)
+        key = proto.unwrap(joined["key"], "pair", item["n"], item["k"]) if item["n"] else None
+        if item["act"] == "ask":
+            if key is not None:
+                friends.local_request(ulid, name, pic, key)
+            return
+        found = friends.local_answer(ulid, item["act"] == "accept", name, pic, key)
         self._spawn(self.send_friend(sender, "got", ok=bool(found)))
 
     def seat_identity(self, index: int):
