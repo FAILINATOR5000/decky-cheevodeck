@@ -697,6 +697,14 @@ class OptionsMixin(PluginContext):
             "mpStreamScreenWarningOff": value,
         }
 
+    async def save_mp_unready_start_warning_off(self, mp_unready_start_warning_off: bool):
+        value = self.settings_store.update_mp_unready_start_warning_off(mp_unready_start_warning_off)
+
+        return {
+            "ok": True,
+            "mpUnreadyStartWarningOff": value,
+        }
+
     async def save_hotspot_intro_off(self, hotspot_intro_off: bool):
         value = self.settings_store.update_hotspot_intro_off(hotspot_intro_off)
 

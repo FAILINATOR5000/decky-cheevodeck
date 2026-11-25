@@ -84,6 +84,7 @@ import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpenAt";
+import { changeUnreadyStartWarning, useUnreadyStartWarning } from "../utils/multiplayerRoomState";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -1925,6 +1926,7 @@ function GuiTab(props: TabContentProps) {
 
 function SocialTab(props: TabContentProps) {
     const { state, actions, buttonOuterStyle, disabled } = props;
+    const unreadyStartWarning = useUnreadyStartWarning();
 
     return (
         <>
@@ -2172,6 +2174,15 @@ function SocialTab(props: TabContentProps) {
                     disabled={disabled}
                 />
             </PanelSectionRow>
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpUnreadyStartWarning"
+                label={t(state.language, "Show Ready Notification")}
+                value={unreadyStartWarning}
+                onChange={(next: boolean) => void changeUnreadyStartWarning(next)}
+                disabled={disabled}
+                help={t(state.language, "If enabled, starting the game while some guests aren't ready yet asks you first.")}
+            />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 focusKey="options:toggle:mpFriendsEnabled"

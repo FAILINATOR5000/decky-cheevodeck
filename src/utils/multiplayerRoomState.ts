@@ -2,7 +2,7 @@ import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { runningAppId } from "./steam/runningApp";
 import { useSyncExternalStore } from "react";
 
-import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi, saveMpStreamShadersOff } from "../api";
+import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame, saveMpSteadyWifi, saveMpStreamShadersOff, saveMpUnreadyStartWarningOff } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerLounge, MultiplayerLoungeBoard, MultiplayerRoomStatus, MultiplayerVote } from "../types";
 import { logError } from "./errors";
@@ -69,6 +69,8 @@ const listeners = new Set<() => void>();
 let chatToastsInGame = true;
 const chatToastListeners = new Set<() => void>();
 let steadyWifi = true;
+let unreadyStartWarningOff = false;
+const unreadyStartListeners = new Set<() => void>();
 let streamShadersOff = true;
 const streamShadersListeners = new Set<() => void>();
 
@@ -144,8 +146,44 @@ export async function changeStreamShadersOff(next: boolean) {
     }
 }
 
-export function setSteadyWifiSettings(next: { mpSteadyWifi?: boolean }) {
+export function setSteadyWifiSettings(next: { mpSteadyWifi?: boolean; mpUnreadyStartWarningOff?: boolean }) {
     steadyWifi = next.mpSteadyWifi ?? steadyWifi;
+    publishUnreadyStart(next.mpUnreadyStartWarningOff ?? unreadyStartWarningOff);
+}
+
+function publishUnreadyStart(off: boolean) {
+    if (off === unreadyStartWarningOff) {
+        return;
+    }
+    unreadyStartWarningOff = off;
+    for (const listener of unreadyStartListeners) {
+        listener();
+    }
+}
+
+export function unreadyStartWarningShown(): boolean {
+    return !unreadyStartWarningOff;
+}
+
+export function useUnreadyStartWarning(): boolean {
+    return useSyncExternalStore((listener) => {
+        unreadyStartListeners.add(listener);
+        return () => {
+            unreadyStartListeners.delete(listener);
+        };
+    }, () => !unreadyStartWarningOff);
+}
+
+export async function changeUnreadyStartWarning(shown: boolean) {
+    const was = unreadyStartWarningOff;
+    publishUnreadyStart(!shown);
+    try {
+        publishUnreadyStart((await saveMpUnreadyStartWarningOff(!shown)).mpUnreadyStartWarningOff);
+    }
+    catch (e) {
+        logError("room: saving Show Ready Notification", e);
+        publishUnreadyStart(was);
+    }
 }
 
 export function steadyWifiChoice(): boolean {

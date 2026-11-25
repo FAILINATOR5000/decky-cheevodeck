@@ -933,6 +933,7 @@ export type SettingsResponse = {
     mpSteadyWifi: boolean;
     mpStreamShadersOff: boolean;
     mpStreamScreenWarningOff: boolean;
+    mpUnreadyStartWarningOff: boolean;
     hotspotIntroOff: boolean;
     hotspotDedicated: boolean;
     mpVoicePttToggle: boolean;

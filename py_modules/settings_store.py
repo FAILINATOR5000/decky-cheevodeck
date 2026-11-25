@@ -485,6 +485,7 @@ _KNOBS = (
     Knob("mpSteadyWifi", default=True, normalize=True, read=READ_BOOL),
     Knob("mpStreamShadersOff", default=True, normalize=True, read=READ_BOOL),
     Knob("mpStreamScreenWarningOff", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpUnreadyStartWarningOff", default=False, normalize=True, read=READ_BOOL),
     Knob("hotspotIntroOff", default=False, normalize=True, read=READ_BOOL),
     Knob("hotspotDedicated", default=True, normalize=True, read=READ_BOOL),
     Knob("playShortcutFallback", default=True, normalize=True, read=READ_BOOL),
@@ -2451,6 +2452,10 @@ class SettingsStore:
     def update_mp_stream_screen_warning_off(self, value: bool) -> bool:
         cfg = self._update_config("mpStreamScreenWarningOff", bool(value))
         return bool(cfg.get("mpStreamScreenWarningOff", False))
+
+    def update_mp_unready_start_warning_off(self, value: bool) -> bool:
+        cfg = self._update_config("mpUnreadyStartWarningOff", bool(value))
+        return bool(cfg.get("mpUnreadyStartWarningOff", False))
 
     def update_hotspot_intro_off(self, value: bool) -> bool:
         cfg = self._update_config("hotspotIntroOff", bool(value))

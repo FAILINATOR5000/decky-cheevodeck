@@ -1040,6 +1040,9 @@ export const saveMpStreamOverlay = callable<[boolean], { ok: boolean; mpStreamOv
 export const saveMpStreamScreenWarningOff = callable<[boolean], { ok: boolean; mpStreamScreenWarningOff: boolean }>(
     "save_mp_stream_screen_warning_off"
 );
+export const saveMpUnreadyStartWarningOff = callable<[boolean], { ok: boolean; mpUnreadyStartWarningOff: boolean }>(
+    "save_mp_unready_start_warning_off"
+);
 export const streamRemove = callable<[], { ok: boolean; appid?: number; error?: string }>("stream_remove");
 
 export type HotspotDevice = { mac: string; address: string; name: string };

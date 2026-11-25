@@ -37,6 +37,7 @@ import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openMessageCenter } from "../components/multiplayer/MessageCenterModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
 import { openStreamScreenWarning } from "../components/multiplayer/StreamScreenWarningModal";
+import { openUnreadyStart } from "../components/multiplayer/UnreadyStartModal";
 import { openImportantNotice } from "../components/multiplayer/ImportantNoticeModal";
 import { bitrateLabel, openStreamBitrate } from "../components/multiplayer/StreamBitrateModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
@@ -91,7 +92,7 @@ import {
     useSlowConnection,
     useStreamSetup
 } from "../utils/streamPlay";
-import { changeChatToastsInGame, changeStreamShadersOff, useChatToastsInGame, useStreamShadersOff } from "../utils/multiplayerRoomState";
+import { changeChatToastsInGame, changeStreamShadersOff, unreadyStartWarningShown, useChatToastsInGame, useStreamShadersOff } from "../utils/multiplayerRoomState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { CoreInstallLine, useCoreInstalls } from "../components/emulators/CoreInstall";
 import { textSize } from "../utils/scale";
@@ -560,9 +561,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     let playLabel = "Host & Play";
     let canPlay = canStartShown;
     let pressPlay = () => {
-        if (canStartNow) {
-            void actions.start();
+        if (!canStartNow) {
+            return;
         }
+        const waiting = hosted?.seats.some((seat, index) => index > 0 && seat !== null && !seat.ready);
+        if (waiting && unreadyStartWarningShown()) {
+            openUnreadyStart(language, () => void actions.start());
+            return;
+        }
+        void actions.start();
     };
     if (hosted && !inLobby) {
         canPlay = false;
