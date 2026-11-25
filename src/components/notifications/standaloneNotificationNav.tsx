@@ -9,6 +9,7 @@ import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { buildSaveCommentPayload, matchKeyForComment, type SavedCommentSourceInput } from "../../utils/savedComments";
 import { CommentViewModal, type CommentSaveControl } from "../comments/CommentViewModal";
+import { openNoticesFirst } from "../multiplayer/ImportantNoticeModal";
 import { TextViewerModal } from "../ui/TextViewerModal";
 import { NotificationsMultipathModal, type MultipathOption } from "./NotificationsMultipathModal";
 
@@ -149,7 +150,10 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
             landLater({ kind: "offlineHotspot" });
         },
         openMultiplayer: (land) => {
-            landLater({ kind: "multiplayer" }, land);
+            const go = () => landLater({ kind: "multiplayer" }, land);
+            if (!openNoticesFirst(language, go)) {
+                go();
+            }
         },
         openAbout: () => {
             landLater({ kind: "about" });

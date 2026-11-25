@@ -160,6 +160,11 @@ class MultiplayerMixin(PluginContext):
             self.settings_store.mark_exit_note_shown()
         return {"ok": True, "show": refresh, "exit": exit_note}
 
+    async def multiplayer_refresh_note_due(self):
+        cfg = self.settings_store.load_config()
+        return {"ok": True, "show": not self.settings_store.get_refresh_note_shown(cfg),
+                "exit": not self.settings_store.get_exit_note_shown(cfg)}
+
     async def retroarch_quit_hotkey(self):
         record = self.settings_store.get_ra_quit_record(self.settings_store.load_config())
         return await asyncio.to_thread(quit_hotkey.status, self.user_home, record)

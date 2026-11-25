@@ -1,6 +1,8 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 
+import { multiplayerRefreshNoteDue, multiplayerTakeRefreshNote } from "../../api";
 import { t, type LanguageCode } from "../../locales";
+import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { FocusTarget } from "../ui/FocusTarget";
@@ -63,7 +65,30 @@ function ImportantNoticeModal(props: { language: LanguageCode; notices: Notice[]
     );
 }
 
-export function openImportantNotice(language: LanguageCode, show: { refresh: boolean; exit: boolean }) {
+let due: { refresh: boolean; exit: boolean } | null = null;
+
+export function learnNoticesDue() {
+    multiplayerRefreshNoteDue()
+        .then((note) => {
+            if (note.ok) {
+                due = { refresh: note.show, exit: Boolean(note.exit) };
+            }
+        })
+        .catch((e) => logError("multiplayer: whether the notices are due", e));
+}
+
+export function openNoticesFirst(language: LanguageCode, after?: () => void): boolean {
+    if (!due || (!due.refresh && !due.exit)) {
+        return false;
+    }
+    const show = due;
+    multiplayerTakeRefreshNote().catch((e) => logError("multiplayer: marking the notices shown", e));
+    openImportantNotice(language, show, after);
+    return true;
+}
+
+export function openImportantNotice(language: LanguageCode, show: { refresh: boolean; exit: boolean }, after?: () => void) {
+    due = { refresh: false, exit: false };
     const notices: Notice[] = [];
     if (show.refresh) {
         notices.push({ key: "refresh", heading: "60 Hz for Best Experience", body: "refresh_note_body" });
@@ -72,6 +97,7 @@ export function openImportantNotice(language: LanguageCode, show: { refresh: boo
         notices.push({ key: "exit", heading: "WARNING for Couch/Link Play only", body: "exit_note_body" });
     }
     if (notices.length > 0) {
-        showManagedModal((close) => <ImportantNoticeModal language={language} notices={notices} close={close} />);
+        showManagedModal((close) => <ImportantNoticeModal language={language} notices={notices} close={close} />,
+            after ? { onClose: after, returnToQam: false } : undefined);
     }
 }

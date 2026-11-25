@@ -109,6 +109,7 @@ import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { BOOT_CAT_IMAGE, BOOT_CAT_LINES } from "../components/ui/bootCat";
 import { NoteEditModal, type SaveTrackedNoteFn } from "../components/notes/NoteEditModal";
 import { NotificationsModal } from "../components/notifications/NotificationsModal";
+import { openNoticesFirst } from "../components/multiplayer/ImportantNoticeModal";
 import { NotificationsProvider } from "../components/notifications/NotificationsContext";
 import { NotificationsMultipathModal, type MultipathOption } from "../components/notifications/NotificationsMultipathModal";
 import { useAboutController } from "../hooks/useAboutController";
@@ -3706,6 +3707,10 @@ function AchievementsRoot() {
                     subView: gameOverviewSubView
                 }
                 : null);
+        }
+        if (openNoticesFirst(language)) {
+            requestPanelEntry({ kind: "multiplayer" }, land ? { land } : undefined);
+            return;
         }
         setView("multiplayer", intent, land ? { land } : undefined);
         setPendingFocusKey("multiplayer:back");

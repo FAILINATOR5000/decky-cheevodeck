@@ -19,6 +19,7 @@ import { CornerProbe } from "../ui/CornerProbe";
 import { LabeledRow } from "../ui/LabeledRow";
 import { NotificationScrollList } from "./NotificationScrollList";
 import { joinError } from "../multiplayer/AddFriendModal";
+import { learnNoticesDue } from "../multiplayer/ImportantNoticeModal";
 import { MultiplayerNotificationRow } from "../multiplayer/MultiplayerNotificationRow";
 import { showMultiplayerProblem } from "../multiplayer/ProblemModal";
 import { useJoinAttempt } from "../multiplayer/joinAttempt";
@@ -118,6 +119,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
     useEffect(function logOpen() {
         logNotificationsDebug("open", String(initialNotifications.length));
         recordMilestoneEvent("notifications_open");
+        learnNoticesDue();
     }, []);
 
     useEffect(function loadArchive() {

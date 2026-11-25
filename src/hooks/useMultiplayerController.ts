@@ -31,6 +31,7 @@ import type {
 } from "../types";
 import { logError } from "../utils/errors";
 import { getCurrentLanguage } from "../locales";
+import { learnNoticesDue } from "../components/multiplayer/ImportantNoticeModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { ROOM_ENDED, problemText } from "../utils/multiplayerProblems";
 import {
@@ -226,6 +227,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         showProblem(titleKey, problem);
     }
 
+    useEffect(() => {
+        learnNoticesDue();
+    }, []);
     const hosted = status?.role === "host" ? status.room : null;
     const joined = status?.role === "guest" ? status : null;
     const mode: MultiplayerMode = hosted?.mode ?? joined?.room.mode ?? tab;

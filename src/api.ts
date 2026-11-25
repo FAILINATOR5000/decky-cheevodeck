@@ -946,6 +946,7 @@ export const multiplayerVoteStart = callable<["vote" | "pick", number[]], Multip
 export const multiplayerVoteCancel = callable<[], MultiplayerReply>("multiplayer_vote_cancel");
 export const multiplayerVote = callable<[vote: number, pick: number], MultiplayerReply>("multiplayer_vote");
 export const multiplayerTakeRefreshNote = callable<[], { ok: boolean; show: boolean; exit?: boolean }>("multiplayer_take_refresh_note");
+export const multiplayerRefreshNoteDue = callable<[], { ok: boolean; show: boolean; exit?: boolean }>("multiplayer_refresh_note_due");
 
 type RetroArchQuitNote = { kind: "binds"; buttons: GlyphButton[] } | { kind: "keyboard"; key: string };
 export type RetroArchQuitStatus = {
