@@ -144,6 +144,9 @@ export function FriendsTab(props: FriendsTabProps) {
     }
 
     async function act(task: () => Promise<{ ok: boolean; error?: string }>) {
+        if (busy) {
+            return;
+        }
         setBusy(true);
         try {
             const done = await task();
@@ -312,7 +315,6 @@ export function FriendsTab(props: FriendsTabProps) {
                                             <FocusTarget key={key} focusKey={key} focusFallback={added} style={{ display: "flex", flex: 1 }}>
                                                 <DialogButton
                                                     style={{ ...compactButtonStyle, width: "100%" }}
-                                                    disabled={busy}
                                                     onGamepadFocus={() => list.onItemFocus(at)}
                                                     onGamepadDirection={list.guardTopRow(at)}
                                                     onClick={() => void act(() => multiplayerFriendAdd(suggestion.name))}
@@ -327,7 +329,6 @@ export function FriendsTab(props: FriendsTabProps) {
                                             >
                                                 <DialogButton
                                                     style={{ ...compactButtonStyle, width: "100%" }}
-                                                    disabled={busy}
                                                     onGamepadFocus={() => list.onItemFocus(at)}
                                                     onGamepadDirection={list.guardTopRow(at)}
                                                     onClick={() => void act(() => multiplayerFriendDismiss(suggestion.ulid))}
@@ -365,7 +366,6 @@ export function FriendsTab(props: FriendsTabProps) {
                                         <FocusTarget key={key} focusKey={key} focusFallback={after} style={{ display: "flex", flex: 1 }}>
                                             <DialogButton
                                                 style={{ ...compactButtonStyle, width: "100%" }}
-                                                disabled={busy}
                                                 onGamepadFocus={() => list.onItemFocus(at)}
                                                 onGamepadDirection={list.guardTopRow(at)}
                                                 onClick={() => void act(() => multiplayerFriendAnswer(request.ulid, asking))}
@@ -381,7 +381,6 @@ export function FriendsTab(props: FriendsTabProps) {
                                             >
                                                 <DialogButton
                                                     style={{ ...compactButtonStyle, width: "100%" }}
-                                                    disabled={busy}
                                                     onGamepadFocus={() => list.onItemFocus(at)}
                                                     onGamepadDirection={list.guardTopRow(at)}
                                                     onClick={() => void act(() => multiplayerFriendAnswer(request.ulid, false))}
