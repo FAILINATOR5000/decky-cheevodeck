@@ -225,17 +225,19 @@ export function FriendsTab(props: FriendsTabProps) {
                                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
                                     <span
                                         style={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            alignItems: "center",
+                                            columnGap: "8px",
                                             fontWeight: 800,
                                             overflowWrap: "anywhere",
                                             color: item.kind === "request" && item.row.way === "in" && !item.row.accepted
                                                 ? achievementGreen : undefined
                                         }}
                                     >
-                                        {item.kind === "friend" ? friendName(item.row) : row.name}
+                                        <span style={{ minWidth: 0 }}>{item.kind === "friend" ? friendName(item.row) : row.name}</span>
                                         {item.kind === "friend" && item.row.unread > 0 && (
-                                            <span style={{ marginLeft: "8px" }}>
-                                                <NewPill language={language} count={item.row.unread} />
-                                            </span>
+                                            <NewPill language={language} count={item.row.unread} />
                                         )}
                                     </span>
                                     {item.kind === "friend" && (
