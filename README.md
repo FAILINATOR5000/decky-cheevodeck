@@ -263,11 +263,23 @@ An example of Steam library badges in action.
 
     <a href="docs/images/getting-started-milestones.webp"><img src="docs/images/getting-started-milestones.webp" width="560"></a>
 
-7. Finally, select whether or not you would like to enable the **Global Buttons** feature. This allows you to summon powerful tools like the Guides Viewer, the custom web browser, notifications, and much more using a button combo and/or your back buttons anywhere, even outside of the CheevoDeck plugin.
+7. Next, select whether or not you would like to enable the **Global Buttons** feature. This allows you to summon powerful tools like the Guides Viewer, the custom web browser, notifications, and much more using a button combo and/or your back buttons anywhere, even outside of the CheevoDeck plugin.
 
     <a href="docs/images/getting-started-global-buttons.webp"><img src="docs/images/getting-started-global-buttons.webp" width="560"></a>
 
-8. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
+8. You will now be shown the **Play Together** window, where you can choose to either keep the **Friends Service** on or turn it off. It's recommended to keep it on so your Play Together (multiplayer) friends list works as it should.
+
+    <a href="docs/images/play-together-welcome.webp"><img src="docs/images/play-together-welcome.webp" width="560"></a>
+
+9. The final step is setting up a **Cheevo Check** scan, which is a scan of your entire game library, which allows CheevoDeck to know what games are in your library and how they can be launched. Many features like Play Together, Steam Library Badges, Game Save Backups, and launching games from within CheevoDeck rely on this, but it's not required.
+
+    <a href="docs/images/cheevo-check-welcome.webp"><img src="docs/images/cheevo-check-welcome.webp" width="560"></a>
+
+    You can either skip it for now or choose your game library folder containing your entire ROM collection. If you have EmuDeck, it knows exactly where to look and defaults to that folder in the folder chooser dialog. You can change it from there if your library is elsewhere.
+
+    After choosing your folder, verify that the folders it lists (on the left) are associated with the correct game system (on the right), then select **Start Scan**.
+
+10. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
 
     1. Start up your RetroAchievements supported game in whichever emulator you choose. Ensure you are logged into your RetroAchievements account within the emulator or front-end first. Once your game is started, RA is notified of the current game you are playing.
 
