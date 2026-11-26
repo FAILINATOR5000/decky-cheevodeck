@@ -1,5 +1,9 @@
 CheevoDeck {{VERSION}}
 
+This is just a smaller update with some fixes and improvements for the Play Together feature. Most notably, your friends list now syncs across devices.
+
+In case you've missed it, here are the 2.0 notes:
+
 Welcome to the Play Together update! (Plus MUCH more). You are now able to play your favorite games with your friends easily with the new Play Together feature, making retro game multiplayer easier than ever, unified all under this one feature. No matter where you and your friends are in the world, you are now able to host rooms, invite them and/or open it so anyone else can join. Once in the room, you can chat, voice chat (if enabled), chill in the lounge, and play your favorite games together. Itching to trade Pokémon or battle it out in Super Smash Bros.? Play Together has you covered! To get started, select the notification bell in the upper right corner to see the banner. This is just one feature, so please do read below to learn more about Play Together and the other features, bug fixes, and improvements.
 
 <b>New: Play Together</b>
