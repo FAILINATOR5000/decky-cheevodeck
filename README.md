@@ -122,6 +122,16 @@ Here is just a sample of some of the pages within the plugin. There's plenty mor
   </tr>
 </table>
 
+Play Together: picking a play mode, a room with its chat, and a game of Reversi in the lounge.
+
+<table>
+  <tr>
+    <td><a href="docs/images/play-together-01.webp"><img src="docs/images/play-together-01.webp" width="260"></a></td>
+    <td><a href="docs/images/play-together-02.webp"><img src="docs/images/play-together-02.webp" width="260"></a></td>
+    <td><a href="docs/images/play-together-03.webp"><img src="docs/images/play-together-03.webp" width="260"></a></td>
+  </tr>
+</table>
+
 Watching a memory clip in Timeline Playback mode allows you to see in real-time which achievements were unlocked in the moment.
 
 <table>
