@@ -28,6 +28,10 @@ A full RetroAchievements tracking and management system inside the Quick Access 
 
 CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite for achievement hunters who want an enjoyable, cozy, and smooth time obtaining their goals. It was built from the ground up to take advantage of the Steam Quick Access Menu, offering a lightweight, portable experience.
 
+- **Multiplayer** — It's never been easier than it is now to play your favorite games online or locally with anyone. **Play Together** unifies emulation multiplayer under one feature so you don't have to deal with the hassle of setup. Select a game, create a room, invite friends (or wait for others to join), and when everyone readies up, launch and play for some multiplayer action. It doesn't matter if it's a Pokémon trade or Mario Party multiplayer mayhem. It all just works.
+
+- **Game Save Backup and Versioning** — Set up per-game save backups on a regular interval, so your previous data is protected. If something happens, restore it with a press of a button.
+
 - **Advanced tracking** — Tracking an achievement adds it to a special per-game list built to keep you organized: categorize them, add notes, view info, and more. Unlock it and it quietly takes itself off the list.
 
 - **Event Tracking** — Track and manage all of the special RetroAchievements Events, organizing them into categories, adding notes, and checklists. No more having to keep track of all of the different events as everything is centralized within the Events section.
@@ -74,7 +78,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Bonus utilities**
 
-    - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different Wii control schemes. This does not touch your profiles; it only changes the active controller settings.
+    - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different Wii control schemes. This does not touch your profiles; it only changes the active controller settings. You can also set a mapping per game, so it switches automatically when you launch that game from CheevoDeck: select the chevron next to a game's **Play** button and choose **Dolphin Mappings**.
 
     - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your ROMs to ensure they are proper dumps. Run the scan once and each game page you added through Steam ROM Manager picks up a badge with your achievement progress on it.
 
