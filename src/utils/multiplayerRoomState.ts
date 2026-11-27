@@ -20,7 +20,7 @@ type ChatLine = { seq: number; name: string; text: string };
 type RoomVoice = { room: string; game: number; where: string; access: string; cfg: string; seats: ({ vc: boolean; vs: number } | null)[] };
 
 type VoteMarker = { id: number; kind: string; open: boolean; ended: string; game: string; voted: boolean };
-type BoardMarker = { match: number; opener: number; openerName: string; end: string; winnerName: string };
+type BoardMarker = { match: number; opener: number; openerName: string; end: string; winnerName: string; players: number };
 type LoungeMarker = { ttt?: BoardMarker; c4?: BoardMarker; rev?: BoardMarker; chk?: BoardMarker };
 
 export type MultiplayerRoomMarker = {
@@ -318,7 +318,10 @@ function announceGames(before: MultiplayerRoomMarker, after: MultiplayerRoomMark
             continue;
         }
         const game = t(language, LOUNGE_NAMES[name]);
-        if (board.match > prior.match && board.opener >= 0 && board.opener !== ownSeat) {
+        const opened = name === "rev" || name === "chk"
+            ? prior.players === 0 && board.players > 0
+            : board.match > prior.match;
+        if (opened && board.opener >= 0 && board.opener !== ownSeat) {
             toast("Lounge Play", "{{name}} started {{game}}.", { name: board.openerName, game });
         }
         if (board.end && (board.match !== prior.match || board.end !== prior.end)) {
@@ -362,7 +365,7 @@ function readBoardMarker(raw: unknown): BoardMarker | null {
         return null;
     }
     return { match: board.match, opener: Number(board.opener ?? -1), openerName: String(board.openerName ?? ""),
-        end: String(board.end ?? ""), winnerName: String(board.winnerName ?? "") };
+        end: String(board.end ?? ""), winnerName: String(board.winnerName ?? ""), players: Number(board.players) || 0 };
 }
 
 function readLoungeMarker(raw: unknown): LoungeMarker | null {
@@ -445,7 +448,8 @@ function loungeMarkerOf(lounge: MultiplayerLounge | null | undefined): LoungeMar
         opener: game.players[0]?.seat ?? -1,
         openerName: game.players[0]?.name ?? "",
         end: game.end,
-        winnerName: game.end === "win" ? game.players[game.winner]?.name ?? "" : ""
+        winnerName: game.end === "win" ? game.players[game.winner]?.name ?? "" : "",
+        players: game.players.length
     });
     const marker: LoungeMarker = {};
     for (const name of ["ttt", "c4", "rev", "chk"] as const) {
