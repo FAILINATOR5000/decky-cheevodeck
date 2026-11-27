@@ -12,7 +12,7 @@ When **Verify Dump** is toggled on, you will get even more info after a scan. Th
 
 ## How it Works
 
-To run the basic out-of-the-box Cheevo Check scan, just select **Scan**. A list pops up first, showing each folder it found in your ROM collection and the system it thinks that folder is. If you are using EmuDeck or ES-DE, everything should already be right, so just select **Start Scan**! Otherwise, see the [Checking Your Systems](#checking-your-systems) section below.
+To run the basic out-of-the-box Cheevo Check scan, just select **Scan**. Then, if it can't find your ROM folder on its own, it will ask you to choose your base ROM folder containing your entire game collection. After that, a list pops up showing each folder it found in your ROM collection. On the left is your folder it found and on the right is the system that is associated with the folder. You can always change the folder anytime, even if it brings you straight to the list, by selecting the folder path. Check to ensure they are correct. If not, you can correct it by pressing **A** on that item and then selecting the correct system. If you are using EmuDeck or ES-DE, everything should already be right, so just select **Start Scan**! Otherwise, see the [Checking Your Systems](#checking-your-systems) section below.
 
 Anyway, once you select **Start Scan**, the scan will begin. It first pulls all the necessary data from RetroAchievements for each system. Then it checks your files under each system against known RA hashes to determine which bucket they are categorized under.
 
